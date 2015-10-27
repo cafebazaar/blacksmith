@@ -1,4 +1,6 @@
-pixiecore
+aghajoon
 example/example
 .vagrant
-
+*~
+workspace
+vagrant_provision_after_docker_installation.local

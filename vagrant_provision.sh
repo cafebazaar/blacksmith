@@ -1,28 +1,16 @@
 #!/bin/bash
+set -e
 
-apt-get update -qy
-apt-get upgrade -qy
-apt-get install -qy git
+cd /vagrant
 
-if [ ! -f /usr/local/go/bin/go ]; then
-    cd /tmp
-    wget -qcO go.tar.gz https://storage.googleapis.com/golang/go1.5.1.linux-amd64.tar.gz
-    tar -C /usr/local -xzf go.tar.gz
-    rm go.tar.gz
+if [ ! -x /usr/bin/docker ]; then
+  apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+  echo "deb https://apt.dockerproject.org/repo ubuntu-trusty main" > /etc/apt/sources.list.d/docker.list
+  apt-get update -qy
+  apt-get upgrade -qy
+  apt-get install -y docker-engine
+  [ -x /vagrant/vagrant_provision_after_docker_installation.local ] && /vagrant/vagrant_provision_after_docker_installation.local
 fi
-export PATH=$PATH:/usr/local/go/bin
 
-mkdir -p /go/src/github.com/danderson
-export GOPATH=/go
-ln -s /vagrant /go/src/github.com/danderson/pixiecore
-
-cd /go/src/github.com/danderson/pixiecore
-go get golang.org/x/crypto/nacl/secretbox
-go get golang.org/x/net/ipv4
-go build -o /usr/local/bin/pixiecore .
-
-cat > /etc/profile.d/go.sh <<EOF
-export PATH=$PATH:/usr/local/go/bin
-export GOPATH=/go
-EOF
-
+docker build -t aghajoon .
+docker run -i --rm aghajoon -help

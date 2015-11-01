@@ -121,11 +121,11 @@ func (s *httpServer) Read(version string, id string) (io.ReadCloser, error) {
 }
 
 func (s *httpServer) File(w http.ResponseWriter, r *http.Request) {
+	Debug("HTTPBOOTER", "Got request for %s", r.URL.Path)
+
 	splitPath := strings.SplitN(r.URL.Path, "/", 4)
 	version := splitPath[2]
 	id := splitPath[3]
-
-	Debug("HTTPBOOTER", "Request for version=%s, id=%s (splitPath=%q)", version, id, splitPath)
 
 	var (
 		f   io.ReadCloser

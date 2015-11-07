@@ -1,83 +1,160 @@
 package main
 
 import (
-	"errors"
-	"flag"
-	"fmt"
-	"log"
 	"os"
-	"strconv"
-
-	"github.com/danderson/pixiecore/tftp"
+	"fmt"
+	"aghajoon/dhcp"
+	"aghajoon/logging"
+	"aghajoon/pxe"
+	"log"
+	"net"
+	"time"
+	"flag"
 )
 
-//go:generate go-bindata -o pxelinux_autogen.go -prefix=pxelinux -ignore=README.md pxelinux
+//go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxelinux -ignore=README.md pxe/pxelinux
+
+const (
+	workspacePathHelp = `Path to workspace which obey following structure
+		/images/{core-os-version}/coreos_production_pxe_image.cpio.gz
+		/images/{core-os-version}/coreos_production_pxe.vmlinuz
+		/cloudconfig/
+		/ignitionconfig/
+`
+)
 
 var (
-	// I'm sort of giving you the option to change these ports here,
-	// but all of them except the HTTP port are hardcoded in the PXE
-	// option ROM, so it's pretty pointless unless you'd playing
-	// packet rewriting tricks or doing simulations with packet
-	// generators.
-	portDHCP = flag.Int("port-dhcp", 67, "Port to listen on for DHCP requests")
-	portPXE  = flag.Int("port-pxe", 4011, "Port to listen on for PXE requests")
-	portTFTP = flag.Int("port-tftp", 69, "Port to listen on for TFTP requests")
-	portHTTP = flag.Int("port-http", 70, "Port to listen on for HTTP requests")
-
-	workspace = flag.String("workspace", "", "Path to home of CoreOS images")
-
-	debug = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
-
-	help = flag.Bool("help", false, "Print this help.")
+	debug *bool
+	listenIFFlag *string = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
+	workspacePathFlag *string = flag.String("workspace", "/workspace", workspacePathHelp)
+	dataPathFlag *string = flag.String("data", "/tmp/", "Path to a place to store runtime data")
+	
+	leaseStartFlag *string = flag.String("lease-start", "", "Begining of lease starting IP")
+	leaseRangeFlag *int = flag.Int("lease-range", 0, "Lease range")
+	leaseSubnetFlag *string = flag.String("lease-subnet", "", "Subnet of specified lease")
+	leaseRouterFlag *string = flag.String("router", "", "Default router that assigned to DHCP clients")
+	leaseDNSFlag *string = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
 )
 
-func initHTTPBooter(ldlinux []byte) (*httpServer, error) {
-	if *workspace == "" {
-		return nil, errors.New("must provide -workspace")
+func interfaceIP(iface *net.Interface) (net.IP, error) {
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, err
 	}
-
-	return HTTPBooter(*portHTTP, *workspace, ldlinux)
+	fs := [](func(net.IP) bool){
+		net.IP.IsGlobalUnicast,
+		net.IP.IsLinkLocalUnicast,
+		net.IP.IsLoopback,
+	}
+	for _, f := range fs {
+		for _, a := range addrs {
+			ipaddr, ok := a.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			ip := ipaddr.IP.To4()
+			if ip == nil {
+				continue
+			}
+			if f(ip) {
+				return ip, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("interface %s has no usable unicast addresses", iface.Name)
 }
+
 
 func main() {
 	flag.Parse()
-
-	if *help {
-		flag.Usage()
-		os.Exit(0)
-	}
-
-	pxelinux, err := Asset("lpxelinux.0")
-	if err != nil {
-		fmt.Println(err)
+	// listen ip address for http, tftp
+	var listenIP net.IP = net.IP{0, 0, 0, 0}	
+	// finding interface by interface name
+	var err error
+	var dhcpIF *net.Interface
+	if *listenIFFlag != "" {
+		dhcpIF, err = net.InterfaceByName(*listenIFFlag)
+	} else {
+		fmt.Fprint(os.Stderr, "please specify an interface\n")
 		os.Exit(1)
 	}
-	ldlinux, err := Asset("ldlinux.c32")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln(err)
+	}
+	
+	dhcpIP, err := interfaceIP(dhcpIF)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	
+	// used for replying in dhcp and pxe
+	var serverIP net.IP = net.IPv4zero
+	if serverIP.Equal(net.IPv4zero) {
+		serverIP = dhcpIP
+	} 
+	
+	var httpAddr = net.TCPAddr{IP: listenIP, Port: 70}
+	var tftpAddr = net.UDPAddr{IP: listenIP, Port: 69}
+	var pxeAddr = net.UDPAddr{IP: dhcpIP, Port: 4011}
+	
+	// dhcp setting
+	leaseStart := net.ParseIP(*leaseStartFlag)
+	leaseRange := *leaseRangeFlag
+	leaseSubnet := net.ParseIP(*leaseSubnetFlag)
+	leaseRouter := net.ParseIP(*leaseRouterFlag)
+	leaseDNS := net.ParseIP(*leaseDNSFlag)
+	
+	if leaseStart == nil {
+		fmt.Fprint(os.Stderr, "please specify the lease start ip\n")
 		os.Exit(1)
 	}
-
-	httpBooter, err := initHTTPBooter(ldlinux)
-	if err != nil {
-		flag.Usage()
-		fmt.Fprintf(os.Stderr, "\nERROR: %s\n", err)
+	if leaseRange <= 1 {
+		fmt.Fprint(os.Stderr, "lease range should be greater that 1\n")
 		os.Exit(1)
 	}
-
+	if leaseSubnet == nil {
+		fmt.Fprint(os.Stderr, "please specify the lease subnet\n")
+		os.Exit(1)
+	}
+	if leaseRouter == nil {
+		fmt.Fprint(os.Stderr, "please specify the IP address of network router\n")
+		os.Exit(1)
+	}
+	if leaseDNS == nil {
+		fmt.Fprint(os.Stderr, "please specify an DNS server\n")
+		os.Exit(1)
+	}
+	
+	// Printing stat
+	fmt.Printf("Server IP:		%s\n	", serverIP.String())
+	fmt.Printf("Interface IP:		%s\n", dhcpIP.String())
+	fmt.Printf("Interface Name:	%s\n", dhcpIF.Name)
+	
+	// serving http
 	go func() {
-		log.Fatalln(ServeProxyDHCP(*portDHCP))
+		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, *workspacePathFlag))
 	}()
+	// serving tftp
 	go func() {
-		log.Fatalln(ServePXE(*portPXE, *portHTTP))
+		log.Fatalln(pxe.ServeTFTP(tftpAddr))
 	}()
+	// pxe protocol
 	go func() {
-		tftp.Log = func(msg string, args ...interface{}) { Log("TFTP", msg, args...) }
-		tftp.Debug = func(msg string, args ...interface{}) { Debug("TFTP", msg, args...) }
-		log.Fatalln(tftp.ListenAndServe("udp4", ":"+strconv.Itoa(*portTFTP), tftp.Blob(pxelinux)))
+		log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
 	}()
+	// serving dhcp
 	go func() {
-		log.Fatalln(ServeHTTP(httpBooter))
+		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
+			IFName:        dhcpIF.Name,
+			DataDir:       *dataPathFlag,
+			LeaseStart:    leaseStart,
+			LeaseRange:    leaseRange,
+			LeaseDuration: 1 * time.Hour,
+			ServerIP:      serverIP,
+			RouterAddr:    leaseRouter,
+			SubnetMask:    leaseSubnet,
+			DNSAddr:       leaseDNS,
+		}))
 	}()
-	RecordLogs(*debug)
+	logging.RecordLogs(true)
 }

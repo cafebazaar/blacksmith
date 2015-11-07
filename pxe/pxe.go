@@ -1,13 +1,23 @@
-package main
+package pxe
 
 import (
+	"aghajoon/logging"
 	"bytes"
 	"errors"
 	"fmt"
-	"net"
-
 	"golang.org/x/net/ipv4"
+	"net"
 )
+
+var dhcpMagic = []byte{99, 130, 83, 99}
+
+type DHCPPacket struct {
+	TID  []byte
+	MAC  net.HardwareAddr
+	GUID []byte
+
+	ServerIP net.IP
+}
 
 type PXEPacket struct {
 	DHCPPacket
@@ -19,8 +29,19 @@ type PXEPacket struct {
 	HTTPServer string
 }
 
-func ServePXE(pxePort, httpPort int) error {
-	conn, err := net.ListenPacket("udp4", fmt.Sprintf(":%d", pxePort))
+func dhcpOption(b []byte) (typ byte, val []byte, next []byte) {
+	if len(b) < 2 || b[0] == 255 {
+		return 255, nil, nil
+	}
+	typ, l := b[0], int(b[1])
+	if len(b) < l+2 {
+		return 255, nil, nil
+	}
+	return typ, b[2 : 2+l], b[2+l:]
+}
+
+func ServePXE(listenAddr net.UDPAddr, serverIP net.IP, httpAddr net.TCPAddr) error {
+	conn, err := net.ListenPacket("udp4", listenAddr.String())
 	if err != nil {
 		return err
 	}
@@ -30,34 +51,30 @@ func ServePXE(pxePort, httpPort int) error {
 		return err
 	}
 
-	Log("PXE", "Listening on port %d", pxePort)
+	logging.Log("PXE", "Listening on %s", listenAddr.String())
 	buf := make([]byte, 1024)
 	for {
 		n, msg, addr, err := l.ReadFrom(buf)
 		if err != nil {
-			Log("PXE", "Error reading from socket: %s", err)
+			logging.Log("PXE", "Error reading from socket: %s", err)
 			continue
 		}
 
 		req, err := ParsePXE(buf[:n])
 		if err != nil {
-			Debug("PXE", "ParsePXE: %s", err)
+			logging.Debug("PXE", "ParsePXE: %s", err)
 			continue
 		}
 
-		req.ServerIP, err = interfaceIP(msg.IfIndex)
-		if err != nil {
-			Log("PXE", "Couldn't find an IP address to use to reply to %s: %s", req.MAC, err)
-			continue
-		}
-		req.HTTPServer = fmt.Sprintf("http://%s:%d/", req.ServerIP, httpPort)
+		req.ServerIP = serverIP
+		req.HTTPServer = fmt.Sprintf("http://%s/", httpAddr.String())
 
-		Log("PXE", "Chainloading %s (%s) to pxelinux (via %s)", req.MAC, req.ClientIP, req.ServerIP)
+		logging.Log("PXE", "Chainloading %s (%s) to pxelinux (via %s)", req.MAC, req.ClientIP, req.ServerIP)
 
 		if _, err := l.WriteTo(ReplyPXE(req), &ipv4.ControlMessage{
 			IfIndex: msg.IfIndex,
 		}, addr); err != nil {
-			Log("PXE", "Responding to %s: %s", req.MAC, err)
+			logging.Log("PXE", "Responding to %s: %s", req.MAC, err)
 			continue
 		}
 	}

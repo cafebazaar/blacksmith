@@ -67,6 +67,8 @@ func (p *LeasePool) reloadFromFile() {
 	if err = decoder.Decode(&p.leases); err != nil {
 		panic(err)
 	}
+	
+	// TODO check for IPs stored in p.lease that rest outside of current lease range
 }
 
 func (p *LeasePool) dumpToFile() {

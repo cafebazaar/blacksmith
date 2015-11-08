@@ -1,46 +1,21 @@
-# AghaJoon, Bare-Metal Kubernetes Cluster Manager
+# AghaJoon, Bare-Metal Booting for CoreOS and Kubernetes
 
-```
-There once was a protocol called PXE,
-Whose specification was overly tricksy.
-A committee refined it
-Into a big Turing tarpit,
-And now you're using it to boot your PC.
-```
+AghaJoon is a collection of DHCP, PXE, TFTP, and HTTP server, created with the
+purpose of booting CoreOS on bare-metal machines and configuring them by using
+cloud-config and ignition.
 
 Booting a Linux system over the network is quite tedious. You have to
 set up a TFTP server, configure your DHCP server to recognize PXE
 clients, and send them the right set of magical options to get them to
 boot, often fighting rubbish PXE ROM implementations.
 
-Pixiecore aims to simplify this process, by packing the whole process
+AghaJoon aims to simplify this process, by packing the whole process
 into a single binary that can cooperate with your network's existing
 DHCP server.
 
-### CoreOS
-
-Pixiecore was originally written as a component in an automated
-installation system for CoreOS on bare metal. For this example, let's
-set up a netboot for the alpha CoreOS release:
-
-```shell
-# Grab the PXE images and verify them
-wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
-wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz
-
-# In the real world, you would AUTHENTICATE YOUR DOWNLOADS
-# here. CoreOS distributes image signatures, but that only really
-# helps if you already know the right GPG key.
-
-# Go!
-pixiecore -kernel coreos_production_pxe.vmlinuz -initrd coreos_production_pxe_image.cpio.gz --cmdline coreos.autologin
-```
-
 ## Running in Docker
 
-Pixiecore is available as a Docker image called
-`cafebazaar/aghajoon`. It's an automatic Docker Hub build that tracks
-the repository.
+AghaJoon is available as a Docker image called `cafebazaar/aghajoon`.
 
 Because AghaJoon needs to listen for DHCP traffic, it has to run with
 the host network stack.
@@ -59,7 +34,7 @@ You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test enviro
     (HOST)$ vagrant ssh pxeserver
     (PXESERVER)$ wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
     (PXESERVER)$ wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz
-    (PXESERVER)$ pixiecore -debug -kernel coreos_production_pxe.vmlinuz -initrd coreos_production_pxe_image.cpio.gz --cmdline coreos.autologin
+    (PXESERVER)$ aghajoon
     ### In another terminal
     (HOST)$ vagrant up --provider=libvirt pxeclient1
 

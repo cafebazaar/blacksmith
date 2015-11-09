@@ -5,16 +5,11 @@ import (
 	"bytes"
 	"github.com/krolaw/dhcp4"
 	"net"
-	"path"
 	"time"
 )
 
 type DHCPSetting struct {
-	IFName   string
-	DataDir  string
-
-	LeaseStart    net.IP
-	LeaseRange    int
+	IFName        string
 	LeaseDuration time.Duration // TTL of this lease range
 	ServerIP      net.IP
 	RouterAddr    net.IP
@@ -22,10 +17,13 @@ type DHCPSetting struct {
 	DNSAddr       net.IP
 }
 
-func ServeDHCP(settings *DHCPSetting) error {
-	handler := newDHCPHandler(settings)
+func ServeDHCP(settings *DHCPSetting, leasePool *LeasePool) error {
+	handler, err := newDHCPHandler(settings, leasePool)
+	if err != nil {
+		logging.Debug("DHCP", "Error in connecting etcd - %s", err.Error())
+		return err
+	}
 	logging.Debug("DHCP", "Listening on :67 - with server IP %s", settings.ServerIP.String())
-	var err error
 	if settings.IFName != "" {
 		err = dhcp4.ListenAndServeIf(settings.IFName, handler)
 	} else {
@@ -45,7 +43,7 @@ type DHCPHandler struct {
 	dhcpOptions dhcp4.Options
 }
 
-func newDHCPHandler(settings *DHCPSetting) *DHCPHandler {
+func newDHCPHandler(settings *DHCPSetting, leasePool *LeasePool) (*DHCPHandler, error) {
 	h := &DHCPHandler{
 		settings: settings,
 	}
@@ -54,9 +52,12 @@ func newDHCPHandler(settings *DHCPSetting) *DHCPHandler {
 		dhcp4.OptionRouter:           []byte(settings.RouterAddr),
 		dhcp4.OptionDomainNameServer: []byte(settings.DNSAddr),
 	}
-	h.leasePool = NewLeasePool(path.Join(settings.DataDir, "leasepool.gob"), settings.LeaseStart,
-		settings.LeaseRange, settings.LeaseDuration)
-	return h
+	var err error
+	h.leasePool = leasePool
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
 }
 
 func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
@@ -109,7 +110,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			requestedIP = net.IP(p.CIAddr())
 		}
 		if len(requestedIP) == 4 && !requestedIP.Equal(net.IPv4zero) {
-			_, err := h.leasePool.Refresh(p.CHAddr().String(), requestedIP)
+			_, err := h.leasePool.Request(p.CHAddr().String(), requestedIP)
 			if err != nil {
 				goto nomatch
 			}

@@ -1,7 +1,6 @@
 package pxe
 
 import (
-	"net/http"
 	"aghajoon/logging"
 	"crypto/rand"
 	"errors"
@@ -9,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,9 +33,9 @@ type nodeContext struct {
 }
 
 type HTTPBooter struct {
-	listenAddr net.TCPAddr
-	ldlinux []byte
-	key     [32]byte
+	listenAddr    net.TCPAddr
+	ldlinux       []byte
+	key           [32]byte
 	workspacePath string
 }
 
@@ -47,10 +47,10 @@ func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte, workspacePath string)
 	} else if len(files) == 0 {
 		return nil, errors.New("the images subdirecory of workspace should contains at least one version of CoreOS")
 	}
-	
+
 	booter := &HTTPBooter{
-		listenAddr: listenAddr,
-		ldlinux: ldlinux,
+		listenAddr:    listenAddr,
+		ldlinux:       ldlinux,
 		workspacePath: workspacePath,
 	}
 	if _, err := io.ReadFull(rand.Reader, booter.key[:]); err != nil {
@@ -98,10 +98,10 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: Ask dataSource about the mac
- 	// We have a machine sitting in pxelinux, but the Booter says
- 	// we shouldn't be netbooting. So, give it a config that tells
- 	// pxelinux to shut down PXE booting and continue with the
- 	// next local boot method.
+	// We have a machine sitting in pxelinux, but the Booter says
+	// we shouldn't be netbooting. So, give it a config that tells
+	// pxelinux to shut down PXE booting and continue with the
+	// next local boot method.
 
 	coreOSVersion := "835.1.0"
 	KernelURL := "http://" + r.Host + "/f/" + coreOSVersion + "/kernel"
@@ -205,7 +205,7 @@ func HTTPBooterMux(listenAddr net.TCPAddr, workspacePath string) (*http.ServeMux
 	if err != nil {
 		return nil, err
 	}
-	return booter.Mux(), nil	
+	return booter.Mux(), nil
 }
 
 func ServeHTTPBooter(listenAddr net.TCPAddr, workspacePath string) error {
@@ -214,5 +214,5 @@ func ServeHTTPBooter(listenAddr net.TCPAddr, workspacePath string) error {
 	if err != nil {
 		return err
 	}
-	return http.ListenAndServe(listenAddr.String(), mux)	
+	return http.ListenAndServe(listenAddr.String(), mux)
 }

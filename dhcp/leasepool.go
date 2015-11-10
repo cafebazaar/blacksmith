@@ -1,7 +1,6 @@
 package dhcp
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"net"
@@ -97,10 +96,10 @@ func (p *LeasePool) Store(lease Lease) error {
 }
 
 // Leases returns map binary.BigEndian.Uint32(IP) and Lease of all assigned leases
-func (p *LeasePool) Leases() (map[uint32]Lease, error) {
+func (p *LeasePool) Leases() (map[string]Lease, error) {
 	p.dataLock.Lock()
 	defer p.dataLock.Unlock()
-	leases := make(map[uint32]Lease, 10)
+	leases := make(map[string]Lease, 10)
 	kapi := etcd.NewKeysAPI(p.etcdClient)
 
 	ctxGet, cancelGet := context.WithTimeout(context.Background(), 2*time.Second)
@@ -125,7 +124,7 @@ func (p *LeasePool) Leases() (map[uint32]Lease, error) {
 		var lease Lease
 		err := json.Unmarshal([]byte(response.Node.Nodes[i].Value), &lease)
 		if err == nil {
-			leases[binary.BigEndian.Uint32(lease.IP)] = lease
+			leases[lease.IP.String()] = lease
 		} else {
 			return nil, ErrFoundInvalidLease
 		}
@@ -170,9 +169,12 @@ func (p *LeasePool) Assign(nic string) (net.IP, error) {
 	// find an unseen ip
 	for i := 0; i < p.rangeLen; i++ {
 		ip := dhcp4.IPAdd(p.startIP, i)
-		_, exists := leases[binary.BigEndian.Uint32(ip)]
+		_, exists := leases[ip.String()]
 		if !exists {
-			p.Store(newLease(nic, ip, p.expireDuration, nil))
+			err := p.Store(newLease(nic, ip, p.expireDuration, nil))
+			if err != nil {
+				return nil, err
+			}
 			return ip, nil
 		}
 	}
@@ -195,7 +197,7 @@ func (p *LeasePool) Request(nic string, currentIP net.IP) (net.IP, error) {
 		return nil, err
 	}
 	now := time.Now()
-	lease, exists := leases[binary.BigEndian.Uint32(currentIP)]
+	lease, exists := leases[currentIP.String()]
 	if exists && lease.Nic == nic {
 		p.Store(newLease(nic, lease.IP, p.expireDuration, &lease.FirstAssigned))
 		return lease.IP, nil

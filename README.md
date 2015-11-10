@@ -1,5 +1,14 @@
 # AghaJoon, Bare-Metal Booting for CoreOS and Kubernetes
 
+[![GoDoc Widget]][GoDoc] [![Travis Widget]][Travis] [![Coverage Status Widget]][Coverage Status]
+
+[GoDoc]: https://godoc.org/github.com/cafebazaar/aghajoon
+[GoDoc Widget]: https://godoc.org/github.com/cafebazaar/aghajoon?status.png
+[Travis]: https://travis-ci.org/cafebazaar/aghajoon
+[Travis Widget]: https://travis-ci.org/cafebazaar/aghajoon.svg?branch=master
+[Coverage Status]: https://coveralls.io/r/cafebazaar/aghajoon
+[Coverage Status Widget]: https://coveralls.io/repos/cafebazaar/aghajoon/badge.svg
+
 AghaJoon is a collection of DHCP, PXE, TFTP, and HTTP server, created with the
 purpose of booting CoreOS on bare-metal machines and configuring them by using
 cloud-config and ignition.
@@ -37,4 +46,3 @@ You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test enviro
     (PXESERVER)$ aghajoon
     ### In another terminal
     (HOST)$ vagrant up --provider=libvirt pxeclient1
-

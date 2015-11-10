@@ -13,4 +13,3 @@ if [ ! -x /usr/bin/docker ]; then
 fi
 
 docker build -t aghajoon .
-docker run -i --rm aghajoon -help

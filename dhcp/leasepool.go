@@ -4,14 +4,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
-	etcd "github.com/coreos/etcd/client"
-	"github.com/krolaw/dhcp4"
 	"net"
 	"path"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
+	etcd "github.com/coreos/etcd/client"
+	"github.com/krolaw/dhcp4"
 )
 
 // TODO simplify assign and refresh

@@ -1,7 +1,6 @@
 package pxe
 
 import (
-	"aghajoon/logging"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -13,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/cafebazaar/aghajoon/logging"
 )
 
 // pxelinux configuration that tells the PXE/UNDI stack to boot from

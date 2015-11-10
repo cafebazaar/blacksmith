@@ -58,7 +58,8 @@ type LeasePool struct {
 	rangeLen       int
 	expireDuration time.Duration
 	etcdClient     etcd.Client
-	lock           sync.Mutex
+	dataLock       sync.Mutex
+	assignLock     sync.Mutex
 }
 
 func NewLeasePool(etcdEndpoints string, etcdDir string, startIP net.IP, rangeLen int, expireDuration time.Duration) (*LeasePool, error) {
@@ -82,8 +83,8 @@ func NewLeasePool(etcdEndpoints string, etcdDir string, startIP net.IP, rangeLen
 
 // Store will store the lease in etcd
 func (p *LeasePool) Store(lease Lease) error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.dataLock.Lock()
+	defer p.dataLock.Unlock()
 	kapi := etcd.NewKeysAPI(p.etcdClient)
 	data, err := json.Marshal(lease)
 	if err != nil {
@@ -97,8 +98,8 @@ func (p *LeasePool) Store(lease Lease) error {
 
 // Leases returns map binary.BigEndian.Uint32(IP) and Lease of all assigned leases
 func (p *LeasePool) Leases() (map[uint32]Lease, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.dataLock.Lock()
+	defer p.dataLock.Unlock()
 	leases := make(map[uint32]Lease, 10)
 	kapi := etcd.NewKeysAPI(p.etcdClient)
 
@@ -134,8 +135,8 @@ func (p *LeasePool) Leases() (map[uint32]Lease, error) {
 
 // Reset will delete all the assigned leases
 func (p *LeasePool) Reset() error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.dataLock.Lock()
+	defer p.dataLock.Unlock()
 	kapi := etcd.NewKeysAPI(p.etcdClient)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -153,8 +154,8 @@ func (p *LeasePool) Reset() error {
 
 // Assign will find an IP for the specified nic
 func (p *LeasePool) Assign(nic string) (net.IP, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.assignLock.Lock()
+	defer p.assignLock.Unlock()
 	leases, err := p.Leases()
 	if err != nil {
 		return nil, err
@@ -187,8 +188,8 @@ func (p *LeasePool) Assign(nic string) (net.IP, error) {
 }
 
 func (p *LeasePool) Request(nic string, currentIP net.IP) (net.IP, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.assignLock.Lock()
+	defer p.assignLock.Unlock()
 	leases, err := p.Leases()
 	if err != nil {
 		return nil, err

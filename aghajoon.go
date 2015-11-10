@@ -25,17 +25,17 @@ const (
 )
 
 var (
-	debug             *bool
-	listenIFFlag      *string = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
-	workspacePathFlag *string = flag.String("workspace", "/workspace", workspacePathHelp)
-	etcdFlag          *string = flag.String("etcd", "", "Etcd endpoints")
-	etcdDirFlag       *string = flag.String("etcd-dir", "aghajoon", "The etcd directory used by this instance of aghajoon")
+	debug             = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
+	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
+	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
+	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
+	etcdDirFlag       = flag.String("etcd-dir", "aghajoon", "The etcd directory used by this instance of aghajoon")
 
-	leaseStartFlag  *string = flag.String("lease-start", "", "Begining of lease starting IP")
-	leaseRangeFlag  *int    = flag.Int("lease-range", 0, "Lease range")
-	leaseSubnetFlag *string = flag.String("lease-subnet", "", "Subnet of specified lease")
-	leaseRouterFlag *string = flag.String("router", "", "Default router that assigned to DHCP clients")
-	leaseDNSFlag    *string = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
+	leaseStartFlag  = flag.String("lease-start", "", "Begining of lease starting IP")
+	leaseRangeFlag  = flag.Int("lease-range", 0, "Lease range")
+	leaseSubnetFlag = flag.String("lease-subnet", "", "Subnet of specified lease")
+	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
+	leaseDNSFlag    = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
 )
 
 func interfaceIP(iface *net.Interface) (net.IP, error) {
@@ -76,7 +76,7 @@ func main() {
 	var err error
 
 	// listen ip address for http, tftp
-	var listenIP net.IP = net.IP{0, 0, 0, 0}
+	var listenIP = net.IP{0, 0, 0, 0}
 	// finding interface by interface name
 	var dhcpIF *net.Interface
 	if *listenIFFlag != "" {
@@ -95,7 +95,7 @@ func main() {
 	}
 
 	// used for replying in dhcp and pxe
-	var serverIP net.IP = net.IPv4zero
+	var serverIP = net.IPv4zero
 	if serverIP.Equal(net.IPv4zero) {
 		serverIP = dhcpIP
 	}
@@ -165,5 +165,5 @@ func main() {
 			DNSAddr:       leaseDNS,
 		}, leasePool))
 	}()
-	logging.RecordLogs(true)
+	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debug)
 }

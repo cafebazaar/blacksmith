@@ -1,1 +1,70 @@
-<h1>Aghajoon</h1>
+<!DOCTYPE html>
+<html lang="en" ng-app="aghajoonUIApp">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aghajoon</title>
+
+  <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.css">
+
+  <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+  <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+  <!--[if lt IE 9]>
+  <script src="bower_components/html5shiv/dist/html5shiv.min.js"></script>
+  <script src="bower_components/respond/dest/respond.min.js"></script>
+  <![endif]-->
+  <link rel="stylesheet" href="css/app.css">
+  <script src="bower_components/angular/angular.js"></script>
+  <script src="bower_components/angular-resource/angular-resource.js"></script>
+  <script src="js/services.js"></script>
+  <script src="js/controllers.js"></script>
+</head>
+<body ng-controller="AghajoonUICtrl">
+
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="github.com/cafebazaar/aghajoon/">
+        <strong>Aghajoon</strong>
+      </a>
+      <p class="navbar-text">Bare-Metal Booting for CoreOS and Kubernetes</p>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+<div class="row">
+
+  <h3>
+    <span class="glyphicon glyphicon-align-justify"></span>  Nodes List
+  </h3>
+  <hr>
+  <table class="table table-hover">
+    <thead>
+    <tr>
+      <th>#</th>
+      <th>MAC Address</th>
+      <th>IP Address</th>
+      <th>First IP Assignment Time</th>
+	  <th>Last IP Assignment Time</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr ng-repeat="node in nodes">
+      <td>{{ $index + 1 }}</td>
+      <td>{{ node.Nic }}</td>
+      <td>{{ node.IP }}</td>
+      <td>{{ node.FirstAssigned }}</td>
+	  <td>{{ node.LastAssigned }}</td>
+    </tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<script src="bower_components/jquery/dist/jquery.min.js"></script>
+
+<script src="bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+</body>
+</html>

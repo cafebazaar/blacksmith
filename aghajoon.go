@@ -11,6 +11,7 @@ import (
 	"github.com/cafebazaar/aghajoon/dhcp"
 	"github.com/cafebazaar/aghajoon/logging"
 	"github.com/cafebazaar/aghajoon/pxe"
+	"github.com/cafebazaar/aghajoon/web"
 )
 
 //go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxelinux -ignore=README.md pxe/pxelinux
@@ -36,6 +37,7 @@ var (
 	leaseSubnetFlag = flag.String("lease-subnet", "", "Subnet of specified lease")
 	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
 	leaseDNSFlag    = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
+	uiPathFlag		= flag.String("ui", "", "The path of static files for UI")
 )
 
 func interfaceIP(iface *net.Interface) (net.IP, error) {
@@ -66,7 +68,7 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 	return nil, fmt.Errorf("interface %s has no usable unicast addresses", iface.Name)
 }
 
-func main() {
+func main() {	
 	flag.Parse()
 	// etcd config
 	if etcdFlag == nil || etcdDirFlag == nil {
@@ -102,7 +104,9 @@ func main() {
 
 	var httpAddr = net.TCPAddr{IP: listenIP, Port: 70}
 	var tftpAddr = net.UDPAddr{IP: listenIP, Port: 69}
+	var webAddr = net.TCPAddr{IP: listenIP, Port: 8000}
 	var pxeAddr = net.UDPAddr{IP: dhcpIP, Port: 4011}
+
 
 	// dhcp setting
 	leaseStart := net.ParseIP(*leaseStartFlag)
@@ -138,7 +142,7 @@ func main() {
 	fmt.Printf("Interface IP:	%s\n", dhcpIP.String())
 	fmt.Printf("Interface Name:	%s\n", dhcpIF.Name)
 
-	// serving http
+	// serving http booter
 	go func() {
 		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, *workspacePathFlag))
 	}()
@@ -155,6 +159,13 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	// serving web	
+	go func(){	
+		restServer := web.NewRest(leasePool, uiPathFlag)
+		log.Fatalln(web.ServeWeb(restServer, webAddr))
+	}()
+	
 	go func() {
 		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
 			IFName:        dhcpIF.Name,
@@ -165,5 +176,7 @@ func main() {
 			DNSAddr:       leaseDNS,
 		}, leasePool))
 	}()
+
+	
 	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debug)
 }

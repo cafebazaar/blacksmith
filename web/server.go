@@ -12,7 +12,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 func ServeWeb(listenAddr net.TCPAddr) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api", hello)
-	mux.Handle("/ui", http.FileServer(http.Dir("/vagrant/web/ui/")))
+	mux.HandleFunc("/api/", hello)
+	mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir("/ui/"))))
 	http.ListenAndServe(listenAddr.String(), mux)
 }

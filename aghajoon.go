@@ -6,12 +6,14 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cafebazaar/aghajoon/dhcp"
 	"github.com/cafebazaar/aghajoon/logging"
 	"github.com/cafebazaar/aghajoon/pxe"
 	"github.com/cafebazaar/aghajoon/web"
+	etcd "github.com/coreos/etcd/client"
 )
 
 //go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxelinux -ignore=README.md pxe/pxelinux
@@ -26,18 +28,18 @@ const (
 )
 
 var (
-	debug             = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
+	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
 	etcdDirFlag       = flag.String("etcd-dir", "aghajoon", "The etcd directory used by this instance of aghajoon")
+	uiPathFlag        = flag.String("ui", "", "The path of static files for UI")
 
 	leaseStartFlag  = flag.String("lease-start", "", "Begining of lease starting IP")
 	leaseRangeFlag  = flag.Int("lease-range", 0, "Lease range")
 	leaseSubnetFlag = flag.String("lease-subnet", "", "Subnet of specified lease")
 	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
 	leaseDNSFlag    = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
-	uiPathFlag		= flag.String("ui", "", "The path of static files for UI")
 )
 
 func interfaceIP(iface *net.Interface) (net.IP, error) {
@@ -68,7 +70,7 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 	return nil, fmt.Errorf("interface %s has no usable unicast addresses", iface.Name)
 }
 
-func main() {	
+func main() {
 	flag.Parse()
 	// etcd config
 	if etcdFlag == nil || etcdDirFlag == nil {
@@ -76,6 +78,16 @@ func main() {
 		os.Exit(1)
 	}
 	var err error
+
+	etcdClient, err := etcd.New(etcd.Config{
+		Endpoints:               strings.Split(*etcdFlag, ","),
+		HeaderTimeoutPerRequest: time.Second,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't create etcd connection: %s\n", err)
+		os.Exit(1)
+	}
+	kapi := etcd.NewKeysAPI(etcdClient)
 
 	// listen ip address for http, tftp
 	var listenIP = net.IP{0, 0, 0, 0}
@@ -106,7 +118,6 @@ func main() {
 	var tftpAddr = net.UDPAddr{IP: listenIP, Port: 69}
 	var webAddr = net.TCPAddr{IP: listenIP, Port: 8000}
 	var pxeAddr = net.UDPAddr{IP: dhcpIP, Port: 4011}
-
 
 	// dhcp setting
 	leaseStart := net.ParseIP(*leaseStartFlag)
@@ -155,17 +166,17 @@ func main() {
 		log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
 	}()
 	// serving dhcp
-	leasePool, err := dhcp.NewLeasePool(*etcdFlag, *etcdDirFlag, leaseStart, leaseRange, leaseDuration)
+	leasePool, err := dhcp.NewLeasePool(kapi, *etcdDirFlag, leaseStart, leaseRange, leaseDuration)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// serving web	
-	go func(){	
+	// serving web
+	go func() {
 		restServer := web.NewRest(leasePool, uiPathFlag)
 		log.Fatalln(web.ServeWeb(restServer, webAddr))
 	}()
-	
+
 	go func() {
 		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
 			IFName:        dhcpIF.Name,
@@ -177,6 +188,5 @@ func main() {
 		}, leasePool))
 	}()
 
-	
-	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debug)
+	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
 }

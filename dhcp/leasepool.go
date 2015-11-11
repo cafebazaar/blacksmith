@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,7 +22,7 @@ import (
 var (
 	ErrLeasePoolIsFull   = errors.New("there is no empty IP address at the moment")
 	ErrRefreshNoMatch    = errors.New("there is no match between specified ip and nic")
-	ErrFoundInvalidLease = errors.New("there is an invalid lease in etcd")
+	ErrFoundInvalidLease = errors.New("there is an invalid lease in datasource")
 )
 
 type Lease struct {
@@ -51,31 +50,22 @@ func newLease(nic string, ip net.IP, expireDuration time.Duration, firstAssigned
 }
 
 type LeasePool struct {
-	etcdEndpoints  string
 	etcdDir        string
 	startIP        net.IP
 	rangeLen       int
 	expireDuration time.Duration
-	etcdClient     etcd.Client
+	dataSource     etcd.KeysAPI
 	dataLock       sync.Mutex
 	assignLock     sync.Mutex
 }
 
-func NewLeasePool(etcdEndpoints string, etcdDir string, startIP net.IP, rangeLen int, expireDuration time.Duration) (*LeasePool, error) {
-	etcdClient, err := etcd.New(etcd.Config{
-		Endpoints:               strings.Split(etcdEndpoints, ","),
-		HeaderTimeoutPerRequest: time.Second,
-	})
-	if err != nil {
-		return nil, err
-	}
+func NewLeasePool(dataSource etcd.KeysAPI, etcdDir string, startIP net.IP, rangeLen int, expireDuration time.Duration) (*LeasePool, error) {
 	pool := &LeasePool{
-		etcdEndpoints:  etcdEndpoints,
 		etcdDir:        etcdDir,
 		startIP:        startIP,
 		expireDuration: expireDuration,
 		rangeLen:       rangeLen,
-		etcdClient:     etcdClient,
+		dataSource:     dataSource,
 	}
 	return pool, nil
 }
@@ -84,14 +74,13 @@ func NewLeasePool(etcdEndpoints string, etcdDir string, startIP net.IP, rangeLen
 func (p *LeasePool) Store(lease Lease) error {
 	p.dataLock.Lock()
 	defer p.dataLock.Unlock()
-	kapi := etcd.NewKeysAPI(p.etcdClient)
 	data, err := json.Marshal(lease)
 	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_, err = kapi.Set(ctx, path.Join(p.etcdDir, "/leases", lease.IP.String()), string(data), nil)
+	_, err = p.dataSource.Set(ctx, path.Join(p.etcdDir, "/leases", lease.IP.String()), string(data), nil)
 	return err
 }
 
@@ -100,11 +89,10 @@ func (p *LeasePool) Leases() (map[string]Lease, error) {
 	p.dataLock.Lock()
 	defer p.dataLock.Unlock()
 	leases := make(map[string]Lease, 10)
-	kapi := etcd.NewKeysAPI(p.etcdClient)
 
 	ctxGet, cancelGet := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancelGet()
-	response, err := kapi.Get(ctxGet, path.Join(p.etcdDir, "/leases"), &etcd.GetOptions{Recursive: true})
+	response, err := p.dataSource.Get(ctxGet, path.Join(p.etcdDir, "/leases"), &etcd.GetOptions{Recursive: true})
 
 	if err != nil {
 		etcdError, found := err.(etcd.Error)
@@ -112,7 +100,7 @@ func (p *LeasePool) Leases() (map[string]Lease, error) {
 			// handle key not found
 			ctxSet, cancelSet := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancelSet()
-			_, err := kapi.Set(ctxSet, path.Join(p.etcdDir, "/leases"), "", &etcd.SetOptions{Dir: true})
+			_, err := p.dataSource.Set(ctxSet, path.Join(p.etcdDir, "/leases"), "", &etcd.SetOptions{Dir: true})
 			if err != nil {
 				return nil, err
 			}
@@ -136,11 +124,10 @@ func (p *LeasePool) Leases() (map[string]Lease, error) {
 func (p *LeasePool) Reset() error {
 	p.dataLock.Lock()
 	defer p.dataLock.Unlock()
-	kapi := etcd.NewKeysAPI(p.etcdClient)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_, err := kapi.Delete(ctx, path.Join(p.etcdDir, "/leases"), &etcd.DeleteOptions{Dir: true, Recursive: true})
+	_, err := p.dataSource.Delete(ctx, path.Join(p.etcdDir, "/leases"), &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		etcdError, found := err.(etcd.Error)
 		if found && etcdError.Code == etcd.ErrorCodeKeyNotFound {

@@ -189,7 +189,6 @@ func main() {
 	}()
 
 	go func() {
-		fmt.Println("hi")
 		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
 			IFName:        dhcpIF.Name,
 			LeaseDuration: leaseDuration,
@@ -198,7 +197,6 @@ func main() {
 			SubnetMask:    leaseSubnet,
 			DNSAddr:       leaseDNS,
 		}, leasePool))
-		fmt.Println("hi")
 	}()
 
 	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)

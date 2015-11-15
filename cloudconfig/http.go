@@ -31,6 +31,7 @@ func (c *CloudConfig) Mux() *http.ServeMux {
 func (c *CloudConfig) handler(w http.ResponseWriter, r *http.Request) {
 	req := strings.Split(r.URL.Path, "/")[1:]
 	if len(req) != 2 {
+		logging.Log("CLOUDCONFIG", "Received request - request not found")
 		http.NotFound(w, r)
 		return
 	}

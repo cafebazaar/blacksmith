@@ -11,8 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
-
 	"github.com/cafebazaar/aghajoon/logging"
 )
 
@@ -65,8 +63,6 @@ func (b *HTTPBooter) Mux() *http.ServeMux {
 	mux.HandleFunc("/ldlinux.c32", b.ldlinuxHandler)
 	mux.HandleFunc("/pxelinux.cfg/", b.pxelinuxConfig)
 	mux.HandleFunc("/f/", b.fileHandler)
-	mux.HandleFunc("/cloud-config.yml", b.cloudConfigHandler)
-	mux.HandleFunc("/ignition-config.yml", b.ignitionConfigHandler)
 	return mux
 }
 
@@ -107,10 +103,19 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	coreOSVersion := "835.1.0"
 	KernelURL := "http://" + r.Host + "/f/" + coreOSVersion + "/kernel"
 	InitrdURL := "http://" + r.Host + "/f/" + coreOSVersion + "/initrd"
-	Cmdline := fmt.Sprintf("cloud-config-url=http://%s/cloud-config.yml?mac=%s "+
-		"coreos.config.url=http://%s/ignition-config.yml?mac=%s coreos.autologin",
-		r.Host, mac, r.Host, mac)
 
+	host, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		logging.Log("HTTPBOOTER", "error in parsing host and port")
+		http.Error(w, "error in parsing host and port", 500)
+		return
+	}
+
+	Cmdline := fmt.Sprintf(
+		"cloud-config-url=http://%s:8001/cloud/%s "+
+			"coreos.config.url=http://%s:8001/ignition/%s ",
+		host, strings.Replace(mac.String(), ":", "", -1),
+		host, strings.Replace(mac.String(), ":", "", -1))
 	bootMessage := strings.Replace(bootMessageTemplate, "$MAC", macStr, -1)
 	cfg := fmt.Sprintf(`
 SAY %s
@@ -144,7 +149,7 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	version := splitPath[2]
 	id := splitPath[3]
 
-	logging.Debug("Got request for %s", r.URL.Path)
+	logging.Debug("HTTPBOOTER", "Got request for %s", r.URL.Path)
 
 	var (
 		f   io.ReadCloser
@@ -167,34 +172,6 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logging.Log("HTTPBOOTER", "Sent %s to %s (%d bytes)", id, r.RemoteAddr, written)
-}
-
-func (b *HTTPBooter) cloudConfigHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/x-yaml")
-	tmpl, err := template.ParseFiles(filepath.Join(b.workspacePath, "cloud-config.yml"))
-	if err != nil {
-		logging.Log("HTTPBOOTER", "Error while trying to load cloud config template: %s", err)
-		return
-	}
-	context := nodeContext{
-		IP: r.RemoteAddr,
-	}
-	tmpl.Execute(w, context)
-	logging.Log("HTTPBOOTER", "Sent cloud config to %s", r.RemoteAddr)
-}
-
-func (b *HTTPBooter) ignitionConfigHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/x-yaml")
-	tmpl, err := template.ParseFiles(filepath.Join(b.workspacePath, "ignition-config.yml"))
-	if err != nil {
-		logging.Log("HTTPBOOTER", "Error while trying to load ignition config template: %s", err)
-		return
-	}
-	context := nodeContext{
-		IP: r.RemoteAddr,
-	}
-	tmpl.Execute(w, context)
-	logging.Log("HTTPBOOTER", "Sent ignition config to %s", r.RemoteAddr)
 }
 
 func HTTPBooterMux(listenAddr net.TCPAddr, workspacePath string) (*http.ServeMux, error) {

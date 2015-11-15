@@ -1,4 +1,4 @@
-package pxe
+package pxe // import "github.com/cafebazaar/aghajoon/pxe"
 
 import (
 	"bytes"

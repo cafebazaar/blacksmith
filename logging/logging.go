@@ -1,6 +1,8 @@
-package logging
+package logging // import "github.com/cafebazaar/aghajoon/logging"
 
 import "fmt"
+
+const logFormat = "%c[%s] %s"
 
 type logEntry struct {
 	Subsystem string
@@ -25,7 +27,7 @@ func RecordLogs(logger minimalLogger, debug bool) {
 		if l.Debug {
 			level = 'D'
 		}
-		logger.Printf("[%s]%c %s", l.Subsystem, level, l.Msg)
+		logger.Printf(logFormat, level, l.Subsystem, l.Msg)
 	}
 }
 

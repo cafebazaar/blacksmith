@@ -21,8 +21,8 @@ func (l *myTestyLogger) Printf(format string, v ...interface{}) {
 func TestRecordLogsDebug(t *testing.T) {
 	logger := &myTestyLogger{}
 	logger.wg.Add(2)
-	logger.On("Printf", "[%s]%c %s", []interface{}{"test1", 'I', "info message"}).Once()
-	logger.On("Printf", "[%s]%c %s", []interface{}{"test1", 'D', "debug message"}).Once()
+	logger.On("Printf", logFormat, []interface{}{'I', "test1", "info message"}).Once()
+	logger.On("Printf", logFormat, []interface{}{'D', "test1", "debug message"}).Once()
 
 	logCh = make(chan logEntry)
 	go RecordLogs(logger, true)
@@ -43,7 +43,7 @@ func TestRecordLogsDebug(t *testing.T) {
 func TestRecordLogsNoDebug(t *testing.T) {
 	logger := &myTestyLogger{}
 	logger.wg.Add(1)
-	logger.On("Printf", "[%s]%c %s", []interface{}{"test2", 'I', "info message"}).Once()
+	logger.On("Printf", logFormat, []interface{}{'I', "test2", "info message"}).Once()
 
 	logCh = make(chan logEntry)
 	go RecordLogs(logger, false)

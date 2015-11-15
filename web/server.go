@@ -1,21 +1,22 @@
-package web
+package web // import "github.com/cafebazaar/aghajoon/web"
 
 import (
-	"github.com/cafebazaar/aghajoon/dhcp"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
-	"encoding/json"
+
+	"github.com/cafebazaar/aghajoon/dhcp"
 )
 
 type RestServer struct {
-	pool *dhcp.LeasePool
+	pool   *dhcp.LeasePool
 	uiPath *string
 }
 
 func NewRest(leasePool *dhcp.LeasePool, uiPath *string) *RestServer {
 	return &RestServer{
-		pool: leasePool,
+		pool:   leasePool,
 		uiPath: uiPath,
 	}
 }
@@ -23,12 +24,12 @@ func NewRest(leasePool *dhcp.LeasePool, uiPath *string) *RestServer {
 func (a *RestServer) Mux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/nodes", a.nodesList)
-	
+
 	if *a.uiPath != "" {
-		ui := http.FileServer(http.Dir(*a.uiPath))	
+		ui := http.FileServer(http.Dir(*a.uiPath))
 		mux.Handle("/ui/", http.StripPrefix("/ui/", ui))
 	}
-	
+
 	return mux
 }
 

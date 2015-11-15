@@ -1,4 +1,4 @@
-package dhcp
+package dhcp // import "github.com/cafebazaar/aghajoon/dhcp"
 
 import (
 	"bytes"

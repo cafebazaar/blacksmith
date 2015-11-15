@@ -1,8 +1,8 @@
 package cloudconfig
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -78,13 +78,14 @@ func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error)
 	}, nil
 }
 
-func (r *Repo) GenerateConfig(w io.Writer, c *ConfigContext) error {
+func (r *Repo) GenerateConfig(c *ConfigContext) (string, error) {
 	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
+	buf := new(bytes.Buffer)
 	r.executeLock.Lock()
 	defer r.executeLock.Unlock()
 	r.templates.Funcs(map[string]interface{}{"V": func(key string) (interface{}, error) {
 		return Value(r.dataSources, c, key)
 	}})
-	r.templates.ExecuteTemplate(w, "main", c.Map())
-	return nil
+	err := r.templates.ExecuteTemplate(buf, "main", c.Map())
+	return buf.String(), err
 }

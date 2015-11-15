@@ -1,16 +1,17 @@
 FROM golang:1.5
 
-WORKDIR /go/src/app
-
-ENTRYPOINT ["/usr/local/bin/go-wrapper", "run"]
+WORKDIR /go/src/github.com/cafebazaar/aghajoon
 
 # Temporary, for faster builds
 RUN \
-  go get golang.org/x/net/ipv4 && \
-  go get github.com/danderson/pixiecore/tftp && \
-  go get golang.org/x/net/context && \
-  go get github.com/coreos/etcd/client
+  go get -v golang.org/x/net/ipv4 && \
+  go get -v github.com/danderson/pixiecore/tftp && \
+  go get -v golang.org/x/net/context && \
+  go get -v github.com/coreos/etcd/client && \
+  go get -v github.com/krolaw/dhcp4
 
-COPY . /go/src/app
-RUN go-wrapper download
-RUN go-wrapper install
+ENTRYPOINT ["/go/src/github.com/cafebazaar/aghajoon/aghajoon"]
+# ENTRYPOINT ["/bin/bash"]
+
+COPY . /go/src/github.com/cafebazaar/aghajoon
+RUN go build .

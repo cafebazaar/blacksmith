@@ -13,6 +13,7 @@ import (
 	"github.com/cafebazaar/aghajoon/logging"
 	"github.com/cafebazaar/aghajoon/pxe"
 	"github.com/cafebazaar/aghajoon/web"
+	"github.com/cafebazaar/aghajoon/cloudconfig"
 	etcd "github.com/coreos/etcd/client"
 )
 
@@ -88,7 +89,7 @@ func main() {
 		os.Exit(1)
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
-
+	
 	// listen ip address for http, tftp
 	var listenIP = net.IP{0, 0, 0, 0}
 	// finding interface by interface name
@@ -117,6 +118,7 @@ func main() {
 	var httpAddr = net.TCPAddr{IP: listenIP, Port: 70}
 	var tftpAddr = net.UDPAddr{IP: listenIP, Port: 69}
 	var webAddr = net.TCPAddr{IP: listenIP, Port: 8000}
+	var cloudConfigHTTPAddr = net.TCPAddr{IP: listenIP, Port: 8001}
 	var pxeAddr = net.UDPAddr{IP: dhcpIP, Port: 4011}
 
 	// dhcp setting
@@ -148,10 +150,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Printing stat
 	fmt.Printf("Server IP:		%s\n	", serverIP.String())
 	fmt.Printf("Interface IP:	%s\n", dhcpIP.String())
 	fmt.Printf("Interface Name:	%s\n", dhcpIF.Name)
+
+	// serving cloudconfig
+	go func() {
+		etcdDS, err := cloudconfig.NewEtcdDataSource(kapi, "aghajoon")
+		if err != nil {
+			log.Fatalln(err)
+		}
+		datasources := map[string]cloudconfig.DataSource{"etcd": etcdDS}
+		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
+		
+	}()
 
 	// serving http booter
 	go func() {
@@ -170,7 +182,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	// serving web
 	go func() {
 		restServer := web.NewRest(leasePool, uiPathFlag)
@@ -178,6 +189,7 @@ func main() {
 	}()
 
 	go func() {
+		fmt.Println("hi")
 		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
 			IFName:        dhcpIF.Name,
 			LeaseDuration: leaseDuration,
@@ -186,6 +198,7 @@ func main() {
 			SubnetMask:    leaseSubnet,
 			DNSAddr:       leaseDNS,
 		}, leasePool))
+		fmt.Println("hi")
 	}()
 
 	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)

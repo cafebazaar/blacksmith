@@ -24,7 +24,7 @@ func ServeDHCP(settings *DHCPSetting, leasePool *LeasePool) error {
 		logging.Debug("DHCP", "Error in connecting etcd - %s", err.Error())
 		return err
 	}
-	logging.Debug("DHCP", "Listening on :67 - with server IP %s", settings.ServerIP.String())
+	logging.Log("DHCP", "Listening on :67 - with server IP %s", settings.ServerIP.String())
 	if settings.IFName != "" {
 		err = dhcp4.ListenAndServeIf(settings.IFName, handler)
 	} else {

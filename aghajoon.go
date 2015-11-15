@@ -23,8 +23,8 @@ const (
 	workspacePathHelp = `Path to workspace which obey following structure
 		/images/{core-os-version}/coreos_production_pxe_image.cpio.gz
 		/images/{core-os-version}/coreos_production_pxe.vmlinuz
-		/cloudconfig/
-		/ignitionconfig/
+		/config/cloudconfig/main.yaml
+		/config/ignition/main.yaml
 `
 )
 

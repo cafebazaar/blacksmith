@@ -12,4 +12,4 @@ if [ ! -x /usr/bin/docker ]; then
   [ -x /vagrant/vagrant_provision_after_docker_installation.local ] && /vagrant/vagrant_provision_after_docker_installation.local
 fi
 
-docker build -t aghajoon .
+docker build -t cafebazaar/aghajoon .

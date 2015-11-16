@@ -61,14 +61,14 @@ func newDHCPHandler(settings *DHCPSetting, leasePool *LeasePool) (*DHCPHandler, 
 	return h, nil
 }
 
-func fillPXE(serverIP net.IP) []byte {
+func (h *DHCPHandler) fillPXE() []byte {
 	// PXE vendor options
 	var pxe bytes.Buffer
 	// Discovery Control - disable broadcast and multicast boot server discovery
 	pxe.Write([]byte{6, 1, 3})
 	// PXE boot server
 	pxe.Write([]byte{8, 7, 0x80, 0x00, 1})
-	pxe.Write(serverIP)
+	pxe.Write(h.settings.ServerIP.To4())
 	// PXE boot menu - one entry, pointing to the above PXE boot server
 	pxe.Write([]byte{9, 12, 0x80, 0x00, 9})
 	pxe.WriteString("aghjo-0.1")
@@ -88,10 +88,8 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			logging.Debug("DHCP", "err in lease pool - %s", err.Error())
 			return nil // pool is full
 		}
-		
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
 		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, h.settings.LeaseDuration, replyOptions)
-		
 		// this is a pxe request
 		guidVal, is_pxe := options[97]
 		if is_pxe {
@@ -99,7 +97,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			guid := guidVal[1:]
 			packet.AddOption(60, []byte("PXEClient"))
 			packet.AddOption(97, guid)
-			packet.AddOption(43, fillPXE(h.settings.ServerIP.To4()))
+			packet.AddOption(43, h.fillPXE())
 		} else {
 			logging.Log("DHCP", "dhcp discover - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
 		}
@@ -112,31 +110,30 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		if requestedIP == nil {
 			requestedIP = net.IP(p.CIAddr())
 		}
-		if len(requestedIP) == 4 && !requestedIP.Equal(net.IPv4zero) {
-			_, err := h.leasePool.Request(p.CHAddr().String(), requestedIP)
-			if err != nil {
-				goto nomatch
-			}
-			
-			replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-			packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, h.settings.LeaseDuration, replyOptions)
-
-			// this is a pxe request
-			guidVal, is_pxe := options[97]
-			if is_pxe {
-				logging.Log("DHCP", "dhcp request with PXE - CHADDR %s - Requested IP %s - our ip %s - ACCEPTED", p.CHAddr().String(), requestedIP.String(), h.settings.ServerIP.String())
-				guid := guidVal[1:]
-				packet.AddOption(60, []byte("PXEClient"))
-				packet.AddOption(97, guid)
-				packet.AddOption(43, fillPXE(h.settings.ServerIP))
-			} else {
-				logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
-			}
-			return packet
+		if len(requestedIP) != 4 || requestedIP.Equal(net.IPv4zero) {
+			logging.Debug("DHCP", "dhcp request - CHADDR %s - bad request", p.CHAddr().String())
+			return nil
 		}
-	nomatch:
-		logging.Debug("DHCP", "dhcp request - CHADDR %s - Requested IP %s - NO MATCH", p.CHAddr().String(), requestedIP.String())
-		return dhcp4.ReplyPacket(p, dhcp4.NAK, h.settings.ServerIP, nil, 0, nil)
+		_, err := h.leasePool.Request(p.CHAddr().String(), requestedIP)
+		if err != nil {
+			logging.Debug("DHCP", "dhcp request - CHADDR %s - Requested IP %s - NO MATCH", p.CHAddr().String(), requestedIP.String())
+			return dhcp4.ReplyPacket(p, dhcp4.NAK, h.settings.ServerIP, nil, 0, nil)
+		}
+
+		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, h.settings.LeaseDuration, replyOptions)
+		// this is a pxe request
+		guidVal, is_pxe := options[97]
+		if is_pxe {
+			logging.Log("DHCP", "dhcp request with PXE - CHADDR %s - Requested IP %s - our ip %s - ACCEPTED", p.CHAddr().String(), requestedIP.String(), h.settings.ServerIP.String())
+			guid := guidVal[1:]
+			packet.AddOption(60, []byte("PXEClient"))
+			packet.AddOption(97, guid)
+			packet.AddOption(43, h.fillPXE())
+		} else {
+			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
+		}
+		return packet
 	case dhcp4.Release, dhcp4.Decline:
 		return nil
 	}

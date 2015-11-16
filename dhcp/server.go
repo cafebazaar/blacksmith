@@ -49,9 +49,9 @@ func newDHCPHandler(settings *DHCPSetting, leasePool *LeasePool) (*DHCPHandler, 
 		settings: settings,
 	}
 	h.dhcpOptions = dhcp4.Options{
-		dhcp4.OptionSubnetMask:       settings.SubnetMask,
-		dhcp4.OptionRouter:           settings.RouterAddr,
-		dhcp4.OptionDomainNameServer: settings.DNSAddr,
+		dhcp4.OptionSubnetMask:       settings.SubnetMask.To4(),
+		dhcp4.OptionRouter:           settings.RouterAddr.To4(),
+		dhcp4.OptionDomainNameServer: settings.DNSAddr.To4(),
 	}
 	var err error
 	h.leasePool = leasePool
@@ -99,11 +99,10 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			guid := guidVal[1:]
 			packet.AddOption(60, []byte("PXEClient"))
 			packet.AddOption(97, guid)
-			packet.AddOption(43, fillPXE(h.settings.ServerIP))
+			packet.AddOption(43, fillPXE(h.settings.ServerIP.To4()))
 		} else {
 			logging.Log("DHCP", "dhcp discover - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
 		}
-
 		return packet
 	case dhcp4.Request:
 		if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(h.settings.ServerIP) {
@@ -133,7 +132,6 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			} else {
 				logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 			}
-
 			return packet
 		}
 	nomatch:

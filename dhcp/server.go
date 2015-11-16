@@ -49,9 +49,9 @@ func newDHCPHandler(settings *DHCPSetting, leasePool *LeasePool) (*DHCPHandler, 
 		settings: settings,
 	}
 	h.dhcpOptions = dhcp4.Options{
-		dhcp4.OptionSubnetMask:       []byte{255, 255, 255, 0},
-		dhcp4.OptionRouter:           []byte(settings.RouterAddr),
-		dhcp4.OptionDomainNameServer: []byte(settings.DNSAddr),
+		dhcp4.OptionSubnetMask:       net.IP{255, 255, 255, 0},
+		dhcp4.OptionRouter:           settings.RouterAddr,
+		dhcp4.OptionDomainNameServer: settings.DNSAddr,
 	}
 	var err error
 	h.leasePool = leasePool
@@ -90,19 +90,21 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		}
 		
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, h.settings.LeaseDuration, replyOptions)
+		
 		// this is a pxe request
 		guidVal, is_pxe := options[97]
 		if is_pxe {
 			logging.Log("DHCP", "dhcp discover with PXE - CHADDR %s - IP %s - our ip %s", p.CHAddr().String(), ip.String(), h.settings.ServerIP.String())
 			guid := guidVal[1:]
-			replyOptions = append(replyOptions, dhcp4.Option{Code: 60, Value: []byte("PXEClient")})
-			replyOptions = append(replyOptions, dhcp4.Option{Code: 97, Value: guid})
-			replyOptions = append(replyOptions, dhcp4.Option{Code: 43, Value: fillPXE(h.settings.ServerIP)})
+			packet.AddOption(60, []byte("PXEClient"))
+			packet.AddOption(97, guid)
+			packet.AddOption(43, fillPXE(h.settings.ServerIP))
 		} else {
 			logging.Log("DHCP", "dhcp discover - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
 		}
 
-		return dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, h.settings.LeaseDuration, replyOptions)
+		return packet
 	case dhcp4.Request:
 		if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(h.settings.ServerIP) {
 			return nil // this message is not ours
@@ -118,19 +120,24 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			}
 			
 			replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+			packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, net.IP(options[dhcp4.OptionRequestedIPAddress]), h.settings.LeaseDuration, replyOptions)
+
 			// this is a pxe request
 			guidVal, is_pxe := options[97]
 			if is_pxe {
 				logging.Log("DHCP", "dhcp request with PXE - CHADDR %s - Requested IP %s - our ip %s - ACCEPTED", p.CHAddr().String(), requestedIP.String(), h.settings.ServerIP.String())
 				guid := guidVal[1:]
-				replyOptions = append(replyOptions, dhcp4.Option{Code: 60, Value: []byte("PXEClient")})
-				replyOptions = append(replyOptions, dhcp4.Option{Code: 97, Value: guid})
-				replyOptions = append(replyOptions, dhcp4.Option{Code: 43, Value: fillPXE(h.settings.ServerIP)})
+				packet.AddOption(60, []byte("PXEClient"))
+				packet.AddOption(97, guid)
+				packet.AddOption(43, fillPXE(h.settings.ServerIP))
+//				replyOptions = append(replyOptions, dhcp4.Option{Code: 60, Value: []byte("PXEClient")})
+//				replyOptions = append(replyOptions, dhcp4.Option{Code: 97, Value: guid})
+//				replyOptions = append(replyOptions, dhcp4.Option{Code: 43, Value: fillPXE(h.settings.ServerIP)})
 			} else {
 				logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 			}
 
-			return dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, net.IP(options[dhcp4.OptionRequestedIPAddress]), h.settings.LeaseDuration, replyOptions)
+			return packet
 		}
 	nomatch:
 		logging.Debug("DHCP", "dhcp request - CHADDR %s - Requested IP %s - NO MATCH", p.CHAddr().String(), requestedIP.String())

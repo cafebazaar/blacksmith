@@ -73,7 +73,7 @@ func fillPXE(serverIP net.IP) []byte {
 	pxe.Write([]byte{9, 12, 0x80, 0x00, 9})
 	pxe.WriteString("aghjo-0.1")
 	// PXE menu prompt+timeout
-	pxe.Write([]byte{10, 10, 0xA})
+	pxe.Write([]byte{10, 10, 0x2})
 	pxe.WriteString("aghjo-0.1")
 	// End vendor options
 	pxe.WriteByte(255)

@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cafebazaar/aghajoon/cloudconfig"
+	"github.com/cafebazaar/aghajoon/datasource"
 	"github.com/cafebazaar/aghajoon/dhcp"
 	"github.com/cafebazaar/aghajoon/logging"
 	"github.com/cafebazaar/aghajoon/pxe"
 	"github.com/cafebazaar/aghajoon/web"
-	"github.com/cafebazaar/aghajoon/cloudconfig"
 	etcd "github.com/coreos/etcd/client"
 )
 
@@ -25,6 +26,7 @@ const (
 		/images/{core-os-version}/coreos_production_pxe.vmlinuz
 		/config/cloudconfig/main.yaml
 		/config/ignition/main.yaml
+		/initial.yaml
 `
 )
 
@@ -80,16 +82,6 @@ func main() {
 	}
 	var err error
 
-	etcdClient, err := etcd.New(etcd.Config{
-		Endpoints:               strings.Split(*etcdFlag, ","),
-		HeaderTimeoutPerRequest: time.Second,
-	})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't create etcd connection: %s\n", err)
-		os.Exit(1)
-	}
-	kapi := etcd.NewKeysAPI(etcdClient)
-	
 	// listen ip address for http, tftp
 	var listenIP = net.IP{0, 0, 0, 0}
 	// finding interface by interface name
@@ -150,24 +142,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Server IP:		%s\n	", serverIP.String())
-	fmt.Printf("Interface IP:	%s\n", dhcpIP.String())
-	fmt.Printf("Interface Name:	%s\n", dhcpIF.Name)
+	fmt.Printf("Server IP:       %s\n", serverIP.String())
+	fmt.Printf("Interface IP:    %s\n", dhcpIP.String())
+	fmt.Printf("Interface Name:  %s\n", dhcpIF.Name)
+
+	etcdClient, err := etcd.New(etcd.Config{
+		Endpoints:               strings.Split(*etcdFlag, ","),
+		HeaderTimeoutPerRequest: time.Second,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't create etcd connection: %s\n", err)
+		os.Exit(1)
+	}
+	kapi := etcd.NewKeysAPI(etcdClient)
+
+	runtimeConfig, err := datasource.NewRuntimeConfiguration(&kapi, *etcdDirFlag, *workspacePathFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
+		os.Exit(1)
+	}
 
 	// serving cloudconfig
 	go func() {
+		// TODO: reuse runtimeConfig
+
 		etcdDS, err := cloudconfig.NewEtcdDataSource(kapi, "aghajoon")
 		if err != nil {
 			log.Fatalln(err)
 		}
 		datasources := map[string]cloudconfig.DataSource{"etcd": etcdDS}
 		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
-		
+
 	}()
 
 	// serving http booter
 	go func() {
-		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, *workspacePathFlag))
+		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, runtimeConfig))
 	}()
 	// serving tftp
 	go func() {

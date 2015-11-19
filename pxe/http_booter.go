@@ -2,15 +2,15 @@ package pxe
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/cafebazaar/aghajoon/datasource"
 	"github.com/cafebazaar/aghajoon/logging"
 )
 
@@ -35,22 +35,14 @@ type HTTPBooter struct {
 	listenAddr    net.TCPAddr
 	ldlinux       []byte
 	key           [32]byte
-	workspacePath string
+	runtimeConfig *datasource.RuntimeConfiguration
 }
 
-func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte, workspacePath string) (*HTTPBooter, error) {
-	imagesPath := filepath.Join(workspacePath, "images")
-	files, err := ioutil.ReadDir(imagesPath)
-	if err != nil {
-		return nil, fmt.Errorf("error while reading images subdirecory: %s (path=%s)", err, imagesPath)
-	} else if len(files) == 0 {
-		return nil, errors.New("the images subdirecory of workspace should contains at least one version of CoreOS")
-	}
-
+func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte, runtimeConfig *datasource.RuntimeConfiguration) (*HTTPBooter, error) {
 	booter := &HTTPBooter{
 		listenAddr:    listenAddr,
 		ldlinux:       ldlinux,
-		workspacePath: workspacePath,
+		runtimeConfig: runtimeConfig,
 	}
 	if _, err := io.ReadFull(rand.Reader, booter.key[:]); err != nil {
 		return nil, fmt.Errorf("cannot initialize ephemeral signing key: %s", err)
@@ -100,7 +92,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	// pxelinux to shut down PXE booting and continue with the
 	// next local boot method.
 
-	coreOSVersion := "835.1.0"
+	coreOSVersion, _ := b.runtimeConfig.GetCoreOSVersion()
+
 	KernelURL := "http://" + r.Host + "/f/" + coreOSVersion + "/kernel"
 	InitrdURL := "http://" + r.Host + "/f/" + coreOSVersion + "/initrd"
 
@@ -132,7 +125,7 @@ APPEND initrd=%s %s
 // BootSpec. Additionally returns a pretty name for the blob for
 // logging purposes.
 func (b *HTTPBooter) coreOS(version string, id string) (io.ReadCloser, error) {
-	imagePath := filepath.Join(b.workspacePath, "images")
+	imagePath := filepath.Join(b.runtimeConfig.WorkspacePath, "images")
 	switch id {
 	case "kernel":
 		path := filepath.Join(imagePath, version, "coreos_production_pxe.vmlinuz")
@@ -174,21 +167,21 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	logging.Log("HTTPBOOTER", "Sent %s to %s (%d bytes)", id, r.RemoteAddr, written)
 }
 
-func HTTPBooterMux(listenAddr net.TCPAddr, workspacePath string) (*http.ServeMux, error) {
+func HTTPBooterMux(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration) (*http.ServeMux, error) {
 	ldlinux, err := Asset("ldlinux.c32")
 	if err != nil {
 		return nil, err
 	}
-	booter, err := NewHTTPBooter(listenAddr, ldlinux, workspacePath)
+	booter, err := NewHTTPBooter(listenAddr, ldlinux, runtimeConfig)
 	if err != nil {
 		return nil, err
 	}
 	return booter.Mux(), nil
 }
 
-func ServeHTTPBooter(listenAddr net.TCPAddr, workspacePath string) error {
+func ServeHTTPBooter(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration) error {
 	logging.Log("HTTPBOOTER", "Listening on %s", listenAddr.String())
-	mux, err := HTTPBooterMux(listenAddr, workspacePath)
+	mux, err := HTTPBooterMux(listenAddr, runtimeConfig)
 	if err != nil {
 		return err
 	}

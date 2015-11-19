@@ -44,7 +44,7 @@ IP=$(ip addr | awk '/inet/ && /'$INTERFACE'/{sub(/\/.*$/,"",$2); print $2}')
 
 # TODO: calculate instead of assuming the simple case
 IFS=. read -r i1 i2 i3 i4 <<< "$IP"
-[ "$i4" -lt 3 ] || die "This simple script doesn't support IPs not ending with 1, or 2 (Detected IP: $IP)"
+[ "$i4" -lt 10 ] || echo "Warning: Your IP will be among those the dhcp is going to assign to the nodes! (Detected IP: $IP)" 1>&2
 
 LEASE_START="$i1.$i2.$i3.11"
 LEASE_RANGE=244

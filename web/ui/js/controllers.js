@@ -3,23 +3,21 @@ var aghajoonUIControllers = angular.module('aghajoonUIControllers', []);
 aghajoonUIControllers.controller('AghajoonNodesCtrl', ['$scope', 'Node', function ($scope, Node) {
 	Node.query().$promise.then(
 		function( value ){ $scope.nodes = value },
-		function( error ){ errorMessage = error }
+		function( error ){ $scope.errorMessage = error.data; $scope.nodes = [] }
  );
-	$scope.errorMessage = '';
 }]);
 
 aghajoonUIControllers.controller('AghajoonFilesCtrl', ['$scope', 'UploadedFiles', '$http', function ($scope, UploadedFiles, $http) {
-    $scope.files = UploadedFiles.query().$promise.then(
+    UploadedFiles.query().$promise.then(
       function( value ){ $scope.files = value },
-      function( error ){ errorMessage = error }
+      function( error ){ $scope.errorMessage = error.data; $scope.files = [] }
    );
-		$scope.errorMessage = '';
     $scope.deleteFile = function (file)
     {
       if (file.$delete){
         file.$delete(
 		      function( value ){},
-		      function( error ){ errorMessage = error }
+		      function( error ){ $scope.errorMessage = error.data }
 		   );
         var index = $scope.files.indexOf(file);
         if (index > -1) {
@@ -33,7 +31,7 @@ aghajoonUIControllers.controller('AghajoonFilesCtrl', ['$scope', 'UploadedFiles'
 		             $scope.files.splice(index, 1);
 		           }
 					},
-		      function( error ){ errorMessage = error }
+		      function( error ){ $scope.errorMessage = error.data }
 		    );
       }
     }

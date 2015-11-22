@@ -1,0 +1,30 @@
+<h3>
+  <span class="glyphicon glyphicon-align-justify"></span>  Files List
+</h3>
+<hr>
+<table class="table table-hover" ng-class="divClass" drag-and-drop>
+  <thead>
+  <tr>
+    <th>#</th>
+    <th>Name</th>
+    <th>Size</th>
+    <th>Last Modified Date</th>
+    <th>Delete</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr ng-repeat="file in files">
+    <td>{{ $index + 1 }}</td>
+    <td>{{ file.name }}</td>
+    <td>{{ file.size }}</td>
+    <td>{{ file.lastModifiedDate  }}</td>
+    <td>
+      <div class="progress" ng-if="file.uploadProgress > 0 && file.uploadProgress < 100">
+        <div class="progress-bar" role="progressbar" aria-valuenow="file.uploadProgress" aria-valuemin="0" aria-valuemax="100" style="width: {{ file.uploadProgress }}%;">
+        </div>
+      </div>
+      <span ng-click="deleteFile(file)" ng-if="!file.uploadStatus" class="delete-button">✘</span>
+    </td>
+  </tr>
+  </tbody>
+</table>

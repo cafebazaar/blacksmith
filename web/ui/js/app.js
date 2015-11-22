@@ -1,4 +1,4 @@
-var aghajoonUIApp = angular.module('aghajoonUIApp', ['ngRoute', 'aghajoonUIControllers', 'filesServices']);
+var aghajoonUIApp = angular.module('aghajoonUIApp', ['ngRoute', 'aghajoonUIControllers', 'filesServices', 'nodesServices']);
 
 aghajoonUIApp.config(['$routeProvider',
   function($routeProvider) {

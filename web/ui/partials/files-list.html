@@ -2,6 +2,7 @@
   <span class="glyphicon glyphicon-align-justify"></span>  Files List
 </h3>
 <hr>
+<div class="alert alert-danger" role="alert" ng-if="errorMessage">{{ errorMessage }}</div>
 <table class="table table-hover" ng-class="divClass" drag-and-drop>
   <thead>
   <tr>

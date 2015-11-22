@@ -1,0 +1,13 @@
+.on-drag-enter
+{
+  background-color:#eee;
+  -moz-transition:background-color .5s;
+  -webkit-transition:background-color .5s;
+  -o-transition:background-color .5s;
+  transition:background-color .5s;
+}
+
+.delete-button
+{
+  cursor: pointer;
+}

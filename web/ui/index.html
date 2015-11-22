@@ -11,16 +11,18 @@
   <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
   <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
   <!--[if lt IE 9]>
-  <script src="bower_components/html5shiv/dist/html5shiv.min.js"></script>
-  <script src="bower_components/respond/dest/respond.min.js"></script>
+  <script src="../bower_components/html5shiv/dist/html5shiv.min.js"></script>
+  <script src="../bower_components/respond/dest/respond.min.js"></script>
   <![endif]-->
   <link rel="stylesheet" href="css/app.css">
   <script src="bower_components/angular/angular.js"></script>
+  <script src="bower_components/angular-route/angular-route.js"></script>
   <script src="bower_components/angular-resource/angular-resource.js"></script>
   <script src="js/services.js"></script>
+  <script src="js/app.js"></script>
   <script src="js/controllers.js"></script>
 </head>
-<body ng-controller="AghajoonUICtrl">
+<body>
 
 <nav class="navbar navbar-default">
   <div class="container-fluid">
@@ -28,39 +30,17 @@
       <a class="navbar-brand" href="github.com/cafebazaar/aghajoon/">
         <strong>Aghajoon</strong>
       </a>
-      <p class="navbar-text">Bare-Metal Booting for CoreOS and Kubernetes</p>
+      <ul class="nav navbar-nav">
+        <li><a href="#/nodes/">Nodes</a></li>
+        <li><a href="#/files/">Files</a></li>
+      </ul>
     </div>
   </div>
 </nav>
-
 <div class="container">
-<div class="row">
-
-  <h3>
-    <span class="glyphicon glyphicon-align-justify"></span>  Nodes List
-  </h3>
-  <hr>
-  <table class="table table-hover">
-    <thead>
-    <tr>
-      <th>#</th>
-      <th>MAC Address</th>
-      <th>IP Address</th>
-      <th>First IP Assignment Time</th>
-	  <th>Last IP Assignment Time</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr ng-repeat="node in nodes">
-      <td>{{ $index + 1 }}</td>
-      <td>{{ node.Nic }}</td>
-      <td>{{ node.IP }}</td>
-      <td>{{ node.FirstAssigned }}</td>
-	  <td>{{ node.LastAssigned }}</td>
-    </tr>
-    </tbody>
-  </table>
-</div>
+  <div class="row">
+    <div ng-view></div>
+  </div>
 </div>
 
 <script src="bower_components/jquery/dist/jquery.min.js"></script>

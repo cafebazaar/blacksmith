@@ -194,7 +194,7 @@ func main() {
 	}
 	// serving web
 	go func() {
-		restServer := web.NewRest(leasePool, uiPathFlag)
+		restServer := web.NewRest(leasePool, uiPathFlag, workspacePathFlag)
 		log.Fatalln(web.ServeWeb(restServer, webAddr))
 	}()
 

@@ -2,6 +2,7 @@ package cloudconfig // import "github.com/cafebazaar/aghajoon/cloudconfig"
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -25,7 +26,7 @@ func findFiles(path string) ([]string, error) {
 
 	files := make([]string, 0)
 	for i := range infos {
-		if !infos[i].IsDir() && strings.HasSuffix(infos[i].Name(), ".yaml") {
+		if !infos[i].IsDir() {
 			files = append(files, infos[i].Name())
 		}
 	}
@@ -44,9 +45,17 @@ func parseFile(filename string) ([]*parse.Tree, error) {
 	// parse needs to know funcs before execution and Value() is context sensitive
 	// so we cannot know its arguments before requests
 	treeSet, err := parse.Parse(name, string(data), "<<", ">>",
-		map[string]interface{}{"V": func(key string) (interface{}, error) {
-			return "FUNC PLACEHOLDER", nil
-		}})
+		map[string]interface{}{
+			"V": func(key string) (interface{}, error) {
+				return "FUNC PLACEHOLDER", nil
+			},
+			"b64": func(text string) interface{} {
+				return "FUNC PLACEHOLDER"
+			},
+			"b64template": func(text string) (interface{}, error) {
+				return "FUNC PLACEHOLDER", nil
+			},
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -78,14 +87,30 @@ func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error)
 	}, nil
 }
 
-func (r *Repo) GenerateConfig(c *ConfigContext) (string, error) {
+func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, error) {
 	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
 	buf := new(bytes.Buffer)
+	r.templates.Funcs(map[string]interface{}{
+		"V": func(key string) (interface{}, error) {
+			return Value(r.dataSources, c, key)
+		},
+		"b64": func(text string) interface{} {
+			return base64.StdEncoding.EncodeToString([]byte(text))
+		},
+		"b64template": func(templateName string) (interface{}, error) {
+			text, err := r.ExecuteTemplate(templateName, c)
+			if err != nil {
+				return nil, err
+			}
+			return base64.StdEncoding.EncodeToString([]byte(text)), nil
+		},
+	})
+	err := r.templates.ExecuteTemplate(buf, templateName, c.Map())
+	return buf.String(), err
+}
+
+func (r *Repo) GenerateConfig(c *ConfigContext) (string, error) {
 	r.executeLock.Lock()
 	defer r.executeLock.Unlock()
-	r.templates.Funcs(map[string]interface{}{"V": func(key string) (interface{}, error) {
-		return Value(r.dataSources, c, key)
-	}})
-	err := r.templates.ExecuteTemplate(buf, "main", c.Map())
-	return buf.String(), err
+	return r.ExecuteTemplate("main", c)
 }

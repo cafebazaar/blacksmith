@@ -12,4 +12,10 @@ if [ ! -x /usr/bin/docker ]; then
   [ -x /vagrant/vagrant_provision_after_docker_installation.local ] && /vagrant/vagrant_provision_after_docker_installation.local
 fi
 
+if [ ! -x /usr/bin/realpath ]; then
+  apt-get update -qy
+  apt-get upgrade -qy
+  apt-get install -y realpath
+fi
+
 docker build -t cafebazaar/aghajoon .

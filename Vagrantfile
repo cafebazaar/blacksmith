@@ -20,7 +20,8 @@ Vagrant.configure("2") do |config|
     pxeserver.vm.provision :shell, path: 'vagrant_provision.sh'
 
     pxeserver.vm.network :private_network,
-        :ip => '10.10.10.2'
+        :ip => '10.10.10.2',
+        :libvirt__dhcp_enabled => 'false'
   end
 
   config.vm.define :pxeclient1, autostart: false do |pxeclient1|
@@ -37,7 +38,6 @@ Vagrant.configure("2") do |config|
 
     pxeclient1.vm.network :private_network,
         :mac => '52:54:00:ff:00:01',
-        :ip => '10.10.10.101'
+        :libvirt__dhcp_enabled => 'false'
   end
 end
-

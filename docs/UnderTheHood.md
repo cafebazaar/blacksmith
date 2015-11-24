@@ -2,6 +2,11 @@
 
 AghaJoon is forked from [Pixiecore](https://github.com/danderson/pixiecore).
 
+Booting a Linux system over the network is quite tedious. You have to
+set up a TFTP server, configure your DHCP server to recognize PXE
+clients, and send them the right set of magical options to get them to
+boot, often fighting rubbish PXE ROM implementations.
+
 Pixiecore implements four different, but related protocols in one
 binary, which together can take a PXE ROM from nothing to booting
 Linux. They are: ProxyDHCP, PXE, TFTP, and HTTP. Let's walk through
@@ -125,4 +130,3 @@ This is what the whole boot process looks like on the wire.
 - PXE ROM downloads PXELINUX from Pixiecore's TFTP server, and hands off to PXELINUX.
 - PXELINUX fetches its configuration from Pixiecore's HTTP server.
 - PXELINUX fetches a kernel and ramdisk from Pixiecore's HTTP server, and boots Linux.
-

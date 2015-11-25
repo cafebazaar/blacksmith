@@ -26,6 +26,11 @@ Vagrant.configure("2") do |config|
 
   config.vm.define :pxeclient1, autostart: false do |pxeclient1|
 
+    pxeclient1.vm.network :private_network,
+        :mac => '52:54:00:ff:00:01',
+        :ip => '10.10.10.100',                # Dummy
+        :libvirt__dhcp_enabled => 'false'
+
     pxeclient1.vm.provider :libvirt do |pxeclient1_vm|
       pxeclient1_vm.memory = 2048
       pxeclient1_vm.cpus = 2
@@ -33,11 +38,6 @@ Vagrant.configure("2") do |config|
       pxeclient1_vm.graphics_ip = '0.0.0.0'
       pxeclient1_vm.storage :file, :size => '20G', :type => 'qcow2'
       pxeclient1_vm.boot 'network'
-      pxeclient1_vm.boot 'hd'
     end
-
-    pxeclient1.vm.network :private_network,
-        :mac => '52:54:00:ff:00:01',
-        :libvirt__dhcp_enabled => 'false'
   end
 end

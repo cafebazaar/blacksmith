@@ -7,19 +7,19 @@
   <thead>
   <tr>
     <th>#</th>
-    <th>Hostname</th>
     <th>MAC Address</th>
     <th>IP Address</th>
-    <th>IP Assignment Time</th>
+    <th>First IP Assignment Time</th>
+  <th>Last IP Assignment Time</th>
   </tr>
   </thead>
   <tbody>
   <tr ng-repeat="node in nodes">
     <td>{{ $index + 1 }}</td>
-    <td>{{ node.name }}</td>
-    <td>{{ node.mac }}</td>
-    <td>{{ node.ip }}</td>
-    <td>{{ node.date  }}</td>
+    <td>{{ node.Nic }}</td>
+    <td>{{ node.IP }}</td>
+    <td>{{ node.FirstAssigned }}</td>
+  <td>{{ node.LastAssigned }}</td>
   </tr>
   </tbody>
 </table>

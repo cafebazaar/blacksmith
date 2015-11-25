@@ -4,20 +4,20 @@ import (
 	"net"
 	"strings"
 	//	"net/url"
-//	"fmt"
-	"net/http"
+	//	"fmt"
 	"github.com/cafebazaar/aghajoon/logging"
+	"net/http"
 	"path"
 )
 
 type CloudConfig struct {
-	cloudRepo *Repo
+	cloudRepo    *Repo
 	ignitionRepo *Repo
 }
 
 func NewCloudConfig(cloudRepo *Repo, ignitionRepo *Repo) *CloudConfig {
 	return &CloudConfig{
-		cloudRepo: cloudRepo,
+		cloudRepo:    cloudRepo,
 		ignitionRepo: ignitionRepo,
 	}
 }
@@ -45,17 +45,17 @@ func (c *CloudConfig) handler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	
+
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		http.Error(w, "internal server error - parsing host and port", 500)
 		logging.Log("CLOUDCONFIG", "Error - %s with mac %s - %s", req[0], req[1], err.Error())
 		return
 	}
-	
+
 	configCtx := &ConfigContext{
 		MacAddr: req[1],
-		IP: ip,
+		IP:      ip,
 	}
 	config, err := selectedRepo.GenerateConfig(configCtx)
 	if err != nil {
@@ -64,7 +64,7 @@ func (c *CloudConfig) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-yaml")
-  	w.Write([]byte(config))
+	w.Write([]byte(config))
 	logging.Log("CLOUDCONFIG", "Received request - %s with mac %s", req[0], req[1])
 }
 

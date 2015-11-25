@@ -17,8 +17,9 @@ var (
 )
 
 type ConfigContext struct {
-	IP      string
-	MacAddr string
+	IP       string
+	MacAddr  string
+	EtcdPath string
 }
 
 func (c *ConfigContext) Map() map[string]interface{} {

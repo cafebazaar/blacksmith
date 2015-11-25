@@ -2,44 +2,43 @@ package web // import "github.com/cafebazaar/aghajoon/web"
 
 import (
 	"encoding/json"
+	"github.com/cafebazaar/aghajoon/dhcp"
+	"github.com/gorilla/mux"
 	"io"
-	"time"
+	"io/ioutil"
 	"net"
 	"net/http"
-    "io/ioutil"
 	"os"
-	"github.com/gorilla/mux"
-	"github.com/cafebazaar/aghajoon/dhcp"
+	"time"
 )
 
-
 type RestServer struct {
-	pool   *dhcp.LeasePool
-	uiPath *string
+	pool           *dhcp.LeasePool
+	uiPath         *string
 	filesDirectory string
 }
 
 type UploadedFile struct {
-	Name string `json:"name"`
-    Size int64 `json:"size"`
+	Name                 string    `json:"name"`
+	Size                 int64     `json:"size"`
 	LastModificationDate time.Time `json:"lastModifiedDate"`
 }
-	
+
 func (a *RestServer) deleteFile(w http.ResponseWriter, r *http.Request) {
- 	name := r.FormValue("name")
-	
+	name := r.FormValue("name")
+
 	if name != "" {
 		err := os.Remove(a.filesDirectory + name)
-		
+
 		if err != nil {
-		    http.Error(w, err.Error(), 404)
-			
-		    return
-		}	
+			http.Error(w, err.Error(), 404)
+
+			return
+		}
 	} else {
 		http.Error(w, "No file name specified.", 400)
 	}
-	
+
 }
 
 func (a *RestServer) files(w http.ResponseWriter, r *http.Request) {
@@ -47,64 +46,62 @@ func (a *RestServer) files(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 	}
-	
+
 	filesList := make([]UploadedFile, 0)
-    for _, f := range files {
-		var uploadedFile UploadedFile;
+	for _, f := range files {
+		var uploadedFile UploadedFile
 		uploadedFile.Size = f.Size()
 		uploadedFile.LastModificationDate = f.ModTime()
 		uploadedFile.Name = f.Name()
-        filesList = append(filesList, uploadedFile)
-    }
-	
+		filesList = append(filesList, uploadedFile)
+	}
+
 	jsoned, _ := json.Marshal(filesList)
 	io.WriteString(w, string(jsoned))
 }
-
-
 
 func (a *RestServer) upload(w http.ResponseWriter, r *http.Request) {
 	const MaxFileSize = 1 << 30
 	// This feels like a bad hack...
 	if r.ContentLength > MaxFileSize {
 		http.Error(w, "Request too large", 400)
-	    return
+		return
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, MaxFileSize)
 
 	err := r.ParseMultipartForm(1024)
 	if err != nil {
-	    http.Error(w, "File too large", 400)
-	    return
+		http.Error(w, "File too large", 400)
+		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-	    panic(err)
+		panic(err)
 	}
 
 	dst, err := os.Create(a.filesDirectory + header.Filename)
 	defer dst.Close()
-	if err != nil { 
-	    http.Error(w, err.Error(), 500)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
 	}
 
 	written, err := io.Copy(dst, io.LimitReader(file, MaxFileSize))
 	if err != nil {
-	    http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), 500)
 	}
 
 	if written == MaxFileSize {
-	    http.Error(w, "File too large", 400)
-	    return
+		http.Error(w, "File too large", 400)
+		return
 	}
 }
 
 func NewRest(leasePool *dhcp.LeasePool, uiPath *string, workspacePathFlag *string) *RestServer {
 	return &RestServer{
-		pool:   leasePool,
-		uiPath: uiPath,
+		pool:           leasePool,
+		uiPath:         uiPath,
 		filesDirectory: *workspacePathFlag + "/files/",
 	}
 }
@@ -117,10 +114,10 @@ func (a *RestServer) Mux() *mux.Router {
 	mux.HandleFunc("/files", a.files).Methods("GET")
 	mux.HandleFunc("/files", a.deleteFile).Methods("DELETE")
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/", http.FileServer(http.Dir(a.filesDirectory))))
-	if *a.uiPath != "" {		
+	if *a.uiPath != "" {
 		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir(*a.uiPath))))
 	}
-		
+
 	//if *a.uiPath != "" {
 	//	ui := http.FileServer(http.Dir(*a.uiPath))
 	//	mux.Handle("/ui/", http.StripPrefix("/ui/", ui))
@@ -139,7 +136,7 @@ func (a *RestServer) nodesList(w http.ResponseWriter, r *http.Request) {
 }
 
 func ServeWeb(rest *RestServer, listenAddr net.TCPAddr) error {
-	
+
 	s := &http.Server{
 		Addr:           ":8000",
 		Handler:        rest.Mux(),
@@ -149,5 +146,5 @@ func ServeWeb(rest *RestServer, listenAddr net.TCPAddr) error {
 	}
 
 	return s.ListenAndServe()
-	
+
 }

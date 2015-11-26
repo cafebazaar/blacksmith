@@ -26,7 +26,7 @@ func findFiles(path string) ([]string, error) {
 
 	files := make([]string, 0)
 	for i := range infos {
-		if !infos[i].IsDir() {
+		if !infos[i].IsDir() && infos[i].Name()[0] != '.' {
 			files = append(files, infos[i].Name())
 		}
 	}
@@ -92,7 +92,7 @@ func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, e
 	buf := new(bytes.Buffer)
 	r.templates.Funcs(map[string]interface{}{
 		"V": func(key string) (interface{}, error) {
-			return Value(r.dataSources, c, key)
+			return GetValue(r.dataSources, c, key)
 		},
 		"b64": func(text string) interface{} {
 			return base64.StdEncoding.EncodeToString([]byte(text))

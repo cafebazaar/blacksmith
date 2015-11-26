@@ -164,15 +164,8 @@ func main() {
 
 	// serving cloudconfig
 	go func() {
-		// TODO: reuse runtimeConfig
-
-		etcdDS, err := cloudconfig.NewEtcdDataSource(kapi, "aghajoon")
-		if err != nil {
-			log.Fatalln(err)
-		}
-		datasources := map[string]cloudconfig.DataSource{"etcd": etcdDS}
+		datasources := map[string]cloudconfig.DataSource{"default": runtimeConfig}
 		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
-
 	}()
 
 	// serving http booter

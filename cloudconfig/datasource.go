@@ -3,11 +3,8 @@ package cloudconfig
 import (
 	"errors"
 	"fmt"
-	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
-	etcd "github.com/coreos/etcd/client"
 	"reflect"
 	"strings"
-	"time"
 )
 
 var (
@@ -38,43 +35,17 @@ func (c *ConfigContext) Map() map[string]interface{} {
 }
 
 type DataSource interface {
-	Value(key string) (interface{}, error)
+	GetValue(key string) (string, error)
 }
 
-type EtcdDataSource struct {
-	etcdKapi       etcd.KeysAPI
-	etcdDefaultDir string
-}
-
-func NewEtcdDataSource(etcdKapi etcd.KeysAPI, defaultDir string) (*EtcdDataSource, error) {
-	return &EtcdDataSource{
-		etcdKapi:       etcdKapi,
-		etcdDefaultDir: defaultDir,
-	}, nil
-}
-
-func (e *EtcdDataSource) Value(key string) (interface{}, error) {
-	key = strings.Replace(key, ".", "/", -1)
-	key = strings.Replace(key, "__/", e.etcdDefaultDir+"/", -1)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	response, err := e.etcdKapi.Get(ctx, key, nil)
-	if err != nil {
-		return nil, err
-	}
-	return response.Node.Value, nil
-}
-
-func Value(sources map[string]DataSource, confCtx *ConfigContext, key string) (interface{}, error) {
+func GetValue(sources map[string]DataSource, confCtx *ConfigContext, key string) (string, error) {
 	keys := strings.Split(key, ".")
 	if len(keys) == 0 {
-		return nil, ErrDataSourceNotFound
+		return "", ErrDataSourceNotFound
 	}
 	datasource, ok := sources[keys[0]]
 	if !ok {
-		return nil, ErrDataSourceNotFound
+		return "", ErrDataSourceNotFound
 	}
 
 	if strings.Contains(key, "$") {
@@ -84,12 +55,12 @@ func Value(sources map[string]DataSource, confCtx *ConfigContext, key string) (i
 			if strings.HasPrefix(keys[i], "$") {
 				v, ok := confCtxMap[strings.TrimPrefix(keys[i], "$")]
 				if !ok {
-					return nil, ErrKeyNotFound
+					return "", ErrKeyNotFound
 				}
 				keys[i] = fmt.Sprintf("%s", v)
 			}
 		}
 	}
-	val, err := datasource.Value(strings.Join(keys[1:], "."))
+	val, err := datasource.GetValue(strings.Join(keys[1:], "."))
 	return val, err
 }

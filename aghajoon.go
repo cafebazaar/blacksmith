@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -19,6 +20,9 @@ import (
 )
 
 //go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxelinux -ignore=README.md pxe/pxelinux
+
+var _ cloudconfig.DataSource = (*datasource.RuntimeConfiguration)(nil)
+var _ cloudconfig.DataSource = (*datasource.Flags)(nil)
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
@@ -74,13 +78,13 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 }
 
 func main() {
+	var err error
 	flag.Parse()
 	// etcd config
 	if etcdFlag == nil || etcdDirFlag == nil {
 		fmt.Fprint(os.Stderr, "please specify the etcd endpoints\n")
 		os.Exit(1)
 	}
-	var err error
 
 	// listen ip address for http, tftp
 	var listenIP = net.IP{0, 0, 0, 0}
@@ -156,7 +160,13 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	runtimeConfig, err := datasource.NewRuntimeConfiguration(&kapi, *etcdDirFlag, *workspacePathFlag)
+	runtimeConfig, err := datasource.NewRuntimeConfiguration(kapi, *etcdDirFlag, *workspacePathFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
+		os.Exit(1)
+	}
+
+	flagsDataSource, err := datasource.NewFlags(kapi, path.Join(*etcdDirFlag, "flags"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
@@ -164,7 +174,10 @@ func main() {
 
 	// serving cloudconfig
 	go func() {
-		datasources := map[string]cloudconfig.DataSource{"default": runtimeConfig}
+		datasources := map[string]cloudconfig.DataSource{
+			"default": runtimeConfig,
+			"flags":   flagsDataSource,
+		}
 		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
 	}()
 

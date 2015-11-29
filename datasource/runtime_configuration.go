@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cafebazaar/aghajoon/cloudconfig"
 	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
 	etcd "github.com/coreos/etcd/client"
 	"gopkg.in/yaml.v2"
@@ -16,7 +17,7 @@ import (
 
 // RuntimeConfiguration is the the connector between aghajoon components and the state
 type RuntimeConfiguration struct {
-	DataSource           *etcd.KeysAPI
+	DataSource           etcd.KeysAPI
 	EtcdDir              string
 	WorkspacePath        string
 	initialCoreOSVersion string
@@ -27,7 +28,7 @@ type initialValues struct {
 }
 
 // NewRuntimeConfiguration initialize etcd tree, do some validations, and returns a ready RuntimeConfiguration
-func NewRuntimeConfiguration(dataSource *etcd.KeysAPI, etcdDir string, workspacePath string) (*RuntimeConfiguration, error) {
+func NewRuntimeConfiguration(dataSource etcd.KeysAPI, etcdDir string, workspacePath string) (*RuntimeConfiguration, error) {
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("Error while trying to read initial data: %s", err)
@@ -58,7 +59,7 @@ func NewRuntimeConfiguration(dataSource *etcd.KeysAPI, etcdDir string, workspace
 			// Initializing
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-			_, err = (*dataSource).Set(ctx, path.Join(etcdDir, "/coreos-version"), iVals.CoreOSVersion, nil)
+			_, err = dataSource.Set(ctx, path.Join(etcdDir, "/coreos-version"), iVals.CoreOSVersion, nil)
 			if err != nil {
 				return nil, fmt.Errorf("Error while initializing etcd tree: %s", err)
 			}
@@ -74,7 +75,7 @@ func NewRuntimeConfiguration(dataSource *etcd.KeysAPI, etcdDir string, workspace
 // GetCoreOSVersion gets the current value from etcd and returns it if the image folder exists
 // if not, the inital CoreOS version will be returned, with the raised error
 func (rc *RuntimeConfiguration) GetCoreOSVersion() (string, error) {
-	coreOSVersion, err := rc.GetValue("coreos-version")
+	coreOSVersion, err := rc.GetValue(nil, "coreos-version")
 	if err != nil {
 		return rc.initialCoreOSVersion, err
 	}
@@ -90,17 +91,45 @@ func (rc *RuntimeConfiguration) GetCoreOSVersion() (string, error) {
 	return coreOSVersion, nil
 }
 
-// GetValue normalizes the key parameter, retrive the value from etcd, and returns it
-func (rc *RuntimeConfiguration) GetValue(key string) (string, error) {
+func (rc *RuntimeConfiguration) parseKey(key string) string {
 	key = strings.Replace(key, ".", "/", -1)
 	key = strings.Replace(key, "__/", rc.EtcdDir+"/", -1)
+	return key
+}
 
+// GetValue normalizes the key parameter, retrive the value from etcd, and returns it
+func (rc *RuntimeConfiguration) GetValue(confCtx *cloudconfig.ConfigContext, key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	response, err := (*rc.DataSource).Get(ctx, key, nil)
+	response, err := rc.DataSource.Get(ctx, rc.parseKey(key), nil)
 	if err != nil {
 		return "", err
 	}
 	return response.Node.Value, nil
+}
+
+func (rc *RuntimeConfiguration) Set(confCtx *cloudconfig.ConfigContext, key string, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := rc.DataSource.Set(ctx, rc.parseKey(key), value, nil)
+	return err
+}
+
+func (rc *RuntimeConfiguration) GetAndDelete(confCtx *cloudconfig.ConfigContext, key string) (string, error) {
+	value, err := rc.GetValue(confCtx, key)
+	if err != nil {
+		return "", err
+	}
+	if err = rc.Delete(confCtx, key); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+func (rc *RuntimeConfiguration) Delete(confCtx *cloudconfig.ConfigContext, key string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := rc.DataSource.Delete(ctx, rc.parseKey(key), nil)
+	return err
 }

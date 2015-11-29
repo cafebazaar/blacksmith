@@ -49,6 +49,15 @@ func parseFile(filename string) ([]*parse.Tree, error) {
 			"V": func(key string) (interface{}, error) {
 				return "FUNC PLACEHOLDER", nil
 			},
+			"S": func(key string, value string) (interface{}, error) {
+				return "FUNC PLACEHOLDER", nil
+			},
+			"D": func(key string) (interface{}, error) {
+				return "FUNC PLACEHOLDER", nil
+			},
+			"VD": func(key string) (interface{}, error) {
+				return "FUNC PLACEHOLDER", nil
+			},
 			"b64": func(text string) interface{} {
 				return "FUNC PLACEHOLDER"
 			},
@@ -93,6 +102,15 @@ func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, e
 	r.templates.Funcs(map[string]interface{}{
 		"V": func(key string) (interface{}, error) {
 			return GetValue(r.dataSources, c, key)
+		},
+		"S": func(key string, value string) (interface{}, error) {
+			return Set(r.dataSources, c, key, value)
+		},
+		"VD": func(key string) (interface{}, error) {
+			return GetAndDelete(r.dataSources, c, key)
+		},
+		"D": func(key string) (interface{}, error) {
+			return Delete(r.dataSources, c, key)
 		},
 		"b64": func(text string) interface{} {
 			return base64.StdEncoding.EncodeToString([]byte(text))

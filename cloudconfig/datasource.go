@@ -35,17 +35,20 @@ func (c *ConfigContext) Map() map[string]interface{} {
 }
 
 type DataSource interface {
-	GetValue(key string) (string, error)
+	GetValue(confCtx *ConfigContext, key string) (string, error)
+	Set(confCtx *ConfigContext, key string, value string) error
+	GetAndDelete(confCtx *ConfigContext, key string) (string, error)
+	Delete(confCtx *ConfigContext, key string) error
 }
 
-func GetValue(sources map[string]DataSource, confCtx *ConfigContext, key string) (string, error) {
+func parseKey(sources map[string]DataSource, confCtx *ConfigContext, key string) (DataSource, string, error) {
 	keys := strings.Split(key, ".")
 	if len(keys) == 0 {
-		return "", ErrDataSourceNotFound
+		return nil, "", ErrDataSourceNotFound
 	}
 	datasource, ok := sources[keys[0]]
 	if !ok {
-		return "", ErrDataSourceNotFound
+		return nil, "", ErrDataSourceNotFound
 	}
 
 	if strings.Contains(key, "$") {
@@ -55,12 +58,43 @@ func GetValue(sources map[string]DataSource, confCtx *ConfigContext, key string)
 			if strings.HasPrefix(keys[i], "$") {
 				v, ok := confCtxMap[strings.TrimPrefix(keys[i], "$")]
 				if !ok {
-					return "", ErrKeyNotFound
+					return nil, "", ErrKeyNotFound
 				}
 				keys[i] = fmt.Sprintf("%s", v)
 			}
 		}
 	}
-	val, err := datasource.GetValue(strings.Join(keys[1:], "."))
-	return val, err
+	return datasource, strings.Join(keys[1:], "."), nil
+}
+
+func GetValue(sources map[string]DataSource, confCtx *ConfigContext, key string) (string, error) {
+	datasource, key, err := parseKey(sources, confCtx, key)
+	if err != nil {
+		return "", err
+	}
+	return datasource.GetValue(confCtx, key)
+}
+
+func Set(sources map[string]DataSource, confCtx *ConfigContext, key string, value string) (string, error) {
+	datasource, key, err := parseKey(sources, confCtx, key)
+	if err != nil {
+		return "", err
+	}
+	return "", datasource.Set(confCtx, key, value)
+}
+
+func GetAndDelete(sources map[string]DataSource, confCtx *ConfigContext, key string) (string, error) {
+	datasource, key, err := parseKey(sources, confCtx, key)
+	if err != nil {
+		return "", err
+	}
+	return datasource.GetAndDelete(confCtx, key)
+}
+
+func Delete(sources map[string]DataSource, confCtx *ConfigContext, key string) (string, error) {
+	datasource, key, err := parseKey(sources, confCtx, key)
+	if err != nil {
+		return "", err
+	}
+	return "", datasource.Delete(confCtx, key)
 }

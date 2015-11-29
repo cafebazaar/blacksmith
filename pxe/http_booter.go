@@ -33,18 +33,18 @@ type nodeContext struct {
 }
 
 type HTTPBooter struct {
-	listenAddr       net.TCPAddr
-	ldlinux          []byte
-	key              [32]byte
-	runtimeConfig    *datasource.RuntimeConfiguration
+	listenAddr     net.TCPAddr
+	ldlinux        []byte
+	key            [32]byte
+	runtimeConfig  *datasource.RuntimeConfiguration
 	bootParamsRepo *cloudconfig.Repo
 }
 
 func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*HTTPBooter, error) {
 	booter := &HTTPBooter{
-		listenAddr:    listenAddr,
-		ldlinux:       ldlinux,
-		runtimeConfig: runtimeConfig,
+		listenAddr:     listenAddr,
+		ldlinux:        ldlinux,
+		runtimeConfig:  runtimeConfig,
 		bootParamsRepo: bootParamsRepo,
 	}
 	if _, err := io.ReadFull(rand.Reader, booter.key[:]); err != nil {
@@ -110,7 +110,7 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	// generate bootparams config
 	params, err := b.bootParamsRepo.GenerateConfig(&cloudconfig.ConfigContext{
 		MacAddr: strings.Replace(mac.String(), ":", "", -1),
-		IP: "",
+		IP:      "",
 	})
 	if err != nil {
 		logging.Log("HTTPBOOTER", "error in bootparam template - %s", err.Error())
@@ -118,6 +118,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	params = strings.Replace(params, "\n", " ", -1)
+
+	// FIXME: 8001 is hardcoded
 	Cmdline := fmt.Sprintf(
 		"cloud-config-url=http://%s:8001/cloud/%s "+
 			"coreos.config.url=http://%s:8001/ignition/%s %s",

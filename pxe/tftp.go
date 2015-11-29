@@ -8,7 +8,7 @@ import (
 )
 
 func ServeTFTP(listenAddr net.UDPAddr) error {
-	pxelinux, err := Asset("lpxelinux.0")
+	pxelinux, err := Asset("pxelinux/lpxelinux.0")
 	if err != nil {
 		return err
 	}

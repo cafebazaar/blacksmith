@@ -13,12 +13,12 @@ import (
 
 	"github.com/cafebazaar/aghajoon/datasource"
 	"github.com/cafebazaar/aghajoon/dhcp"
+	"github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/mux"
 )
 
 type RestServer struct {
 	pool          *dhcp.LeasePool
-	uiPath        *string
 	runtimeConfig *datasource.RuntimeConfiguration
 }
 
@@ -105,10 +105,9 @@ func (a *RestServer) upload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewRest(leasePool *dhcp.LeasePool, uiPath *string, runtimeConfig *datasource.RuntimeConfiguration) *RestServer {
+func NewRest(leasePool *dhcp.LeasePool, runtimeConfig *datasource.RuntimeConfiguration) *RestServer {
 	return &RestServer{
 		pool:          leasePool,
-		uiPath:        uiPath,
 		runtimeConfig: runtimeConfig,
 	}
 }
@@ -122,14 +121,7 @@ func (a *RestServer) Mux() *mux.Router {
 	mux.HandleFunc("/files", a.files).Methods("GET")
 	mux.HandleFunc("/files", a.deleteFile).Methods("DELETE")
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/", http.FileServer(http.Dir(filepath.Join(a.runtimeConfig.WorkspacePath, "files")))))
-	if *a.uiPath != "" {
-		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir(*a.uiPath))))
-	}
-
-	//if *a.uiPath != "" {
-	//	ui := http.FileServer(http.Dir(*a.uiPath))
-	//	mux.Handle("/ui/", http.StripPrefix("/ui/", ui))
-	//}
+	mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "/web/ui"})))
 
 	return mux
 }

@@ -184,7 +184,7 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPBooterMux(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*http.ServeMux, error) {
-	ldlinux, err := Asset("ldlinux.c32")
+	ldlinux, err := Asset("pxelinux/ldlinux.c32")
 	if err != nil {
 		return nil, err
 	}

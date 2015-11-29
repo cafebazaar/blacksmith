@@ -19,7 +19,8 @@ import (
 	etcd "github.com/coreos/etcd/client"
 )
 
-//go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxelinux -ignore=README.md pxe/pxelinux
+//go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
+//go:generate go-bindata -o web/ui_autogen.go -pkg web web/ui/...
 
 var _ cloudconfig.DataSource = (*datasource.RuntimeConfiguration)(nil)
 var _ cloudconfig.DataSource = (*datasource.Flags)(nil)
@@ -40,7 +41,6 @@ var (
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
 	etcdDirFlag       = flag.String("etcd-dir", "aghajoon", "The etcd directory used by this instance of aghajoon")
-	uiPathFlag        = flag.String("ui", "", "The path of static files for UI")
 
 	leaseStartFlag  = flag.String("lease-start", "", "Begining of lease starting IP")
 	leaseRangeFlag  = flag.Int("lease-range", 0, "Lease range")
@@ -206,7 +206,7 @@ func main() {
 	}
 	// serving web
 	go func() {
-		restServer := web.NewRest(leasePool, uiPathFlag, runtimeConfig)
+		restServer := web.NewRest(leasePool, runtimeConfig)
 		log.Fatalln(web.ServeWeb(restServer, webAddr))
 	}()
 

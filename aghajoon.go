@@ -150,6 +150,7 @@ func main() {
 	fmt.Printf("Interface IP:    %s\n", dhcpIP.String())
 	fmt.Printf("Interface Name:  %s\n", dhcpIF.Name)
 
+	// datasources
 	etcdClient, err := etcd.New(etcd.Config{
 		Endpoints:               strings.Split(*etcdFlag, ","),
 		HeaderTimeoutPerRequest: time.Second,
@@ -171,19 +172,24 @@ func main() {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
 	}
+	
+	datasources := map[string]cloudconfig.DataSource{
+		"default": runtimeConfig,
+		"flags":   flagsDataSource,
+	}
 
 	// serving cloudconfig
 	go func() {
-		datasources := map[string]cloudconfig.DataSource{
-			"default": runtimeConfig,
-			"flags":   flagsDataSource,
-		}
 		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
 	}()
 
 	// serving http booter
 	go func() {
-		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, runtimeConfig))
+		repo, err := cloudconfig.FromPath(datasources, path.Join(*workspacePathFlag, "config/bootparams"))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, runtimeConfig, repo))
 	}()
 	// serving tftp
 	go func() {

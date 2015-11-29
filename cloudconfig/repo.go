@@ -130,5 +130,8 @@ func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, e
 func (r *Repo) GenerateConfig(c *ConfigContext) (string, error) {
 	r.executeLock.Lock()
 	defer r.executeLock.Unlock()
+	if r.templates.Lookup("main") == nil {
+		return "", nil
+	}
 	return r.ExecuteTemplate("main", c)
 }

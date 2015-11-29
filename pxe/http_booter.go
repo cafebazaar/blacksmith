@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cafebazaar/aghajoon/cloudconfig"
 	"github.com/cafebazaar/aghajoon/datasource"
 	"github.com/cafebazaar/aghajoon/logging"
 )
@@ -32,17 +33,19 @@ type nodeContext struct {
 }
 
 type HTTPBooter struct {
-	listenAddr    net.TCPAddr
-	ldlinux       []byte
-	key           [32]byte
-	runtimeConfig *datasource.RuntimeConfiguration
+	listenAddr       net.TCPAddr
+	ldlinux          []byte
+	key              [32]byte
+	runtimeConfig    *datasource.RuntimeConfiguration
+	bootParamsRepo *cloudconfig.Repo
 }
 
-func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte, runtimeConfig *datasource.RuntimeConfiguration) (*HTTPBooter, error) {
+func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*HTTPBooter, error) {
 	booter := &HTTPBooter{
 		listenAddr:    listenAddr,
 		ldlinux:       ldlinux,
 		runtimeConfig: runtimeConfig,
+		bootParamsRepo: bootParamsRepo,
 	}
 	if _, err := io.ReadFull(rand.Reader, booter.key[:]); err != nil {
 		return nil, fmt.Errorf("cannot initialize ephemeral signing key: %s", err)
@@ -104,11 +107,22 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// generate bootparams config
+	params, err := b.bootParamsRepo.GenerateConfig(&cloudconfig.ConfigContext{
+		MacAddr: strings.Replace(mac.String(), ":", "", -1),
+		IP: "",
+	})
+	if err != nil {
+		logging.Log("HTTPBOOTER", "error in bootparam template - %s", err.Error())
+		http.Error(w, "error in bootparam template", 500)
+		return
+	}
+	params = strings.Replace(params, "\n", " ", -1)
 	Cmdline := fmt.Sprintf(
 		"cloud-config-url=http://%s:8001/cloud/%s "+
-			"coreos.config.url=http://%s:8001/ignition/%s",
+			"coreos.config.url=http://%s:8001/ignition/%s %s",
 		host, strings.Replace(mac.String(), ":", "", -1),
-		host, strings.Replace(mac.String(), ":", "", -1))
+		host, strings.Replace(mac.String(), ":", "", -1), params)
 	bootMessage := strings.Replace(bootMessageTemplate, "$MAC", macStr, -1)
 	cfg := fmt.Sprintf(`
 SAY %s
@@ -167,21 +181,21 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	logging.Log("HTTPBOOTER", "Sent %s to %s (%d bytes)", id, r.RemoteAddr, written)
 }
 
-func HTTPBooterMux(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration) (*http.ServeMux, error) {
+func HTTPBooterMux(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*http.ServeMux, error) {
 	ldlinux, err := Asset("ldlinux.c32")
 	if err != nil {
 		return nil, err
 	}
-	booter, err := NewHTTPBooter(listenAddr, ldlinux, runtimeConfig)
+	booter, err := NewHTTPBooter(listenAddr, ldlinux, runtimeConfig, bootParamsRepo)
 	if err != nil {
 		return nil, err
 	}
 	return booter.Mux(), nil
 }
 
-func ServeHTTPBooter(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration) error {
+func ServeHTTPBooter(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) error {
 	logging.Log("HTTPBOOTER", "Listening on %s", listenAddr.String())
-	mux, err := HTTPBooterMux(listenAddr, runtimeConfig)
+	mux, err := HTTPBooterMux(listenAddr, runtimeConfig, bootParamsRepo)
 	if err != nil {
 		return err
 	}

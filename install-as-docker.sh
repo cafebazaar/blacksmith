@@ -72,7 +72,7 @@ if [ SCRIPT_DEBUG ]; then
 fi
 
 VOLUME_ARGS="-v ${WORKSPACE_DIR}:/workspace"
-ARGS="-etcd $ETCD_ENDPOINTS -if $INTERFACE -ui /go/src/github.com/cafebazaar/aghajoon/web/ui -lease-start $LEASE_START -lease-range $LEASE_RANGE -lease-subnet $LEASE_SUBNET -router $ROUTER -dns $DNS $OTHER_ARGS"
+ARGS="-etcd $ETCD_ENDPOINTS -if $INTERFACE -lease-start $LEASE_START -lease-range $LEASE_RANGE -lease-subnet $LEASE_SUBNET -router $ROUTER -dns $DNS $OTHER_ARGS"
 
 $DOCKER_EXEC kill       $DOCKER_NAME || echo "NOT FATAL"
 $DOCKER_EXEC rm         $DOCKER_NAME || echo "NOT FATAL"

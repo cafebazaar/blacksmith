@@ -1,15 +1,13 @@
 package cloudconfig // import "github.com/cafebazaar/aghajoon/cloudconfig"
 
 import (
+	"strings"
 	"bytes"
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"path"
-	"strings"
 	"sync"
 	"text/template"
-	"text/template/parse"
 )
 
 type Repo struct {
@@ -33,19 +31,15 @@ func findFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func parseFile(filename string) ([]*parse.Tree, error) {
-	_ = fmt.Errorf
-	data, err := ioutil.ReadFile(filename)
+func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error) {
+	files, err := findFiles(tmplPath)
 	if err != nil {
 		return nil, err
 	}
-	trees := make([]*parse.Tree, 0)
-	name := strings.Split(path.Base(filename), ".")[0]
-	// place holder hack
-	// parse needs to know funcs before execution and Value() is context sensitive
-	// so we cannot know its arguments before requests
-	treeSet, err := parse.Parse(name, string(data), "<<", ">>",
-		map[string]interface{}{
+
+	t := template.New("")
+	t.Delims("<<", ">>")
+	t.Funcs(map[string]interface{}{
 			"V": func(key string) (interface{}, error) {
 				return "FUNC PLACEHOLDER", nil
 			},
@@ -65,30 +59,14 @@ func parseFile(filename string) ([]*parse.Tree, error) {
 				return "FUNC PLACEHOLDER", nil
 			},
 		})
-	if err != nil {
-		return nil, err
-	}
-	for _, tree := range treeSet {
-		trees = append(trees, tree)
-	}
-	return trees, nil
-}
-
-func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error) {
-	files, err := findFiles(tmplPath)
-	if err != nil {
-		return nil, err
-	}
-
-	t := template.New("")
+	
 	for i := range files {
-		trees, err := parseFile(path.Join(tmplPath, files[i]))
-		if err != nil {
-			return nil, err
-		}
-		for i := range trees {
-			t.AddParseTree(trees[i].Name, trees[i])
-		}
+		files[i] = path.Join(tmplPath, files[i])
+	}
+	
+	t, err = t.ParseFiles(files...)
+	if err != nil {
+		return nil, err
 	}
 	return &Repo{
 		templates:   t,
@@ -124,12 +102,18 @@ func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, e
 		},
 	})
 	err := r.templates.ExecuteTemplate(buf, templateName, c.Map())
-	return buf.String(), err
+	if err != nil {
+		return "", err
+	}
+	str := buf.String()
+	str = strings.Trim(str, "\n")
+	return str, err
 }
 
 func (r *Repo) GenerateConfig(c *ConfigContext) (string, error) {
 	r.executeLock.Lock()
 	defer r.executeLock.Unlock()
+	
 	if r.templates.Lookup("main") == nil {
 		return "", nil
 	}

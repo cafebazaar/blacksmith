@@ -2,23 +2,27 @@ package web // import "github.com/cafebazaar/aghajoon/web"
 
 import (
 	"encoding/json"
-	"github.com/cafebazaar/aghajoon/dhcp"
-	"github.com/gorilla/mux"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/cafebazaar/aghajoon/datasource"
+	"github.com/cafebazaar/aghajoon/dhcp"
+	"github.com/gorilla/mux"
 )
 
 type RestServer struct {
-	pool           *dhcp.LeasePool
-	uiPath         *string
-	filesDirectory string
+	pool          *dhcp.LeasePool
+	uiPath        *string
+	runtimeConfig *datasource.RuntimeConfiguration
 }
 
-type UploadedFile struct {
+type uploadedFile struct {
 	Name                 string    `json:"name"`
 	Size                 int64     `json:"size"`
 	LastModificationDate time.Time `json:"lastModifiedDate"`
@@ -28,7 +32,7 @@ func (a *RestServer) deleteFile(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 
 	if name != "" {
-		err := os.Remove(a.filesDirectory + name)
+		err := os.Remove(filepath.Join(a.runtimeConfig.WorkspacePath, "files", name))
 
 		if err != nil {
 			http.Error(w, err.Error(), 404)
@@ -42,14 +46,17 @@ func (a *RestServer) deleteFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *RestServer) files(w http.ResponseWriter, r *http.Request) {
-	files, err := ioutil.ReadDir(a.filesDirectory)
+	files, err := ioutil.ReadDir(filepath.Join(a.runtimeConfig.WorkspacePath, "files"))
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 	}
 
-	filesList := make([]UploadedFile, 0)
+	var filesList []uploadedFile
 	for _, f := range files {
-		var uploadedFile UploadedFile
+		if f.Name()[0] == '.' {
+			continue
+		}
+		var uploadedFile uploadedFile
 		uploadedFile.Size = f.Size()
 		uploadedFile.LastModificationDate = f.ModTime()
 		uploadedFile.Name = f.Name()
@@ -81,7 +88,7 @@ func (a *RestServer) upload(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	dst, err := os.Create(a.filesDirectory + header.Filename)
+	dst, err := os.Create(filepath.Join(a.runtimeConfig.WorkspacePath, "files", header.Filename))
 	defer dst.Close()
 	if err != nil {
 		http.Error(w, err.Error(), 500)
@@ -98,22 +105,23 @@ func (a *RestServer) upload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewRest(leasePool *dhcp.LeasePool, uiPath *string, workspacePathFlag *string) *RestServer {
+func NewRest(leasePool *dhcp.LeasePool, uiPath *string, runtimeConfig *datasource.RuntimeConfiguration) *RestServer {
 	return &RestServer{
-		pool:           leasePool,
-		uiPath:         uiPath,
-		filesDirectory: *workspacePathFlag + "/files/",
+		pool:          leasePool,
+		uiPath:        uiPath,
+		runtimeConfig: runtimeConfig,
 	}
 }
 
 func (a *RestServer) Mux() *mux.Router {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/api/nodes", a.nodesList)
+	mux.HandleFunc("/api/etcd-endpoints", a.etcdEndpoints)
 
 	mux.HandleFunc("/upload/", a.upload)
 	mux.HandleFunc("/files", a.files).Methods("GET")
 	mux.HandleFunc("/files", a.deleteFile).Methods("DELETE")
-	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/", http.FileServer(http.Dir(a.filesDirectory))))
+	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/", http.FileServer(http.Dir(filepath.Join(a.runtimeConfig.WorkspacePath, "files")))))
 	if *a.uiPath != "" {
 		mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir(*a.uiPath))))
 	}
@@ -131,14 +139,28 @@ func (a *RestServer) nodesList(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Error in fetching lease data", 500)
 	}
-	json, _ := json.Marshal(leases)
-	io.WriteString(w, string(json))
+	nodesJSON, err := json.Marshal(leases)
+	if err != nil {
+		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
+		return
+	}
+	io.WriteString(w, string(nodesJSON))
 }
 
-func ServeWeb(rest *RestServer, listenAddr net.TCPAddr) error {
+func (a *RestServer) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
+	// a.runtimeConfig.
+	endpointsJSON, err := json.Marshal(a.runtimeConfig.EtcdClient.Endpoints())
+	if err != nil {
+		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
+		return
+	}
+	io.WriteString(w, string(endpointsJSON))
+}
 
+// ServeWeb serves api of Aghajoon and a ui connected to that api
+func ServeWeb(rest *RestServer, listenAddr net.TCPAddr) error {
 	s := &http.Server{
-		Addr:           ":8000",
+		Addr:           listenAddr.String(),
 		Handler:        rest.Mux(),
 		ReadTimeout:    100 * time.Second,
 		WriteTimeout:   100 * time.Second,
@@ -146,5 +168,4 @@ func ServeWeb(rest *RestServer, listenAddr net.TCPAddr) error {
 	}
 
 	return s.ListenAndServe()
-
 }

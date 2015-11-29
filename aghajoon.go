@@ -161,7 +161,7 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	runtimeConfig, err := datasource.NewRuntimeConfiguration(kapi, *etcdDirFlag, *workspacePathFlag)
+	runtimeConfig, err := datasource.NewRuntimeConfiguration(kapi, etcdClient, *etcdDirFlag, *workspacePathFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
@@ -172,7 +172,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
 	}
-	
+
 	datasources := map[string]cloudconfig.DataSource{
 		"default": runtimeConfig,
 		"flags":   flagsDataSource,
@@ -206,7 +206,7 @@ func main() {
 	}
 	// serving web
 	go func() {
-		restServer := web.NewRest(leasePool, uiPathFlag, workspacePathFlag)
+		restServer := web.NewRest(leasePool, uiPathFlag, runtimeConfig)
 		log.Fatalln(web.ServeWeb(restServer, webAddr))
 	}()
 

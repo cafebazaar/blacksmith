@@ -1,4 +1,4 @@
-var aghajoonUIApp = angular.module('aghajoonUIApp', ['ngRoute', 'aghajoonUIControllers', 'filesServices', 'nodesServices']);
+var aghajoonUIApp = angular.module('aghajoonUIApp', ["xeditable", 'ngRoute', 'aghajoonUIControllers', 'filesServices', 'nodesServices']);
 
 aghajoonUIApp.config(['$routeProvider',
   function($routeProvider) {
@@ -10,6 +10,10 @@ aghajoonUIApp.config(['$routeProvider',
       when('/files/', {
         templateUrl: 'partials/files-list.html',
         controller: 'AghajoonFilesCtrl'
+      }).
+      when('/etcd/', {
+        templateUrl: 'partials/etcd.html',
+        controller: 'AghajoonEtcdCtrl'
       }).
       otherwise({
         redirectTo: '/nodes/'

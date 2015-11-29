@@ -18,6 +18,7 @@ import (
 // RuntimeConfiguration is the the connector between aghajoon components and the state
 type RuntimeConfiguration struct {
 	DataSource           etcd.KeysAPI
+	EtcdClient           etcd.Client
 	EtcdDir              string
 	WorkspacePath        string
 	initialCoreOSVersion string
@@ -28,7 +29,7 @@ type initialValues struct {
 }
 
 // NewRuntimeConfiguration initialize etcd tree, do some validations, and returns a ready RuntimeConfiguration
-func NewRuntimeConfiguration(dataSource etcd.KeysAPI, etcdDir string, workspacePath string) (*RuntimeConfiguration, error) {
+func NewRuntimeConfiguration(dataSource etcd.KeysAPI, etcdClient etcd.Client, etcdDir string, workspacePath string) (*RuntimeConfiguration, error) {
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("Error while trying to read initial data: %s", err)
@@ -47,6 +48,7 @@ func NewRuntimeConfiguration(dataSource etcd.KeysAPI, etcdDir string, workspaceP
 
 	instance := &RuntimeConfiguration{
 		DataSource:           dataSource,
+		EtcdClient:           etcdClient,
 		EtcdDir:              etcdDir,
 		WorkspacePath:        workspacePath,
 		initialCoreOSVersion: iVals.CoreOSVersion,

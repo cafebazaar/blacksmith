@@ -14,10 +14,12 @@
   <script src="../bower_components/html5shiv/dist/html5shiv.min.js"></script>
   <script src="../bower_components/respond/dest/respond.min.js"></script>
   <![endif]-->
+  <link rel="stylesheet" href="bower_components/angular-xeditable/dist/css/xeditable.css">
   <link rel="stylesheet" href="css/app.css">
   <script src="bower_components/angular/angular.js"></script>
   <script src="bower_components/angular-route/angular-route.js"></script>
   <script src="bower_components/angular-resource/angular-resource.js"></script>
+  <script src="bower_components/angular-xeditable/dist/js/xeditable.js"></script>
   <script src="js/services.js"></script>
   <script src="js/app.js"></script>
   <script src="js/controllers.js"></script>
@@ -27,12 +29,16 @@
 <nav class="navbar navbar-default">
   <div class="container-fluid">
     <div class="navbar-header">
-      <a class="navbar-brand" href="github.com/cafebazaar/aghajoon/">
+      <a class="navbar-brand" href="/ui/">
         <strong>Aghajoon</strong>
       </a>
       <ul class="nav navbar-nav">
         <li><a href="#/nodes/">Nodes</a></li>
         <li><a href="#/files/">Files</a></li>
+        <li><a href="#/etcd/">Etcd</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li><a href="http://github.com/cafebazaar/aghajoon/"><span class="glyphicon glyphicon-download"></span> Source Code</a></li>
       </ul>
     </div>
   </div>

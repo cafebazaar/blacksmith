@@ -101,7 +101,7 @@ func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, e
 			return base64.StdEncoding.EncodeToString([]byte(text)), nil
 		},
 	})
-	err := r.templates.ExecuteTemplate(buf, templateName, c.Map())
+	err := r.templates.ExecuteTemplate(buf, templateName, nil)
 	if err != nil {
 		return "", err
 	}

@@ -68,6 +68,13 @@ func parseKey(sources map[string]DataSource, confCtx *ConfigContext, key string)
 }
 
 func GetValue(sources map[string]DataSource, confCtx *ConfigContext, key string) (string, error) {
+	// handling config context values
+	confMap := confCtx.Map()
+	val, ok := confMap[key]
+	if ok {
+		return fmt.Sprintf("%s", val), nil
+	}
+	
 	datasource, key, err := parseKey(sources, confCtx, key)
 	if err != nil {
 		return "", err

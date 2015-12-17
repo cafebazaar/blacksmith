@@ -7,9 +7,14 @@
 [Travis]: https://travis-ci.org/cafebazaar/aghajoon
 [Travis Widget]: https://travis-ci.org/cafebazaar/aghajoon.svg?branch=master
 
-AghaJoon is a collection of DHCP, PXE, TFTP, and HTTP server, created with the
-purpose of booting CoreOS on bare-metal machines and configuring them by serving
+AghaJoon (/ɒːɢɒː.dʒuːn/; a Persian word meaning "Dear Papa") is a
+collection of DHCP, PXE, TFTP, and HTTP server, created with the purpose of
+booting CoreOS on bare-metal machines and configuring them by serving
 generated [cloud-config] and [ignition] files.
+
+Warning: **UNDER HEAVY DEVELOPMENT**. The data-source model may dramatically
+change in the near future. To be notified about the project getting more stable,
+please subscribe to [this issue](https://github.com/cafebazaar/aghajoon/issues/5).
 
 [cloud-config]: https://github.com/coreos/coreos-cloudinit
 [ignition]: https://github.com/coreos/ignition
@@ -19,8 +24,11 @@ generated [cloud-config] and [ignition] files.
 AghaJoon is available as a Docker image called `cafebazaar/aghajoon`.
 
 Because AghaJoon needs to listen for DHCP traffic, it has to run with
-the host network stack. `install-as-docker.sh` runs aghajoon with some simplifications.
-You can read its source code and customize it according your network layout.
+the host network stack. You can use `install-as-docker.sh` to run
+aghajoon as a docker container. The script has made some assumptions to
+provide some of the required arguments of the `aghajoon` command.
+To customize it according to your network layout, currently you have to edit
+the script.
 
 ```shell
 $ sudo ./install-as-docker.sh <workspace-path> <etcd-endpoints> <network-interface>

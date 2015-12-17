@@ -111,22 +111,26 @@ This is what the whole boot process looks like on the wire.
 
 ### Dramatis Personae
 
-- **PXE ROM**, a brittle firmware burned into the network card.
-- **DHCP server**, a plain old DHCP server providing network configuration.
-- **Pixieboot**, the Hero and server of ProxyDHCP, PXE, TFTP and HTTP.
+- **Machine**, which want to join to our cluster.
+  - **PXE ROM**, a brittle firmware burned into the network card of the Machine.
+- **Aghajoon**, the Hero and server of DHCP, PXE, TFTP and multiple HTTP.
 - **PXELINUX**, an open source bootloader of the [Syslinux project](http://www.syslinux.org).
 
 ### Timeline
 
-- PXE ROM starts, broadcasts `DHCPDISCOVER`.
-- DHCP server responds with a `DHCPOFFER` containing network configs.
-- Pixiecore's ProxyDHCP server responds with a `DHCPOFFER` containing a PXE boot menu.
-- PXE ROM does a `DHCPREQUEST`/`DHCPACK` exchange with the DHCP server to get a network configuration.
-- PXE ROM processes the PXE boot menu, decides to boot menu entry 0.
-- PXE ROM sends a `DHCPREQUEST` to Pixiecore's PXE server, asking for a boot file.
+- Machine, and so PXE ROM starts, broadcasts `DHCPDISCOVER`.
+- Aghajoon's DHCP server responds with a `DHCPOFFER` containing network configs.
+- Machine, and so PXE ROM starts, broadcasts `DHCPREQUEST`.
+- Aghajoon's DHCP server responds with a `DHCPACK` containing a PXE boot menu.
+- PXE ROM processes the PXE boot menu, decides to boot menu entry 0 (after 2 seconds).
+- PXE ROM sends a `DHCPREQUEST` to Aghajoon's PXE server, asking for a boot file.
 - Pixiecore's PXE server responds with a `DHCPACK` listing a TFTP
   server, a boot filename, and a PXELINUX vendor option to make it use
   HTTP.
-- PXE ROM downloads PXELINUX from Pixiecore's TFTP server, and hands off to PXELINUX.
-- PXELINUX fetches its configuration from Pixiecore's HTTP server.
-- PXELINUX fetches a kernel and ramdisk from Pixiecore's HTTP server, and boots Linux.
+- PXE ROM downloads PXELINUX from Aghajoon's TFTP server, and hands off to PXELINUX.
+- PXELINUX fetches its configuration from Aghajoon's HTTP server.
+- PXELINUX fetches a kernel and ramdisk from Aghajoon's HTTP server, and boots CoreOS.
+- CoreOS on Machine asks for a `cloudinit` file from another HTTP server on
+  Aghajoon (cloudconfig package).
+- The cloudinit is generated according to the workspace and the states stored in
+  the etcd datasource, and is returned to the Machine.

@@ -11,7 +11,8 @@ RUN \
   go get -v github.com/coreos/etcd/client && \
   go get -v github.com/krolaw/dhcp4 &&\
   go get -v github.com/gorilla/mux && \
-  go get -v github.com/elazarl/go-bindata-assetfs
+  go get -v github.com/elazarl/go-bindata-assetfs && \
+  go get -v github.com/coreos/coreos-cloudinit
 
 ENTRYPOINT ["/go/src/github.com/cafebazaar/aghajoon/aghajoon"]
 # ENTRYPOINT ["/bin/bash"]

@@ -29,8 +29,31 @@ func (c *CloudConfig) Mux() *http.ServeMux {
 	return mux
 }
 
+func extractQueries(rawQueryString string) (map[string]string, error) {
+	// queries for which the value is not specified will be stored as : "queryKey" -> "true"
+
+	queries := strings.Split(rawQueryString, "&") // Ampersand separated queries
+	retMap := make(map[string]string)
+	for _, q := range queries {
+		equalSignIndex := strings.Index(q, "=")
+		var key, value string
+		if equalSignIndex == -1 { // no value, setting to true
+			key = q
+			value = "true"
+		} else { // key=value
+			key = q[:equalSignIndex]
+			value = q[equalSignIndex+1:]
+		}
+		retMap[key] = value
+	}
+	return retMap, nil
+}
+
 func (c *CloudConfig) handler(w http.ResponseWriter, r *http.Request) {
 	req := strings.Split(r.URL.Path, "/")[1:]
+
+	queryMap, _ := extractQueries(r.URL.RawQuery)
+
 	if len(req) != 2 {
 		logging.Log("CLOUDCONFIG", "Received request - request not found")
 		http.NotFound(w, r)
@@ -65,6 +88,12 @@ func (c *CloudConfig) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-yaml")
+
+	if value, exists := queryMap["validate"]; exists && value == "true" { // validate key is specified and is set to true
+		// will validate cloud config
+		config += validateCloudConfig(config)
+	}
+
 	w.Write([]byte(config))
 	logging.Log("CLOUDCONFIG", "Received request - %s with mac %s", req[0], req[1])
 }

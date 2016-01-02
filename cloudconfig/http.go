@@ -89,8 +89,8 @@ func (c *CloudConfig) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/x-yaml")
 
-	if value, exists := queryMap["validate"]; exists && value == "true" { // validate key is specified and is set to true
-		// will validate cloud config
+	//always validate the cloudconfig. Don't if explicitly stated.
+	if value, exists := queryMap["validate"]; !exists || value != "false" {
 		config += validateCloudConfig(config)
 	}
 

@@ -38,6 +38,9 @@ $ sudo ./install-as-docker.sh <workspace-path> <etcd-endpoints> <network-interfa
 Check [this](docs/UnderTheHood.md).
 
 ## Development
+
+*TODO: Add docker independent development instructions*
+
 You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test environment:
 
     (HOST)$ vagrant up --provider=libvirt pxeserver
@@ -54,6 +57,8 @@ You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test enviro
 
     ### Install Aghajoon as Docker service
     (PXESERVER)$ cd /vagrant
+    (PXESERVER)$ go generate
+    (PXESERVER)$ docker build -t cafebazaar/aghajoon
     (PXESERVER)$ sudo ./install-as-docker.sh ~/aghajoon-workspace-kubernetes/workspace http://10.10.10.2:4001 eth1
 
     ### In another terminal

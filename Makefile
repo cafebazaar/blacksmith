@@ -8,11 +8,11 @@ blacksmith: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 	GOOS=linux GOARCH=amd64 go build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)" -o blacksmith
 
 pxe/pxelinux_autogen.go: pxe/pxelinux
-	go get -v -d
+	go get -u github.com/jteeuwen/go-bindata/...
 	GOOS=linux GOARCH=amd64 go generate
 
 web/ui_autogen.go: web/ui
-	go get -v -d
+	go get -u github.com/jteeuwen/go-bindata/...
 	GOOS=linux GOARCH=amd64 go generate
 
 clean:

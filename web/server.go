@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"calcium/vendor/github.com/elazarl/go-bindata-assetfs"
+	"github.com/elazarl/go-bindata-assetfs"
 
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/dhcp"

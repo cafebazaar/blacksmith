@@ -1,5 +1,2 @@
 *
-!*.go
-!*/*.go
-!*/*/*.go
-!web/ui
+!blacksmith

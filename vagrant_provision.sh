@@ -18,4 +18,4 @@ if [ ! -x /usr/bin/realpath ]; then
   apt-get install -y realpath
 fi
 
-docker build -t cafebazaar/blacksmith .
+make docker

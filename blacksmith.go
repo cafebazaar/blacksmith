@@ -47,7 +47,21 @@ var (
 	leaseSubnetFlag = flag.String("lease-subnet", "", "Subnet of specified lease")
 	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
 	leaseDNSFlag    = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
+
+	version   = "v0.2"
+	commit    string
+	buildTime string
 )
+
+func init() {
+	// If commit, branch, or build time are not set, make that clear.
+	if commit == "" {
+		commit = "unknown"
+	}
+	if buildTime == "" {
+		buildTime = "unknown"
+	}
+}
 
 func interfaceIP(iface *net.Interface) (net.IP, error) {
 	addrs, err := iface.Addrs()
@@ -145,6 +159,10 @@ func main() {
 		fmt.Fprint(os.Stderr, "please specify an DNS server\n")
 		os.Exit(1)
 	}
+
+	fmt.Printf("Blacksmith (%s)\n", version)
+	fmt.Printf("  Commit:        %s\n", commit)
+	fmt.Printf("  Build Time:    %s\n", buildTime)
 
 	fmt.Printf("Server IP:       %s\n", serverIP.String())
 	fmt.Printf("Interface IP:    %s\n", dhcpIP.String())

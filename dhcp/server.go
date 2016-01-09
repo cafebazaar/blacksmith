@@ -3,6 +3,7 @@ package dhcp // import "github.com/cafebazaar/blacksmith/dhcp"
 import (
 	"bytes"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/cafebazaar/blacksmith/logging"
@@ -81,6 +82,7 @@ func (h *DHCPHandler) fillPXE() []byte {
 }
 
 func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
+	var macAddress string = strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
 	switch msgType {
 	case dhcp4.Discover:
 		ip, err := h.leasePool.Assign(p.CHAddr().String())
@@ -133,6 +135,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		} else {
 			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 		}
+		packet.AddOption(12, []byte("node"+macAddress)) // host name option
 		return packet
 	case dhcp4.Release, dhcp4.Decline:
 		return nil

@@ -8,3 +8,4 @@ deploy.sh
 remote_deploy.sh
 pxe/pxelinux_autogen.go
 web/ui_autogen.go
+install_as_docker.sh

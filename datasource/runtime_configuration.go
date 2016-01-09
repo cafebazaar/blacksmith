@@ -1,4 +1,4 @@
-package datasource // import "github.com/cafebazaar/aghajoon/datasource"
+package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 
 import (
 	"errors"
@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cafebazaar/aghajoon/cloudconfig"
+	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
 	etcd "github.com/coreos/etcd/client"
 	"gopkg.in/yaml.v2"
 )
 
-// RuntimeConfiguration is the the connector between aghajoon components and the state
+// RuntimeConfiguration is the the connector between blacksmith components and the state
 type RuntimeConfiguration struct {
 	DataSource           etcd.KeysAPI
 	EtcdClient           etcd.Client

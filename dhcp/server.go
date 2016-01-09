@@ -1,11 +1,11 @@
-package dhcp // import "github.com/cafebazaar/aghajoon/dhcp"
+package dhcp // import "github.com/cafebazaar/blacksmith/dhcp"
 
 import (
 	"bytes"
 	"net"
 	"time"
 
-	"github.com/cafebazaar/aghajoon/logging"
+	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/krolaw/dhcp4"
 )
 

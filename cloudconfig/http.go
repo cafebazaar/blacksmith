@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/cafebazaar/aghajoon/logging"
+	"github.com/cafebazaar/blacksmith/logging"
 )
 
 type CloudConfig struct {

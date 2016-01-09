@@ -1,4 +1,4 @@
-package main // import "github.com/cafebazaar/aghajoon"
+package main // import "github.com/cafebazaar/blacksmith"
 
 import (
 	"flag"
@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cafebazaar/aghajoon/cloudconfig"
-	"github.com/cafebazaar/aghajoon/datasource"
-	"github.com/cafebazaar/aghajoon/dhcp"
-	"github.com/cafebazaar/aghajoon/logging"
-	"github.com/cafebazaar/aghajoon/pxe"
-	"github.com/cafebazaar/aghajoon/web"
+	"github.com/cafebazaar/blacksmith/cloudconfig"
+	"github.com/cafebazaar/blacksmith/datasource"
+	"github.com/cafebazaar/blacksmith/dhcp"
+	"github.com/cafebazaar/blacksmith/logging"
+	"github.com/cafebazaar/blacksmith/pxe"
+	"github.com/cafebazaar/blacksmith/web"
 	etcd "github.com/coreos/etcd/client"
 )
 
@@ -40,7 +40,7 @@ var (
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
-	etcdDirFlag       = flag.String("etcd-dir", "aghajoon", "The etcd directory used by this instance of aghajoon")
+	etcdDirFlag       = flag.String("etcd-dir", "blacksmith", "The etcd directory prefix")
 
 	leaseStartFlag  = flag.String("lease-start", "", "Begining of lease starting IP")
 	leaseRangeFlag  = flag.Int("lease-range", 0, "Lease range")

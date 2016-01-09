@@ -1,26 +1,26 @@
-var aghajoonUIApp = angular.module('aghajoonUIApp', ["xeditable", 'ngRoute', 'aghajoonUIControllers', 'filesServices', 'nodesServices']);
+var blacksmithUIApp = angular.module('blacksmithUIApp', ["xeditable", 'ngRoute', 'blacksmithUIControllers', 'filesServices', 'nodesServices']);
 
-aghajoonUIApp.config(['$routeProvider',
+blacksmithUIApp.config(['$routeProvider',
   function($routeProvider) {
     $routeProvider.
       when('/nodes/', {
         templateUrl: 'partials/nodes-list.html',
-        controller: 'AghajoonNodesCtrl'
+        controller: 'BlacksmithNodesCtrl'
       }).
       when('/files/', {
         templateUrl: 'partials/files-list.html',
-        controller: 'AghajoonFilesCtrl'
+        controller: 'BlacksmithFilesCtrl'
       }).
       when('/etcd/', {
         templateUrl: 'partials/etcd.html',
-        controller: 'AghajoonEtcdCtrl'
+        controller: 'BlacksmithEtcdCtrl'
       }).
       otherwise({
         redirectTo: '/nodes/'
       });
   }]);
 
-aghajoonUIApp.directive('dragAndDrop', function() {
+blacksmithUIApp.directive('dragAndDrop', function() {
     return {
       restrict: 'A',
       link: function($scope, elem, attr) {

@@ -1,13 +1,13 @@
-var aghajoonUIControllers = angular.module('aghajoonUIControllers', []);
+var blacksmithUIControllers = angular.module('blacksmithUIControllers', []);
 
-aghajoonUIControllers.controller('AghajoonNodesCtrl', ['$scope', 'Node', function ($scope, Node) {
+blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Node', function ($scope, Node) {
 	Node.query().$promise.then(
 		function( value ){ $scope.nodes = value },
 		function( error ){ $scope.errorMessage = error.data; $scope.nodes = [] }
  );
 }]);
 
-aghajoonUIControllers.controller('AghajoonFilesCtrl', ['$scope', 'UploadedFiles', '$http', function ($scope, UploadedFiles, $http) {
+blacksmithUIControllers.controller('BlacksmithFilesCtrl', ['$scope', 'UploadedFiles', '$http', function ($scope, UploadedFiles, $http) {
     UploadedFiles.query().$promise.then(
       function( value ){ $scope.files = value },
       function( error ){ $scope.errorMessage = error.data; $scope.files = [] }
@@ -38,7 +38,7 @@ aghajoonUIControllers.controller('AghajoonFilesCtrl', ['$scope', 'UploadedFiles'
 }]);
 
 // Modified version of https://github.com/henszey/etcd-browser
-aghajoonUIControllers.controller('AghajoonEtcdCtrl', ['$scope', 'EtcdEndpoints', '$http', function($scope, EtcdEndpoints, $http) {
+blacksmithUIControllers.controller('BlacksmithEtcdCtrl', ['$scope', 'EtcdEndpoints', '$http', function($scope, EtcdEndpoints, $http) {
   var keyPrefix = '/v2/keys',
       statsPrefix = '/v2/stats';
 

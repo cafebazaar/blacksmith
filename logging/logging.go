@@ -1,4 +1,4 @@
-package logging // import "github.com/cafebazaar/aghajoon/logging"
+package logging // import "github.com/cafebazaar/blacksmith/logging"
 
 import "fmt"
 

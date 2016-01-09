@@ -1,5 +1,5 @@
 {
-    "name": "aghajoon-ui",
+    "name": "blacksmith-ui",
     "version": "0.0.0",
     "dependencies": {
 	     "bootstrap" : "3.3.5",

@@ -46,25 +46,25 @@ func (d *myTestyDataSource) Watcher(key string, opts *etcd.WatcherOptions) etcd.
 
 func TestLeasesMocked(t *testing.T) {
 	testObj := &myTestyDataSource{}
-	testObj.On("Delete", mock.Anything, "aghajoon-test/leases",
+	testObj.On("Delete", mock.Anything, "blacksmith-test/leases",
 		&etcd.DeleteOptions{Dir: true, Recursive: true}).Return(nil, nil)
 
 	r := etcd.Response{
 		Action: "get",
 		Node: &etcd.Node{
-			Key:   "aghajoon-test/leases",
+			Key:   "blacksmith-test/leases",
 			Nodes: nil,
 		},
 	}
-	testObj.On("Get", mock.Anything, "aghajoon-test/leases",
+	testObj.On("Get", mock.Anything, "blacksmith-test/leases",
 		&etcd.GetOptions{Recursive: true}).Return(&r, nil)
-	testObj.On("Set", mock.Anything, "aghajoon-test/leases",
+	testObj.On("Set", mock.Anything, "blacksmith-test/leases",
 		&etcd.SetOptions{Dir: true}, "").Return(nil, nil)
 	testObj.On("Set", mock.Anything,
-		"aghajoon-test/leases/10.0.0.1",
+		"blacksmith-test/leases/10.0.0.1",
 		(*etcd.SetOptions)(nil)).Return(nil, nil)
 
-	pool, err := NewLeasePool(testObj, "aghajoon-test", net.IP{10, 0, 0, 1}, 1, 100*time.Second)
+	pool, err := NewLeasePool(testObj, "blacksmith-test", net.IP{10, 0, 0, 1}, 1, 100*time.Second)
 	pool.Reset()
 	if err != nil {
 		t.Error(err)
@@ -91,7 +91,7 @@ func TestLeases(t *testing.T) {
 	kapi := etcd.NewKeysAPI(etcdClient)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_, err = kapi.Delete(ctx, "aghajoon-test", &etcd.DeleteOptions{Dir: true, Recursive: true})
+	_, err = kapi.Delete(ctx, "blacksmith-test", &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		etcdError, found := err.(etcd.Error)
 		if !(found || etcdError.Code == etcd.ErrorCodeKeyNotFound) {
@@ -100,7 +100,7 @@ func TestLeases(t *testing.T) {
 		}
 	}
 
-	pool, err := NewLeasePool(kapi, "aghajoon-test", net.IP{10, 0, 0, 1}, 254, 100*time.Second)
+	pool, err := NewLeasePool(kapi, "blacksmith-test", net.IP{10, 0, 0, 1}, 254, 100*time.Second)
 	pool.Reset()
 	if err != nil {
 		t.Error(err)
@@ -140,7 +140,7 @@ func TestSameLeaseForNic(t *testing.T) {
 	kapi := etcd.NewKeysAPI(etcdClient)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_, err = kapi.Delete(ctx, "aghajoon-test", &etcd.DeleteOptions{Dir: true, Recursive: true})
+	_, err = kapi.Delete(ctx, "blacksmith-test", &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		etcdError, found := err.(etcd.Error)
 		if !(found || etcdError.Code == etcd.ErrorCodeKeyNotFound) {
@@ -149,7 +149,7 @@ func TestSameLeaseForNic(t *testing.T) {
 		}
 	}
 
-	pool, err := NewLeasePool(kapi, "aghajoon-test", net.IP{10, 0, 0, 1}, 254, 100*time.Second)
+	pool, err := NewLeasePool(kapi, "blacksmith-test", net.IP{10, 0, 0, 1}, 254, 100*time.Second)
 	pool.Reset()
 	if err != nil {
 		t.Error(err)

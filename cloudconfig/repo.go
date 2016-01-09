@@ -1,4 +1,4 @@
-package cloudconfig // import "github.com/cafebazaar/aghajoon/cloudconfig"
+package cloudconfig // import "github.com/cafebazaar/blacksmith/cloudconfig"
 
 import (
 	"bytes"

@@ -2,8 +2,8 @@
 
 SCRIPT_DEBUG=true
 
-DOCKER_IMAGE="cafebazaar/aghajoon"
-DOCKER_NAME=aghajoon_docker
+DOCKER_IMAGE="cafebazaar/blacksmith"
+DOCKER_NAME=blacksmith_docker
 DOCKER_EXEC="docker"
 
 display_usage() {
@@ -11,7 +11,7 @@ display_usage() {
   echo "$0 <workspace-dir> <etcd-endpoints> <interface> [other-args]"
   echo
   echo "Example:"
-  echo "$0 ~/aghajoon-workspace http://example1.com:2379,http://example2.com:2379 etc0 -debug"
+  echo "$0 ~/blacksmith-workspace http://example1.com:2379,http://example2.com:2379 etc0 -debug"
   echo
 }
 

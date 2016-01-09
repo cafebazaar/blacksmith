@@ -1,6 +1,6 @@
 # How it works
 
-AghaJoon is forked from [Pixiecore](https://github.com/danderson/pixiecore).
+Blacksmith is forked from [Pixiecore](https://github.com/danderson/pixiecore).
 
 Booting a Linux system over the network is quite tedious. You have to
 set up a TFTP server, configure your DHCP server to recognize PXE
@@ -113,24 +113,24 @@ This is what the whole boot process looks like on the wire.
 
 - **Machine**, which want to join to our cluster.
   - **PXE ROM**, a brittle firmware burned into the network card of the Machine.
-- **Aghajoon**, the Hero and server of DHCP, PXE, TFTP and multiple HTTP.
+- **Blacksmith**, the Hero and server of DHCP, PXE, TFTP and multiple HTTP.
 - **PXELINUX**, an open source bootloader of the [Syslinux project](http://www.syslinux.org).
 
 ### Timeline
 
 - Machine, and so PXE ROM starts, broadcasts `DHCPDISCOVER`.
-- Aghajoon's DHCP server responds with a `DHCPOFFER` containing network configs.
+- Blacksmith's DHCP server responds with a `DHCPOFFER` containing network configs.
 - Machine, and so PXE ROM starts, broadcasts `DHCPREQUEST`.
-- Aghajoon's DHCP server responds with a `DHCPACK` containing a PXE boot menu.
+- Blacksmith's DHCP server responds with a `DHCPACK` containing a PXE boot menu.
 - PXE ROM processes the PXE boot menu, decides to boot menu entry 0 (after 2 seconds).
-- PXE ROM sends a `DHCPREQUEST` to Aghajoon's PXE server, asking for a boot file.
+- PXE ROM sends a `DHCPREQUEST` to Blacksmith's PXE server, asking for a boot file.
 - Pixiecore's PXE server responds with a `DHCPACK` listing a TFTP
   server, a boot filename, and a PXELINUX vendor option to make it use
   HTTP.
-- PXE ROM downloads PXELINUX from Aghajoon's TFTP server, and hands off to PXELINUX.
-- PXELINUX fetches its configuration from Aghajoon's HTTP server.
-- PXELINUX fetches a kernel and ramdisk from Aghajoon's HTTP server, and boots CoreOS.
+- PXE ROM downloads PXELINUX from Blacksmith's TFTP server, and hands off to PXELINUX.
+- PXELINUX fetches its configuration from Blacksmith's HTTP server.
+- PXELINUX fetches a kernel and ramdisk from Blacksmith's HTTP server, and boots CoreOS.
 - CoreOS on Machine asks for a `cloudinit` file from another HTTP server on
-  Aghajoon (cloudconfig package).
+  Blacksmith (cloudconfig package).
 - The cloudinit is generated according to the workspace and the states stored in
   the etcd datasource, and is returned to the Machine.

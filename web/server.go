@@ -1,4 +1,4 @@
-package web // import "github.com/cafebazaar/aghajoon/web"
+package web // import "github.com/cafebazaar/blacksmith/web"
 
 import (
 	"encoding/json"
@@ -11,9 +11,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cafebazaar/aghajoon/datasource"
-	"github.com/cafebazaar/aghajoon/dhcp"
-	"github.com/elazarl/go-bindata-assetfs"
+	"calcium/vendor/github.com/elazarl/go-bindata-assetfs"
+
+	"github.com/cafebazaar/blacksmith/datasource"
+	"github.com/cafebazaar/blacksmith/dhcp"
 	"github.com/gorilla/mux"
 )
 
@@ -149,7 +150,7 @@ func (a *RestServer) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(endpointsJSON))
 }
 
-// ServeWeb serves api of Aghajoon and a ui connected to that api
+// ServeWeb serves api of Blacksmith and a ui connected to that api
 func ServeWeb(rest *RestServer, listenAddr net.TCPAddr) error {
 	s := &http.Server{
 		Addr:           listenAddr.String(),

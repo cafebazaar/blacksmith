@@ -1,4 +1,4 @@
-package pxe // import "github.com/cafebazaar/aghajoon/pxe"
+package pxe // import "github.com/cafebazaar/blacksmith/pxe"
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/cafebazaar/aghajoon/logging"
+	"github.com/cafebazaar/blacksmith/logging"
 	"golang.org/x/net/ipv4"
 )
 

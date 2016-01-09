@@ -3,7 +3,7 @@ package pxe
 import (
 	"net"
 
-	"github.com/cafebazaar/aghajoon/logging"
+	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/danderson/pixiecore/tftp"
 )
 

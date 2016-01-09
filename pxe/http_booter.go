@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cafebazaar/aghajoon/cloudconfig"
-	"github.com/cafebazaar/aghajoon/datasource"
-	"github.com/cafebazaar/aghajoon/logging"
+	"github.com/cafebazaar/blacksmith/cloudconfig"
+	"github.com/cafebazaar/blacksmith/datasource"
+	"github.com/cafebazaar/blacksmith/logging"
 )
 
 // pxelinux configuration that tells the PXE/UNDI stack to boot from
@@ -24,7 +24,7 @@ LOCALBOOT 0
 `
 
 const bootMessageTemplate = `
-		Aghajoon 0.1
+		Blacksmith 0.2
 		+ MAC ADDR:	$MAC
 `
 

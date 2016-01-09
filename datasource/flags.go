@@ -1,11 +1,11 @@
-package datasource // import "github.com/cafebazaar/aghajoon/datasource"
+package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 
 import (
 	"errors"
 	"strings"
 	"time"
 
-	"github.com/cafebazaar/aghajoon/cloudconfig"
+	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context"
 	etcd "github.com/coreos/etcd/client"
 )

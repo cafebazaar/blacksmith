@@ -1,6 +1,6 @@
 FROM golang:1.5
 
-WORKDIR /go/src/github.com/cafebazaar/aghajoon
+WORKDIR /go/src/github.com/cafebazaar/blacksmith
 
 # Temporary, for faster builds
 RUN \
@@ -14,8 +14,8 @@ RUN \
   go get -v github.com/elazarl/go-bindata-assetfs && \
   go get -v github.com/coreos/coreos-cloudinit
 
-ENTRYPOINT ["/go/src/github.com/cafebazaar/aghajoon/aghajoon"]
+ENTRYPOINT ["/go/src/github.com/cafebazaar/blacksmith/blacksmith"]
 # ENTRYPOINT ["/bin/bash"]
 
-COPY . /go/src/github.com/cafebazaar/aghajoon
+COPY . /go/src/github.com/cafebazaar/blacksmith
 RUN go build .

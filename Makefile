@@ -4,7 +4,7 @@ BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DOCKER_IMAGE ?= "cafebazaar/blacksmith"
 
 test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
-	go get -t -v
+	go get -t -v ./...
 	go test -v ./...
 
 blacksmith: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go

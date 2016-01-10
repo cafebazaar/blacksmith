@@ -4,11 +4,11 @@ BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DOCKER_IMAGE ?= "cafebazaar/blacksmith"
 
 test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
-	go get -v -d
+	go get -t -v
 	go test -v ./...
 
 blacksmith: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
-	go get -v -d
+	go get -v
 	GOOS=linux GOARCH=amd64 go build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)" -o blacksmith
 
 pxe/pxelinux_autogen.go: pxe/pxelinux

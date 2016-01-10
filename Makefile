@@ -3,6 +3,9 @@ COMMIT := $(shell git rev-parse HEAD)
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DOCKER_IMAGE ?= "cafebazaar/blacksmith"
 
+test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
+	go test -v ./...
+
 blacksmith: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 	go get -v -d
 	GOOS=linux GOARCH=amd64 go build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)" -o blacksmith
@@ -24,4 +27,4 @@ docker: blacksmith
 push:
 	docker push $(DOCKER_IMAGE)
 
-.PHONY: clean docker push
+.PHONY: clean docker push test

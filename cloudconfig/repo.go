@@ -8,11 +8,13 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+
+	"github.com/cafebazaar/blacksmith/datasource"
 )
 
 type Repo struct {
 	templates   *template.Template
-	dataSources map[string]DataSource
+	dataSource  datasource.DataSource
 	executeLock sync.Mutex
 }
 
@@ -31,7 +33,7 @@ func findFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error) {
+func FromPath(dataSource DataSource, tmplPath string) (*Repo, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
 		return nil, err
@@ -69,26 +71,27 @@ func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error)
 		return nil, err
 	}
 	return &Repo{
-		templates:   t,
-		dataSources: dataSources,
+		templates:  t,
+		dataSource: dataSource,
 	}, nil
 }
 
-func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, error) {
+func (r *Repo) ExecuteTemplate(templateName string) (string, error) {
 	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
 	buf := new(bytes.Buffer)
+	// m := TODO
 	r.templates.Funcs(map[string]interface{}{
 		"V": func(key string) (interface{}, error) {
-			return GetValue(r.dataSources, c, key)
+			return m.GetFlag(key)
 		},
 		"S": func(key string, value string) (interface{}, error) {
-			return Set(r.dataSources, c, key, value)
+			return m.SetFlag(key, value)
 		},
 		"VD": func(key string) (interface{}, error) {
-			return GetAndDelete(r.dataSources, c, key)
+			return m.GetAndDeleteFlag(key)
 		},
 		"D": func(key string) (interface{}, error) {
-			return Delete(r.dataSources, c, key)
+			return m.DeleteFlag(key)
 		},
 		"b64": func(text string) interface{} {
 			return base64.StdEncoding.EncodeToString([]byte(text))

@@ -1,4 +1,4 @@
-package datasource // import "github.com/cafebazaar/blacksmith/datasource"
+package datasource
 
 import (
 	"errors"

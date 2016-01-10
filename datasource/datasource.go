@@ -1,4 +1,4 @@
-package cloudconfig
+package datasource
 
 import (
 	"errors"
@@ -34,13 +34,6 @@ func (c *ConfigContext) Map() map[string]interface{} {
 	return confCtxMap
 }
 
-type DataSource interface {
-	GetValue(confCtx *ConfigContext, key string) (string, error)
-	Set(confCtx *ConfigContext, key string, value string) error
-	GetAndDelete(confCtx *ConfigContext, key string) (string, error)
-	Delete(confCtx *ConfigContext, key string) error
-}
-
 func parseKey(sources map[string]DataSource, confCtx *ConfigContext, key string) (DataSource, string, error) {
 	keys := strings.Split(key, ".")
 	if len(keys) == 0 {
@@ -74,7 +67,7 @@ func GetValue(sources map[string]DataSource, confCtx *ConfigContext, key string)
 	if ok {
 		return fmt.Sprintf("%s", val), nil
 	}
-	
+
 	datasource, key, err := parseKey(sources, confCtx, key)
 	if err != nil {
 		return "", err

@@ -1,4 +1,4 @@
-package dhcp
+package datasource
 
 import (
 	"encoding/json"

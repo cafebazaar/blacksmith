@@ -19,8 +19,7 @@ import (
 )
 
 type RestServer struct {
-	pool          *dhcp.LeasePool
-	runtimeConfig *datasource.RuntimeConfiguration
+	dataSource datasource.DataSource
 }
 
 type uploadedFile struct {
@@ -106,10 +105,9 @@ func (a *RestServer) upload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewRest(leasePool *dhcp.LeasePool, runtimeConfig *datasource.RuntimeConfiguration) *RestServer {
+func NewRest(dataSource datasource.DataSource) *RestServer {
 	return &RestServer{
-		pool:          leasePool,
-		runtimeConfig: runtimeConfig,
+		dataSource: dataSource,
 	}
 }
 

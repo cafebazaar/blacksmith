@@ -22,9 +22,6 @@ import (
 //go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
 //go:generate go-bindata -o web/ui_autogen.go -pkg web web/ui/...
 
-var _ cloudconfig.DataSource = (*datasource.RuntimeConfiguration)(nil)
-var _ cloudconfig.DataSource = (*datasource.Flags)(nil)
-
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
 		/images/{core-os-version}/coreos_production_pxe_image.cpio.gz
@@ -137,7 +134,6 @@ func main() {
 	leaseSubnet := net.ParseIP(*leaseSubnetFlag)
 	leaseRouter := net.ParseIP(*leaseRouterFlag)
 	leaseDNS := net.ParseIP(*leaseDNSFlag)
-	leaseDuration := 1 * time.Hour
 
 	if leaseStart == nil {
 		fmt.Fprint(os.Stderr, "please specify the lease start ip\n")
@@ -179,26 +175,15 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	runtimeConfig, err := datasource.NewRuntimeConfiguration(kapi, etcdClient, *etcdDirFlag, *workspacePathFlag)
+	runtimeConfig, err := datasource.NewRuntimeConfiguration(kapi, etcdClient, *etcdDirFlag, *workspacePathFlag, leaseStart, leaseRange)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
-	}
-
-	flagsDataSource, err := datasource.NewFlags(kapi, path.Join(*etcdDirFlag, "flags"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
-		os.Exit(1)
-	}
-
-	datasources := map[string]cloudconfig.DataSource{
-		"default": runtimeConfig,
-		"flags":   flagsDataSource,
 	}
 
 	// serving cloudconfig
 	go func() {
-		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
+		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, runtimeConfig))
 	}()
 
 	// serving http booter
@@ -217,26 +202,20 @@ func main() {
 	go func() {
 		log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
 	}()
-	// serving dhcp
-	leasePool, err := dhcp.NewLeasePool(kapi, *etcdDirFlag, leaseStart, leaseRange, leaseDuration)
-	if err != nil {
-		log.Fatalln(err)
-	}
 	// serving web
 	go func() {
-		restServer := web.NewRest(leasePool, runtimeConfig)
+		restServer := web.NewRest(runtimeConfig)
 		log.Fatalln(web.ServeWeb(restServer, webAddr))
 	}()
 
 	go func() {
 		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			IFName:        dhcpIF.Name,
-			LeaseDuration: leaseDuration,
-			ServerIP:      serverIP,
-			RouterAddr:    leaseRouter,
-			SubnetMask:    leaseSubnet,
-			DNSAddr:       leaseDNS,
-		}, leasePool))
+			IFName:     dhcpIF.Name,
+			ServerIP:   serverIP,
+			RouterAddr: leaseRouter,
+			SubnetMask: leaseSubnet,
+			DNSAddr:    leaseDNS,
+		}, runtimeConfig))
 	}()
 
 	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)

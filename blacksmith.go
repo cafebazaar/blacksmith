@@ -175,7 +175,7 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	runtimeConfig, err := datasource.NewRuntimeConfiguration(kapi, etcdClient, *etcdDirFlag, *workspacePathFlag, leaseStart, leaseRange)
+	etcdDatasource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *etcdDirFlag, *workspacePathFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
@@ -183,39 +183,22 @@ func main() {
 
 	// serving cloudconfig
 	go func() {
-		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, runtimeConfig))
 	}()
 
 	// serving http booter
 	go func() {
-		repo, err := cloudconfig.FromPath(datasources, path.Join(*workspacePathFlag, "config/bootparams"))
-		if err != nil {
-			log.Fatalln(err)
-		}
-		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, runtimeConfig, repo))
 	}()
 	// serving tftp
 	go func() {
-		log.Fatalln(pxe.ServeTFTP(tftpAddr))
 	}()
 	// pxe protocol
 	go func() {
-		log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
 	}()
 	// serving web
 	go func() {
-		restServer := web.NewRest(runtimeConfig)
-		log.Fatalln(web.ServeWeb(restServer, webAddr))
 	}()
 
 	go func() {
-		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			IFName:     dhcpIF.Name,
-			ServerIP:   serverIP,
-			RouterAddr: leaseRouter,
-			SubnetMask: leaseSubnet,
-			DNSAddr:    leaseDNS,
-		}, runtimeConfig))
 	}()
 
 	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)

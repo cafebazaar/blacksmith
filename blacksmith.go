@@ -175,7 +175,7 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	etcdDatasource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *etcdDirFlag, *workspacePathFlag)
+	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *etcdDirFlag, *workspacePathFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)

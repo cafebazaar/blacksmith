@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+//Machine provides the interface for querying/altering Machine entries
+//in the datasource
 type Machine interface {
 	//Nic returns the hardware address of the machine
 	Nic() net.HardwareAddr

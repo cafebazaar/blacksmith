@@ -18,10 +18,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type RestServer struct {
-	dataSource datasource.DataSource
-}
-
 type uploadedFile struct {
 	Name                 string    `json:"name"`
 	Size                 int64     `json:"size"`
@@ -105,12 +101,6 @@ func (a *RestServer) upload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func NewRest(dataSource datasource.DataSource) *RestServer {
-	return &RestServer{
-		dataSource: dataSource,
-	}
-}
-
 func (a *RestServer) Mux() *mux.Router {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/api/nodes", a.nodesList)
@@ -149,7 +139,7 @@ func (a *RestServer) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
 }
 
 // ServeWeb serves api of Blacksmith and a ui connected to that api
-func ServeWeb(rest *RestServer, listenAddr net.TCPAddr) error {
+func ServeWeb(rest RestServer, listenAddr net.TCPAddr) error {
 	s := &http.Server{
 		Addr:           listenAddr.String(),
 		Handler:        rest.Mux(),

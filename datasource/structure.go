@@ -58,12 +58,40 @@ type GeneralDataSource interface {
 type DHCPDataSource interface {
 	//LeaseStart specifies dhcp pool starting ip
 	LeaseStart() net.IP
-	//LeaseUpperbound specifies the last ip in the dhcp pool
-	LeaseUpperbound() net.IP
+	//LeaseRange specifies the dhcp pool ip range
+	LeaseRange() net.IP
 }
 
-//MasterDataSource embedds GeneralDataSource and DHCPDataSource
+//CloudConfigDatasource is the interface that any cloud-config file server
+//has to implement.
+type CloudConfigDataSource interface {
+	//Generates the cloud-config file using the IP Address + Mac Address from
+	//the IPMac which is passed to it as config context
+	//IP and mac address is currently passed in through a URL, therefore the
+	//function signature will be as simple as the situation (string instead of
+	//net.IP and net.HardwareAddr) and no simpler
+	IPMacCloudConfig(ip, mac string)
+}
+
+type KeyValueDataSource interface {
+	//Get returns value associated with key
+	Get(key string) (string, error)
+
+	//Set sets key equal to value.
+	Set(key, value string) error
+
+	//Delete erases a key from the datasource
+	Delete(key string) error
+
+	//Gets a key, returns it's value and deletes it
+	GetAndDelete() (string, error)
+}
+
+//MasterDataSource embedds GeneralDataSource, DHCPDataSource,
+//CloudConfigDataSource and KeyValueDataStore
 type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
+	CloudConfigDataSource
+	KeyValueDataStore
 }

@@ -8,30 +8,62 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/logging"
 )
 
-type CloudConfig struct {
-	cloudRepo    *Repo
-	ignitionRepo *Repo
+//cloudConfigDataSourceWrapper embedds a CloudConfigDataSource which is an
+//interface and provides a means of conceptually using the interface as the
+//method receiver
+type cloudConfigDataSourceWrapper struct {
+	datasource.CloudConfigDataSource
 }
 
-func NewCloudConfig(cloudRepo *Repo, ignitionRepo *Repo) *CloudConfig {
-	return &CloudConfig{
-		cloudRepo:    cloudRepo,
-		ignitionRepo: ignitionRepo,
+func (datasource *cloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r *http.Request) {
+	req := strings.Split(r.URL.Path, "/")[1:]
+
+	queryMap, _ := extractQueries(r.URL.RawQuery)
+
+	if len(req) != 2 {
+		logging.Log("CLOUDCONFIG", "Received request - request not found")
+		http.NotFound(w, r)
+		return
 	}
-}
 
-func (c *CloudConfig) Mux() *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", c.handler)
-	return mux
+	if req[0] != "cloud" {
+		//No ignition support for now
+		http.NotFound(w, r)
+		return
+	}
+
+	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		http.Error(w, "internal server error - parsing host and port", 500)
+		logging.Log("CLOUDCONFIG", "Error - %s with mac %s - %s", req[0], req[1], err.Error())
+		return
+	}
+
+	clientMacAddress := req[1]
+
+	config, err := datasource.CloudConfigDataSource.IPMacCloudConfig(clientIp, clientMacAddress)
+	if err != nil {
+		http.Error(w, "internal server error - error in generating config", 500)
+		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-yaml")
+
+	//always validate the cloudconfig. Don't if explicitly stated.
+	if value, exists := queryMap["validate"]; !exists || value != "false" {
+		config += validateCloudConfig(config)
+	}
+
+	w.Write([]byte(config))
+	logging.Log("CLOUDCONFIG", "Received request - %s with mac %s", req[0], req[1])
 }
 
 func extractQueries(rawQueryString string) (map[string]string, error) {
 	// queries for which the value is not specified will be stored as : "queryKey" -> "true"
-
 	queries := strings.Split(rawQueryString, "&") // Ampersand separated queries
 	retMap := make(map[string]string)
 	for _, q := range queries {
@@ -49,65 +81,16 @@ func extractQueries(rawQueryString string) (map[string]string, error) {
 	return retMap, nil
 }
 
-func (c *CloudConfig) handler(w http.ResponseWriter, r *http.Request) {
-	req := strings.Split(r.URL.Path, "/")[1:]
-
-	queryMap, _ := extractQueries(r.URL.RawQuery)
-
-	if len(req) != 2 {
-		logging.Log("CLOUDCONFIG", "Received request - request not found")
-		http.NotFound(w, r)
-		return
-	}
-	var selectedRepo *Repo
-	switch req[0] {
-	case "cloud":
-		selectedRepo = c.cloudRepo
-	case "ignition":
-		selectedRepo = c.ignitionRepo
-	default:
-		http.NotFound(w, r)
-		return
-	}
-
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		http.Error(w, "internal server error - parsing host and port", 500)
-		logging.Log("CLOUDCONFIG", "Error - %s with mac %s - %s", req[0], req[1], err.Error())
-		return
-	}
-
-	configCtx := &ConfigContext{
-		MacAddr: req[1],
-		IP:      ip,
-	}
-	config, err := selectedRepo.GenerateConfig(configCtx)
-	if err != nil {
-		http.Error(w, "internal server error - error in generating config", 500)
-		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
-		return
-	}
-	w.Header().Set("Content-Type", "application/x-yaml")
-
-	//always validate the cloudconfig. Don't if explicitly stated.
-	if value, exists := queryMap["validate"]; !exists || value != "false" {
-		config += validateCloudConfig(config)
-	}
-
-	w.Write([]byte(config))
-	logging.Log("CLOUDCONFIG", "Received request - %s with mac %s", req[0], req[1])
+func serveUtilityMultiplexer(datasource CloudConfigDataSource) *http.ServeMux {
+	mux := http.NewServeMux()
+	dataSourceWrapper := cloudConfigDataSourceWrapper{datasource}
+	mux.HandleFunc("/", dataSourceWrapper.handler)
+	return mux
 }
 
-func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasources map[string]DataSource) error {
+//ServeCloudConfig is run cuncurrently alongside other blacksmith services
+//Provides cloudconfig to machines at boot time
+func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource CloudConfigDatasource) error {
 	logging.Log("CLOUDCONFIG", "Listening on %s", listenAddr.String())
-	cloudRepo, err := FromPath(datasources, path.Join(workspacePath, "config/cloudconfig"))
-	if err != nil {
-		return err
-	}
-	ignitionRepo, err := FromPath(datasources, path.Join(workspacePath, "config/ignition"))
-	if err != nil {
-		return err
-	}
-	cloudConfig := NewCloudConfig(cloudRepo, ignitionRepo)
-	return http.ListenAndServe(listenAddr.String(), cloudConfig.Mux())
+	return http.ListenAndServe(listenAddr.String(), serveUtilityMultiplexer(datasource))
 }

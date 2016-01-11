@@ -183,6 +183,7 @@ func main() {
 
 	// serving cloudconfig
 	go func() {
+		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
 	}()
 
 	// serving http booter

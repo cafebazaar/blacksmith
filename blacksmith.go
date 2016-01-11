@@ -185,18 +185,21 @@ func main() {
 	go func() {
 		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
 	}()
-
 	// serving http booter
 	go func() {
 	}()
 	// serving tftp
 	go func() {
+		log.Fatalln(pxe.ServeTFTP(tftpAddr))
 	}()
 	// pxe protocol
 	go func() {
+		log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
 	}()
 	// serving web
 	go func() {
+		restServer := web.NewRest(etcdDataSource)
+		log.Fatalln(web.ServeWeb(restServer, webAddr))
 	}()
 
 	go func() {

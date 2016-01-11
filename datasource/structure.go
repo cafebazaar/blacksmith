@@ -87,6 +87,18 @@ type KeyValueDataSource interface {
 	GetAndDelete() (string, error)
 }
 
+//RestServer defines the interface that a rest server has to implement to work
+//with Blacksmith
+type RestServer interface {
+	//Handler returns an http handler which can be used to serve http requests
+	Handler() http.Handler
+}
+
+//UIRestServer specifies the functionality that is expected from a rest server
+//which will act as the backend for Blacksmith web UI
+type UIRestServer interface {
+}
+
 //MasterDataSource embedds GeneralDataSource, DHCPDataSource,
 //CloudConfigDataSource and KeyValueDataStore
 type MasterDataSource interface {

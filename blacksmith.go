@@ -198,8 +198,7 @@ func main() {
 	}()
 	// serving web
 	go func() {
-		restServer := web.NewRest(etcdDataSource)
-		log.Fatalln(web.ServeWeb(restServer, webAddr))
+		log.Fatalln(web.ServeWeb(etcdDataSource, webAddr))
 	}()
 
 	go func() {

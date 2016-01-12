@@ -2,6 +2,7 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 
 import (
 	"net"
+	"net/http"
 	"time"
 )
 
@@ -62,7 +63,7 @@ type DHCPDataSource interface {
 	LeaseRange() net.IP
 }
 
-//CloudConfigDatasource is the interface that any cloud-config file server
+//CloudConfigDataSource is the interface that any cloud-config file server
 //has to implement.
 type CloudConfigDataSource interface {
 	//Generates the cloud-config file using the IP Address + Mac Address from
@@ -70,9 +71,11 @@ type CloudConfigDataSource interface {
 	//IP and mac address is currently passed in through a URL, therefore the
 	//function signature will be as simple as the situation (string instead of
 	//net.IP and net.HardwareAddr) and no simpler
-	IPMacCloudConfig(ip, mac string)
+	IPMacCloudConfig(ip, mac string) CloudConfig
 }
 
+//KeyValueDataSource standardizes the interface that a datasource with key/value
+//storage support should provide
 type KeyValueDataSource interface {
 	//Get returns value associated with key
 	Get(key string) (string, error)
@@ -84,7 +87,7 @@ type KeyValueDataSource interface {
 	Delete(key string) error
 
 	//Gets a key, returns it's value and deletes it
-	GetAndDelete() (string, error)
+	GetAndDelete(key string) (string, error)
 }
 
 //RestServer defines the interface that a rest server has to implement to work
@@ -118,5 +121,10 @@ type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
 	CloudConfigDataSource
-	KeyValueDataStore
+	KeyValueDataSource
+}
+
+//CloudConfig specifies the functionalities that "a cloudconfig" instance should
+//provide
+type CloudConfig interface {
 }

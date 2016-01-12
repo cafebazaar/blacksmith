@@ -1,7 +1,24 @@
 package datasource
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
+
 	etcd "github.com/coreos/etcd/client"
+	"gopkg.in/yaml.v2"
+	// "github.com/elazarl/go-bindata-assetfs"
+	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
 //EtcdDataSource implements MasterDataSource interface using etcd as it's
@@ -17,24 +34,58 @@ type EtcdDataSource struct {
 	initialCoreOSVersion string
 }
 
+//WorkspacePath is self explanatory
+//part of the GeneralDataSource interface implementation
+func (ds *EtcdDataSource) WorkspacePath() string {
+	//TODO
+	return ds.workspacePath
+}
+
+//Machines returns an array of the recognized machines in etcd datasource
+//part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) Machines() []Machine {
+	//TODO
+	return nil
+}
+
+//GetOrCreateMachine returns a Machine interface which is the accessor/getter/setter
+//for a node in the etcd datasource. If an entry associated with the passed
+//mac address does not exist, it is created and the handle (Machine) will be
+//returned. bool returns value is set to true if the Machine already exists so
+//it can be used like:
+//machine , exists , err := GetOrCreateMachine(mac)
+//part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) GetOrCreateMachine(mac net.HardwareAddr) (Machine, bool, error) {
+	//TODO
+	return nil, false, nil
+}
+
 //CoreOSVersion gets the current value from etcd and returns it if the image folder exists
 //if not, the inital CoreOS version will be returned, with the raised error
 //part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
-	coreOSVersion, err := ds.GetValue(nil, "coreos-version")
+	coreOSVersion, err := ds.Get("coreos-version")
 	if err != nil {
-		return rc.initialCoreOSVersion, err
+		return ds.initialCoreOSVersion, err
 	}
 
-	imagesPath := filepath.Join(rc.WorkspacePath, "images", coreOSVersion)
+	imagesPath := filepath.Join(ds.WorkspacePath(), "images", coreOSVersion)
 	files, err := ioutil.ReadDir(imagesPath)
 	if err != nil {
-		return rc.initialCoreOSVersion, fmt.Errorf("Error while reading coreos subdirecory: %s (path=%s)", err, imagesPath)
+		return ds.initialCoreOSVersion, fmt.Errorf("Error while reading coreos subdirecory: %s (path=%s)", err, imagesPath)
 	} else if len(files) == 0 {
-		return rc.initialCoreOSVersion, errors.New("The images subdirecory of workspace should contains at least one version of CoreOS")
+		return ds.initialCoreOSVersion, errors.New("The images subdirecory of workspace should contains at least one version of CoreOS")
 	}
 
 	return coreOSVersion, nil
+}
+
+//IPMacCloudConfig generates a cloud-config file based on the IP and Mac address
+//which is passed in
+//Part of CloudConfigDataSource interace implementation
+func (ds *EtcdDataSource) IPMacCloudConfig(ip, mac string) CloudConfig {
+	//TODO
+	return nil
 }
 
 func (ds *EtcdDataSource) parseKey(key string) string {
@@ -49,7 +100,7 @@ func (ds *EtcdDataSource) Get(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	response, err := ds.DataSource.Get(ctx, ds.parseKey(key), nil)
+	response, err := ds.keysAPI.Get(ctx, ds.parseKey(key), nil)
 	if err != nil {
 		return "", err
 	}
@@ -68,12 +119,12 @@ func (ds *EtcdDataSource) Set(key string, value string) error {
 //GetAndDelete gets the value of an etcd key and returns it, and deletes the record
 //afterwards
 //part of KeyValueDataSource interface implementation
-func (ds *EtcdDataSource) GetAndDelete(confCtx *cloudconfig.ConfigContext, key string) (string, error) {
-	value, err := ds.Get(confCtx, key)
+func (ds *EtcdDataSource) GetAndDelete(key string) (string, error) {
+	value, err := ds.Get(key)
 	if err != nil {
 		return "", err
 	}
-	if err = ds.Delete(confCtx, key); err != nil {
+	if err = ds.Delete(key); err != nil {
 		return "", err
 	}
 	return value, nil
@@ -81,10 +132,10 @@ func (ds *EtcdDataSource) GetAndDelete(confCtx *cloudconfig.ConfigContext, key s
 
 //Delete erases the key from etcd
 //part of KeyValueDataSource interface implementation
-func (ds *EtcdDataSource) Delete(confCtx *cloudconfig.ConfigContext, key string) error {
+func (ds *EtcdDataSource) Delete(key string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_, err := ds.DataSource.Delete(ctx, ds.parseKey(key), nil)
+	_, err := ds.keysAPI.Delete(ctx, ds.parseKey(key), nil)
 	return err
 }
 
@@ -98,15 +149,15 @@ type initialValues struct {
 func (ds *EtcdDataSource) Handler() *mux.Router {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/api/nodes", ds.NodesList)
-	mux.HandleFunc("/api/etcd-endpoints", ds.EtcdEndpoints)
+	mux.HandleFunc("/api/etcd-endpoints", ds.etcdEndpoints)
 
 	mux.HandleFunc("/upload/", ds.Upload)
 	mux.HandleFunc("/files", ds.Files).Methods("GET")
 	mux.HandleFunc("/files", ds.DeleteFile).Methods("DELETE")
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
 		http.FileServer(http.Dir(filepath.Join(ds.WorkspacePath(), "files")))))
-	mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/",
-		http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "/web/ui"})))
+	// mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/",
+	// http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "/web/ui"})))
 
 	return mux
 }
@@ -218,6 +269,26 @@ func (ds *EtcdDataSource) Files(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(jsoned))
 }
 
+func (ds *EtcdDataSource) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
+
+}
+
+//LeaseStart returns the first IP address that the DHCP server can offer to a
+//DHCP client
+//part of DHCPDataSource interface implementation
+func (ds *EtcdDataSource) LeaseStart() net.IP {
+	//TODO
+	return nil
+}
+
+//LeaseRange returns the IP range from which IP addresses are assignable to
+//clients by the DHCP server
+//part of DHCPDataSource interface implementation
+func (ds *EtcdDataSource) LeaseRange() net.IP {
+	//TODO
+	return nil
+}
+
 //NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 //a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart,
@@ -240,8 +311,8 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart,
 	fmt.Printf("Initial Values: CoreOSVersion=%s\n", iVals.CoreOSVersion)
 
 	instance := &EtcdDataSource{
-		KeysAPI:              dataSource,
-		Client:               etcdClient,
+		keysAPI:              kapi,
+		client:               client,
 		etcdDir:              etcdDir,
 		workspacePath:        workspacePath,
 		initialCoreOSVersion: iVals.CoreOSVersion,

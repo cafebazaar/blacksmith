@@ -4,7 +4,5 @@ example/example
 *~
 workspace
 vagrant_provision_after_docker_installation.local
-deploy.sh
-remote_deploy.sh
 pxe/pxelinux_autogen.go
 web/ui_autogen.go

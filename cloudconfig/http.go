@@ -6,7 +6,7 @@ import (
 	//	"net/url"
 	//	"fmt"
 	"net/http"
-	"path"
+	// "path"
 
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/logging"
@@ -45,7 +45,8 @@ func (datasource *cloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r
 
 	clientMacAddress := req[1]
 
-	config, err := datasource.CloudConfigDataSource.IPMacCloudConfig(clientIp, clientMacAddress)
+	cloudconf, err := datasource.CloudConfigDataSource.IPMacCloudConfig(clientIP, clientMacAddress)
+	config := cloudconf.String()
 	if err != nil {
 		http.Error(w, "internal server error - error in generating config", 500)
 		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
@@ -81,7 +82,7 @@ func extractQueries(rawQueryString string) (map[string]string, error) {
 	return retMap, nil
 }
 
-func serveUtilityMultiplexer(datasource CloudConfigDataSource) *http.ServeMux {
+func serveUtilityMultiplexer(datasource datasource.CloudConfigDataSource) *http.ServeMux {
 	mux := http.NewServeMux()
 	dataSourceWrapper := cloudConfigDataSourceWrapper{datasource}
 	mux.HandleFunc("/", dataSourceWrapper.handler)
@@ -90,7 +91,7 @@ func serveUtilityMultiplexer(datasource CloudConfigDataSource) *http.ServeMux {
 
 //ServeCloudConfig is run cuncurrently alongside other blacksmith services
 //Provides cloudconfig to machines at boot time
-func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource CloudConfigDatasource) error {
+func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource datasource.CloudConfigDataSource) error {
 	logging.Log("CLOUDCONFIG", "Listening on %s", listenAddr.String())
 	return http.ListenAndServe(listenAddr.String(), serveUtilityMultiplexer(datasource))
 }

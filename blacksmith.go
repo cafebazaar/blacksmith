@@ -6,13 +6,13 @@ import (
 	"log"
 	"net"
 	"os"
-	"path"
+	// "path"
 	"strings"
 	"time"
 
 	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
-	"github.com/cafebazaar/blacksmith/dhcp"
+	// "github.com/cafebazaar/blacksmith/dhcp"
 	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/cafebazaar/blacksmith/pxe"
 	"github.com/cafebazaar/blacksmith/web"
@@ -175,7 +175,7 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *etcdDirFlag, *workspacePathFlag)
+	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, nil /*leaseRange*/, *etcdDirFlag, *workspacePathFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)

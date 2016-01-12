@@ -36,6 +36,7 @@ const (
 )
 
 var (
+	versionFlag       = flag.Bool("version", false, "Print version info and exit")
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
@@ -48,13 +49,16 @@ var (
 	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
 	leaseDNSFlag    = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
 
-	version   = "v0.2"
+	version   string
 	commit    string
 	buildTime string
 )
 
 func init() {
-	// If commit, branch, or build time are not set, make that clear.
+	// If version, commit, or build time are not set, make that clear.
+	if version == "" {
+		version = "unknown"
+	}
 	if commit == "" {
 		commit = "unknown"
 	}
@@ -94,6 +98,15 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 func main() {
 	var err error
 	flag.Parse()
+
+	fmt.Printf("Blacksmith (%s)\n", version)
+	fmt.Printf("  Commit:        %s\n", commit)
+	fmt.Printf("  Build Time:    %s\n", buildTime)
+
+	if *versionFlag {
+		os.Exit(0)
+	}
+
 	// etcd config
 	if etcdFlag == nil || etcdDirFlag == nil {
 		fmt.Fprint(os.Stderr, "please specify the etcd endpoints\n")
@@ -159,10 +172,6 @@ func main() {
 		fmt.Fprint(os.Stderr, "please specify an DNS server\n")
 		os.Exit(1)
 	}
-
-	fmt.Printf("Blacksmith (%s)\n", version)
-	fmt.Printf("  Commit:        %s\n", commit)
-	fmt.Printf("  Build Time:    %s\n", buildTime)
 
 	fmt.Printf("Server IP:       %s\n", serverIP.String())
 	fmt.Printf("Interface IP:    %s\n", dhcpIP.String())

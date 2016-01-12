@@ -71,7 +71,7 @@ type CloudConfigDataSource interface {
 	//IP and mac address is currently passed in through a URL, therefore the
 	//function signature will be as simple as the situation (string instead of
 	//net.IP and net.HardwareAddr) and no simpler
-	IPMacCloudConfig(ip, mac string) CloudConfig
+	IPMacCloudConfig(ip, mac string) (CloudConfig, error)
 }
 
 //KeyValueDataSource standardizes the interface that a datasource with key/value
@@ -116,15 +116,17 @@ type UIRestServer interface {
 }
 
 //MasterDataSource embedds GeneralDataSource, DHCPDataSource,
-//CloudConfigDataSource and KeyValueDataStore
+//CloudConfigDataSource, KeyValueDataStore and RestServer
 type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
 	CloudConfigDataSource
 	KeyValueDataSource
+	RestServer
 }
 
 //CloudConfig specifies the functionalities that "a cloudconfig" instance should
 //provide
 type CloudConfig interface {
+	String() string
 }

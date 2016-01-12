@@ -83,9 +83,9 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 //IPMacCloudConfig generates a cloud-config file based on the IP and Mac address
 //which is passed in
 //Part of CloudConfigDataSource interace implementation
-func (ds *EtcdDataSource) IPMacCloudConfig(ip, mac string) CloudConfig {
+func (ds *EtcdDataSource) IPMacCloudConfig(ip, mac string) (CloudConfig, error) {
 	//TODO
-	return nil
+	return nil, nil
 }
 
 func (ds *EtcdDataSource) parseKey(key string) string {
@@ -143,10 +143,9 @@ type initialValues struct {
 	CoreOSVersion string `yaml:"coreos-version"`
 }
 
-//Handler returns a pointer to a multiplexing router
-//mux.Router in turn implements http.Handler
+//Handler uses a multiplexing router to route http requests
 //part of the RestServer interface implementation
-func (ds *EtcdDataSource) Handler() *mux.Router {
+func (ds *EtcdDataSource) Handler() http.Handler {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/api/nodes", ds.NodesList)
 	mux.HandleFunc("/api/etcd-endpoints", ds.etcdEndpoints)

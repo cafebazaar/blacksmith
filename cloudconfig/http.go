@@ -16,10 +16,10 @@ import (
 //interface and provides a means of conceptually using the interface as the
 //method receiver
 type cloudConfigDataSourceWrapper struct {
-	datasource.CloudConfigDataSource
+	datasource.GeneralDataSource
 }
 
-func (datasource *cloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r *http.Request) {
+func (datasource *CloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r *http.Request) {
 	req := strings.Split(r.URL.Path, "/")[1:]
 
 	queryMap, _ := extractQueries(r.URL.RawQuery)
@@ -36,6 +36,8 @@ func (datasource *cloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r
 		return
 	}
 
+	logging.Log("REFACT CLOUDCONFIG", "cloud request ! ! !")
+
 	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		http.Error(w, "internal server error - parsing host and port", 500)
@@ -45,8 +47,7 @@ func (datasource *cloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r
 
 	clientMacAddress := req[1]
 
-	cloudconf, err := datasource.CloudConfigDataSource.IPMacCloudConfig(clientIP, clientMacAddress)
-	config := cloudconf.String()
+	config, err := MacCloudConfig(clientIP, clientMacAddress)
 	if err != nil {
 		http.Error(w, "internal server error - error in generating config", 500)
 		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
@@ -82,7 +83,7 @@ func extractQueries(rawQueryString string) (map[string]string, error) {
 	return retMap, nil
 }
 
-func serveUtilityMultiplexer(datasource datasource.CloudConfigDataSource) *http.ServeMux {
+func serveUtilityMultiplexer(datasource datasource.GeneralDataSource) *http.ServeMux {
 	mux := http.NewServeMux()
 	dataSourceWrapper := cloudConfigDataSourceWrapper{datasource}
 	mux.HandleFunc("/", dataSourceWrapper.handler)
@@ -91,7 +92,7 @@ func serveUtilityMultiplexer(datasource datasource.CloudConfigDataSource) *http.
 
 //ServeCloudConfig is run cuncurrently alongside other blacksmith services
 //Provides cloudconfig to machines at boot time
-func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource datasource.CloudConfigDataSource) error {
+func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource datasource.GeneralDataSource) error {
 	logging.Log("CLOUDCONFIG", "Listening on %s", listenAddr.String())
 	return http.ListenAndServe(listenAddr.String(), serveUtilityMultiplexer(datasource))
 }

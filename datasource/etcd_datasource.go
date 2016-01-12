@@ -80,10 +80,11 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 	return coreOSVersion, nil
 }
 
-//IPMacCloudConfig generates a cloud-config file based on the IP and Mac address
-//which is passed in
+//MacCloudConfig generates a cloud-config file based on the Mac address that is passed in
+//Will generate a commented warning at the end of the cloud-config if the node's ip in the http
+//request mismatches the one in etcd
 //Part of CloudConfigDataSource interace implementation
-func (ds *EtcdDataSource) IPMacCloudConfig(ip, mac string) (CloudConfig, error) {
+func (ds *EtcdDataSource) MacCloudConfig(mac string) (string, error) {
 	//TODO
 	return nil, nil
 }

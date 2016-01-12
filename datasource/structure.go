@@ -63,16 +63,16 @@ type DHCPDataSource interface {
 	LeaseRange() net.IP
 }
 
-//CloudConfigDataSource is the interface that any cloud-config file server
-//has to implement.
-type CloudConfigDataSource interface {
-	//Generates the cloud-config file using the IP Address + Mac Address from
-	//the IPMac which is passed to it as config context
-	//IP and mac address is currently passed in through a URL, therefore the
-	//function signature will be as simple as the situation (string instead of
-	//net.IP and net.HardwareAddr) and no simpler
-	IPMacCloudConfig(ip, mac string) (CloudConfig, error)
-}
+////CloudConfigDataSource is the interface that any cloud-config file server
+////has to implement.
+//type CloudConfigDataSource interface {
+//	//Generates the cloud-config file using the Machine Address from
+//	//mac which is passed to it as config context
+//	//mac address is currently passed in through a URL, therefore the
+//	//function signature will be as simple as the situation (string instead of
+//	//net.IP and net.HardwareAddr) and no simpler
+//	MacCloudConfig(mac string) (string, error)
+//}
 
 //KeyValueDataSource standardizes the interface that a datasource with key/value
 //storage support should provide
@@ -123,10 +123,4 @@ type MasterDataSource interface {
 	CloudConfigDataSource
 	KeyValueDataSource
 	RestServer
-}
-
-//CloudConfig specifies the functionalities that "a cloudconfig" instance should
-//provide
-type CloudConfig interface {
-	String() string
 }

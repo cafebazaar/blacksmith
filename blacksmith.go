@@ -19,8 +19,8 @@ import (
 	etcd "github.com/coreos/etcd/client"
 )
 
-//go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
-//go:generate go-bindata -o web/ui_autogen.go -pkg web web/ui/...
+//go:generate esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
+//go:generate esc -o web/ui_autogen.go -prefix=web -pkg web web/ui
 
 var _ cloudconfig.DataSource = (*datasource.RuntimeConfiguration)(nil)
 var _ cloudconfig.DataSource = (*datasource.Flags)(nil)

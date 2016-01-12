@@ -44,7 +44,7 @@ func NewRuntimeConfiguration(dataSource etcd.KeysAPI, etcdClient etcd.Client, et
 		return nil, errors.New("A valid initial CoreOS version is required in initial data")
 	}
 
-	fmt.Printf("Initial Values: CoreOSVersion=%s\n", iVals.CoreOSVersion)
+	fmt.Printf("Initial Values:  CoreOSVersion=%s\n", iVals.CoreOSVersion)
 
 	instance := &RuntimeConfiguration{
 		DataSource:           dataSource,

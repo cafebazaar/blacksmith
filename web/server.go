@@ -11,11 +11,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/elazarl/go-bindata-assetfs"
-
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/dhcp"
+	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/gorilla/mux"
+)
+
+const (
+	debugTag = "API"
 )
 
 type RestServer struct {
@@ -30,6 +33,8 @@ type uploadedFile struct {
 }
 
 func (a *RestServer) deleteFile(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	name := r.FormValue("name")
 
 	if name != "" {
@@ -47,6 +52,8 @@ func (a *RestServer) deleteFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *RestServer) files(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	files, err := ioutil.ReadDir(filepath.Join(a.runtimeConfig.WorkspacePath, "files"))
 	if err != nil {
 		http.Error(w, err.Error(), 500)
@@ -69,6 +76,8 @@ func (a *RestServer) files(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *RestServer) upload(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	const MaxFileSize = 1 << 30
 	// This feels like a bad hack...
 	if r.ContentLength > MaxFileSize {
@@ -122,12 +131,14 @@ func (a *RestServer) Mux() *mux.Router {
 	mux.HandleFunc("/files", a.files).Methods("GET")
 	mux.HandleFunc("/files", a.deleteFile).Methods("DELETE")
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/", http.FileServer(http.Dir(filepath.Join(a.runtimeConfig.WorkspacePath, "files")))))
-	mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "/web/ui"})))
+	mux.PathPrefix("/ui/").Handler(http.FileServer(FS(false)))
 
 	return mux
 }
 
 func (a *RestServer) nodesList(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	leases, err := a.pool.Leases()
 	if err != nil {
 		http.Error(w, "Error in fetching lease data", 500)
@@ -141,7 +152,8 @@ func (a *RestServer) nodesList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *RestServer) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
-	// a.runtimeConfig.
+	logging.LogHTTPRequest(debugTag, r)
+
 	endpointsJSON, err := json.Marshal(a.runtimeConfig.EtcdClient.Endpoints())
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))

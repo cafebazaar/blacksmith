@@ -34,13 +34,13 @@ type nodeContext struct {
 
 type HTTPBooter struct {
 	listenAddr     net.TCPAddr
-	ldlinux        []byte
+	ldlinux        http.File
 	key            [32]byte
 	runtimeConfig  *datasource.RuntimeConfiguration
 	bootParamsRepo *cloudconfig.Repo
 }
 
-func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*HTTPBooter, error) {
+func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux http.File, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*HTTPBooter, error) {
 	booter := &HTTPBooter{
 		listenAddr:     listenAddr,
 		ldlinux:        ldlinux,
@@ -62,10 +62,9 @@ func (b *HTTPBooter) Mux() *http.ServeMux {
 }
 
 func (b *HTTPBooter) ldlinuxHandler(w http.ResponseWriter, r *http.Request) {
-	logging.Debug("HTTPBOOTER", "starting send of ldlinux.c32 to %s (%d bytes)", r.RemoteAddr, len(b.ldlinux))
+	logging.LogHTTPRequest("HTTPBOOTER", r)
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Write(b.ldlinux)
-	logging.Log("HTTPBOOTER", "sent ldlinux.c32 to %s (%d bytes)", r.RemoteAddr, len(b.ldlinux))
+	io.Copy(w, b.ldlinux)
 }
 
 func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +183,8 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPBooterMux(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*http.ServeMux, error) {
-	ldlinux, err := Asset("pxelinux/ldlinux.c32")
+	pxelinuxDir := FS(false)
+	ldlinux, err := pxelinuxDir.Open("/pxelinux/ldlinux.c32")
 	if err != nil {
 		return nil, err
 	}

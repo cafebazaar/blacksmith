@@ -1,6 +1,7 @@
 package pxe
 
 import (
+	"io"
 	"net"
 
 	"github.com/cafebazaar/blacksmith/logging"
@@ -8,11 +9,17 @@ import (
 )
 
 func ServeTFTP(listenAddr net.UDPAddr) error {
-	pxelinux, err := Asset("pxelinux/lpxelinux.0")
+	pxelinuxDir := FS(false)
+	pxelinux, err := pxelinuxDir.Open("/pxelinux/lpxelinux.0")
 	if err != nil {
 		return err
 	}
 	tftp.Log = func(msg string, args ...interface{}) { logging.Log("TFTP", msg, args...) }
 	tftp.Debug = func(msg string, args ...interface{}) { logging.Debug("TFTP", msg, args...) }
-	return tftp.ListenAndServe("udp4", listenAddr.String(), tftp.Blob(pxelinux))
+
+	handler := func(string, net.Addr) (io.ReadCloser, error) {
+		return pxelinux, nil
+	}
+
+	return tftp.ListenAndServe("udp4", listenAddr.String(), handler)
 }

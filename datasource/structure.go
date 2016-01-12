@@ -97,6 +97,19 @@ type RestServer interface {
 //UIRestServer specifies the functionality that is expected from a rest server
 //which will act as the backend for Blacksmith web UI
 type UIRestServer interface {
+	//DeleteFile provides file deleting functionality
+	DeleteFile(w http.ResponseWriter, r *http.Request)
+
+	//Files provides the means for accessing uploaded files
+	Files(w http.ResponseWriter, r *http.Request)
+
+	//NodesList returns a view of the nodes recognized by blacksmith
+	//Also provides useful information about each one and allows you to modify
+	//certain settings
+	NodesList(w http.ResponseWriter, r *http.Request)
+
+	//Upload provides file uploading functionality
+	Upload(w http.ResponseWriter, r *http.Request)
 }
 
 //MasterDataSource embedds GeneralDataSource, DHCPDataSource,

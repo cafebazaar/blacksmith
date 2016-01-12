@@ -92,6 +92,132 @@ type initialValues struct {
 	CoreOSVersion string `yaml:"coreos-version"`
 }
 
+//Handler returns a pointer to a multiplexing router
+//mux.Router in turn implements http.Handler
+//part of the RestServer interface implementation
+func (ds *EtcdDataSource) Handler() *mux.Router {
+	mux := mux.NewRouter()
+	mux.HandleFunc("/api/nodes", ds.NodesList)
+	mux.HandleFunc("/api/etcd-endpoints", ds.EtcdEndpoints)
+
+	mux.HandleFunc("/upload/", ds.Upload)
+	mux.HandleFunc("/files", ds.Files).Methods("GET")
+	mux.HandleFunc("/files", ds.DeleteFile).Methods("DELETE")
+	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
+		http.FileServer(http.Dir(filepath.Join(ds.WorkspacePath(), "files")))))
+	mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/",
+		http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "/web/ui"})))
+
+	return mux
+}
+
+//Upload does what it is supposed to do!
+//part of UIRestServer interface implementation
+func (ds *EtcdDataSource) Upload(w http.ResponseWriter, r *http.Request) {
+	const MaxFileSize = 1 << 30
+	// This feels like a bad hack...
+	if r.ContentLength > MaxFileSize {
+		http.Error(w, "Request too large", 400)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, MaxFileSize)
+
+	err := r.ParseMultipartForm(1024)
+	if err != nil {
+		http.Error(w, "File too large", 400)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		panic(err)
+	}
+
+	dst, err := os.Create(filepath.Join(ds.WorkspacePath(), "files", header.Filename))
+	defer dst.Close()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+
+	written, err := io.Copy(dst, io.LimitReader(file, MaxFileSize))
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+
+	if written == MaxFileSize {
+		http.Error(w, "File too large", 400)
+		return
+	}
+}
+
+//DeleteFile allows the deletion of a file through http Request
+//part of the UIRestServer interface implementation
+func (ds *EtcdDataSource) DeleteFile(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+
+	if name != "" {
+		err := os.Remove(filepath.Join(ds.WorkspacePath(), "files", name))
+
+		if err != nil {
+			http.Error(w, err.Error(), 404)
+
+			return
+		}
+	} else {
+		http.Error(w, "No file name specified.", 400)
+	}
+
+}
+
+//NodesList creates a list of the currently known nodes based on the etcd
+//entries
+//part of UIRestServer interface implementation
+func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
+	//TODO
+
+	// leases, err := a.pool.Leases()
+	// if err != nil {
+	// 	http.Error(w, "Error in fetching lease data", 500)
+	// }
+	// nodesJSON, err := json.Marshal(leases)
+	// if err != nil {
+	// 	io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
+	// 	return
+	// }
+	// io.WriteString(w, string(nodesJSON))
+}
+
+type uploadedFile struct {
+	Name                 string    `json:"name"`
+	Size                 int64     `json:"size"`
+	LastModificationDate time.Time `json:"lastModifiedDate"`
+}
+
+//Files allows utilization of the uploaded/shared files through http requests
+//part of UIRestServer interface implementation
+func (ds *EtcdDataSource) Files(w http.ResponseWriter, r *http.Request) {
+	files, err := ioutil.ReadDir(filepath.Join(ds.WorkspacePath(), "files"))
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+
+	var filesList []uploadedFile
+	for _, f := range files {
+		if f.Name()[0] == '.' {
+			continue
+		}
+		var uploadedFile uploadedFile
+		uploadedFile.Size = f.Size()
+		uploadedFile.LastModificationDate = f.ModTime()
+		uploadedFile.Name = f.Name()
+		filesList = append(filesList, uploadedFile)
+	}
+
+	jsoned, _ := json.Marshal(filesList)
+	io.WriteString(w, string(jsoned))
+}
+
 //NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 //a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart,

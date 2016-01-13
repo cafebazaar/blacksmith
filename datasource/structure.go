@@ -116,11 +116,16 @@ type UIRestServer interface {
 }
 
 //MasterDataSource embedds GeneralDataSource, DHCPDataSource,
-//CloudConfigDataSource, KeyValueDataStore and RestServer
+//KeyValueDataStore and RestServer
 type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
-	CloudConfigDataSource
+	//	CloudConfigDataSource
 	KeyValueDataSource
 	RestServer
+}
+
+type KeyValueGeneralDatasource interface {
+	GeneralDataSource
+	KeyValueDataSource
 }

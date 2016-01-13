@@ -6,7 +6,9 @@ import (
 	//	"net/url"
 	//	"fmt"
 	"net/http"
-	// "path"
+	"path"
+	"sync"
+	"text/template"
 
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/logging"
@@ -15,11 +17,13 @@ import (
 //cloudConfigDataSourceWrapper embedds a CloudConfigDataSource which is an
 //interface and provides a means of conceptually using the interface as the
 //method receiver
-type cloudConfigDataSourceWrapper struct {
-	datasource.GeneralDataSource
+type cloudConfigDataSource struct {
+	datasource.KeyValueGeneralDataSource
+	executeLock         *sync.Mutex
+	cloudConfigTemplate *template.Template
 }
 
-func (datasource *CloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r *http.Request) {
+func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.Request) {
 	req := strings.Split(r.URL.Path, "/")[1:]
 
 	queryMap, _ := extractQueries(r.URL.RawQuery)
@@ -46,8 +50,9 @@ func (datasource *CloudConfigDataSourceWrapper) handler(w http.ResponseWriter, r
 	}
 
 	clientMacAddress := req[1]
-
-	config, err := MacCloudConfig(clientIP, clientMacAddress)
+	datasource.executeLock.Lock()
+	defer datasource.executeLock.Unlock()
+	config, err := datasource.macCloudConfig(clientMacAddress)
 	if err != nil {
 		http.Error(w, "internal server error - error in generating config", 500)
 		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
@@ -83,16 +88,20 @@ func extractQueries(rawQueryString string) (map[string]string, error) {
 	return retMap, nil
 }
 
-func serveUtilityMultiplexer(datasource datasource.GeneralDataSource) *http.ServeMux {
+func serveUtilityMultiplexer(datasource datasource.KeyValueGeneralDataSource) *http.ServeMux {
 	mux := http.NewServeMux()
-	dataSourceWrapper := cloudConfigDataSourceWrapper{datasource}
-	mux.HandleFunc("/", dataSourceWrapper.handler)
+
+	mux.HandleFunc("/", datasource.handler)
 	return mux
 }
 
 //ServeCloudConfig is run cuncurrently alongside other blacksmith services
 //Provides cloudconfig to machines at boot time
-func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource datasource.GeneralDataSource) error {
+func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource datasource.KeyValueGeneralDataSource) error {
 	logging.Log("CLOUDCONFIG", "Listening on %s", listenAddr.String())
+
+	cctemplates, err := FromPath(datasource, path.Join(datasource.WorkspacePath(), "config/cloudconfig"))
+	ccdataSource := cloudConfigDataSource{datasource, &sync.Mutex, cctemplates}
+
 	return http.ListenAndServe(listenAddr.String(), serveUtilityMultiplexer(datasource))
 }

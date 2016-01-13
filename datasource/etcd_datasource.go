@@ -84,10 +84,6 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 //Will generate a commented warning at the end of the cloud-config if the node's ip in the http
 //request mismatches the one in etcd
 //Part of CloudConfigDataSource interace implementation
-func (ds *EtcdDataSource) MacCloudConfig(mac string) (string, error) {
-	//TODO
-	return nil, nil
-}
 
 func (ds *EtcdDataSource) parseKey(key string) string {
 	key = strings.Replace(key, ".", "/", -1)

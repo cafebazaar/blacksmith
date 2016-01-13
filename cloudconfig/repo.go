@@ -6,26 +6,8 @@ import (
 	"io/ioutil"
 	"path"
 	"strings"
-	"sync"
 	"text/template"
-
-	"github.com/cafebazaar/blacksmith/datasource"
 )
-
-//MacCloudConfig generates a cloud-config file based on the Mac address that is passed in
-//Will generate a commented warning at the end of the cloud-config if the node's ip in the http
-//request mismatches the one in etcd
-//Part of CloudConfigDataSource interace implementation
-func (ds *datasource.) MacCloudConfig(mac string) (string, error) {
-	//TODO
-	return nil, nil
-}
-
-type Repo struct {
-	templates   *template.Template
-	dataSource  datasource.CloudConfigDataSource
-	executeLock sync.Mutex
-}
 
 func findFiles(path string) ([]string, error) {
 	infos, err := ioutil.ReadDir(path)
@@ -42,7 +24,7 @@ func findFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func FromPath(ds datasource.CloudConfigDataSource, tmplPath string) (*Repo, error) {
+func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
 		return nil, err
@@ -80,40 +62,39 @@ func FromPath(ds datasource.CloudConfigDataSource, tmplPath string) (*Repo, erro
 		return nil, err
 	}
 	return &Repo{
-		templates:  t,
-		dataSource: ds,
+		templates:   t,
+		dataSources: dataSources,
 	}, nil
 }
 
-func (r *Repo) ExecuteTemplate(templateName string) (string, error) {
+func (ds *cloudConfigDataSource) ExecuteTemplate(templateName string /*, c *ConfigContext*/) (string, error) {
 	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
 	buf := new(bytes.Buffer)
-	// m := TODO
 	r.templates.Funcs(map[string]interface{}{
-		"V": func(key string) (interface{}, error) {
-			return r.dataSource.Get(key)
-		},
-		"S": func(key string, value string) (interface{}, error) {
-			return m.SetFlag(key, value)
-		},
-		"VD": func(key string) (interface{}, error) {
-			return m.GetAndDeleteFlag(key)
-		},
-		"D": func(key string) (interface{}, error) {
-			return m.DeleteFlag(key)
-		},
-		"b64": func(text string) interface{} {
-			return base64.StdEncoding.EncodeToString([]byte(text))
-		},
-		"b64template": func(templateName string) (interface{}, error) {
-			text, err := r.ExecuteTemplate(templateName, c)
-			if err != nil {
-				return nil, err
-			}
-			return base64.StdEncoding.EncodeToString([]byte(text)), nil
-		},
+	// "V": func(key string) (interface{}, error) {
+	// 	return GetValue(r.dataSources, c, key)
+	// },
+	// "S": func(key string, value string) (interface{}, error) {
+	// 	return Set(r.dataSources, c, key, value)
+	// },
+	// "VD": func(key string) (interface{}, error) {
+	// 	return GetAndDelete(r.dataSources, c, key)
+	// },
+	// "D": func(key string) (interface{}, error) {
+	// 	return Delete(r.dataSources, c, key)
+	// },
+	// "b64": func(text string) interface{} {
+	// 	return base64.StdEncoding.EncodeToString([]byte(text))
+	// },
+	// "b64template": func(templateName string) (interface{}, error) {
+	// 	text, err := r.ExecuteTemplate(templateName, c)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return base64.StdEncoding.EncodeToString([]byte(text)), nil
+	// },
 	})
-	err := r.templates.ExecuteTemplate(buf, templateName, nil)
+	err := r.templates.ExecuteTemplate(buf /*, templateName*/, nil)
 	if err != nil {
 		return "", err
 	}
@@ -122,12 +103,10 @@ func (r *Repo) ExecuteTemplate(templateName string) (string, error) {
 	return str, err
 }
 
-func (r *Repo) GenerateConfig(c *ConfigContext) (string, error) {
-	r.executeLock.Lock()
-	defer r.executeLock.Unlock()
+func (ds *cloudConfigDataSource) macCloudConfig(mac string) (string, error) {
 
-	if r.templates.Lookup("main") == nil {
+	if ds.templates.Lookup("main") == nil {
 		return "", nil
 	}
-	return r.ExecuteTemplate("main", c)
+	return ds.ExecuteTemplate("main", c)
 }

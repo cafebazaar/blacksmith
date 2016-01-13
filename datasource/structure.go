@@ -44,10 +44,14 @@ type GeneralDataSource interface {
 	//CoreOSVerison returns the coreOs version that blacksmith supplies
 	CoreOSVersion() (string, error)
 
-	//GetOrCreateMachine returns The Machine object with the specified Hardware
-	//address if it exists. Otherwise creates it and returns a handle.
-	//second return value should be set to true if the Machine already exists
-	GetOrCreateMachine(net.HardwareAddr) (Machine, bool, error)
+	//GetMachine returns The Machine object with the specified Hardware
+	//address. Returns a flag to specify whether or not the entry exists
+	GetMachine(net.HardwareAddr) (Machine, bool)
+
+	//CreateMachine creates a machine with the specified hardware address and IP
+	//the second return value will be set to true in case of successful machine
+	//creation and to false in case of duplicate hardware address or IP
+	CreateMachine(net.HardwareAddr, net.IP) (Machine, bool)
 
 	//WorkspacePath returns the path to the workspace which is used after the
 	//machines are booted up

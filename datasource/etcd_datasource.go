@@ -58,25 +58,60 @@ func (ds *EtcdDataSource) Machines() ([]Machine, error) {
 		if err != nil {
 			return nil, err
 		}
-		machine, _, err := ds.GetOrCreateMachine(macAddr)
-		if err != nil {
-			return nil, err
+		machine, exist := ds.GetMachine(macAddr)
+		if !exist {
+			return nil, errors.New("Inconsistent datasource")
 		}
 		ret = append(ret, machine)
 	}
 	return ret, nil
 }
 
-//GetOrCreateMachine returns a Machine interface which is the accessor/getter/setter
+//GetMachine returns a Machine interface which is the accessor/getter/setter
 //for a node in the etcd datasource. If an entry associated with the passed
-//mac address does not exist, it is created and the handle (Machine) will be
-//returned. bool returns value is set to true if the Machine already exists so
-//it can be used like:
-//machine , exists , err := GetOrCreateMachine(mac)
+//mac address does not exist the second return value will be set to false
 //part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) GetOrCreateMachine(mac net.HardwareAddr) (Machine, bool, error) {
-	//TODO
-	return nil, false, nil
+func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
+	machines, err := ds.Machines()
+	if err != nil {
+		return nil, false
+	}
+	for _, node := range machines {
+		if node.Mac().String() == mac.String() {
+			return node, true
+		}
+	}
+	return nil, false
+}
+
+//CreateMachine creates a machine and associates it the passed hardware address
+//and IP. if a machine already exists with hardware address or ip equal to those
+//passed to the function, will return nil , false. otherwise Machine , true will
+//be returned
+//part of GeneralDataSource interface implementation
+
+func ipWithoutMask(ip net.IP) string {
+	ret := ip.String()
+	ret = ret[:strings.Index(ret, "/")]
+	return ret
+}
+
+func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
+	machines, err := ds.Machines()
+	noMaskIP := ipWithoutMask(ip)
+
+	if err != nil {
+		return nil, false
+	}
+	for _, node := range machines {
+		if node.Mac().String() == mac.String() {
+			return nil, false
+		}
+		if ipWithoutMask(node.IP()) == noMaskIP {
+			return nil, false
+		}
+	}
+	// create it !
 }
 
 //CoreOSVersion gets the current value from etcd and returns it if the image folder exists

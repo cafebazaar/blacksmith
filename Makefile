@@ -12,7 +12,7 @@ help:
 	@echo "  clean        to remove generated files"
 
 define run-generate =
-	go get github.com/mjibson/esc
+	go get -v github.com/mjibson/esc
 	GOOS=linux GOARCH=amd64 go generate
 endef
 

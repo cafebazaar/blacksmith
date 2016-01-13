@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"errors"
 	"net"
 	"strconv"
 	"strings"
@@ -24,7 +25,7 @@ func (m *EtcdMachine) Mac() net.HardwareAddr {
 //queries etcd
 //part of Machine interface implementation
 func (m *EtcdMachine) IP() (net.IP, error) {
-	ipstring, err := m.selfGet("IP")
+	ipstring, err := m.selfGet("_IP")
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +53,12 @@ func unixNanoStringToTime(unixNano string) (time.Time, error) {
 
 func timeError(err error) (time.Time, error) {
 	return time.Now(), err
+}
+
+//CheckIn updates the _last_seen entry of this machine in etcd
+//part of EtcdMachine interface implementation
+func (m *EtcdMachine) CheckIn() {
+	m.selfSet("_last_seen", strconv.FormatInt(time.Now().UnixNano(), 10))
 }
 
 //FirstSeen returns the time upon which that the machine has been first seen
@@ -86,6 +93,9 @@ func (m *EtcdMachine) GetFlag(key string) (string, error) {
 //etcd and machine prefix will be added to the PathPrefix
 //part of Machine interface implementation
 func (m *EtcdMachine) SetFlag(key, value string) error {
+	if len(key) > 0 && key[0] == '_' {
+		return errors.New("NotPermitted")
+	}
 	return m.selfSet(key, value)
 }
 
@@ -108,7 +118,7 @@ func (m *EtcdMachine) DeleteFlag(key string) error {
 }
 
 func (m *EtcdMachine) prefixify(str string) string {
-	return m.Name() + "/" + str
+	return m.Mac().String() + "/" + str
 }
 
 func (m *EtcdMachine) selfGet(key string) (string, error) {

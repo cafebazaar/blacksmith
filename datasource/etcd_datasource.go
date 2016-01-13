@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -96,6 +97,10 @@ func ipWithoutMask(ip net.IP) string {
 	return ret
 }
 
+//CreateMachine Creates a machine, returns the handle, and writes directories and flags to etcd
+//Second return value determines whether or not Machine creation has been
+//successful
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
 	machines, err := ds.Machines()
 	noMaskIP := ipWithoutMask(ip)
@@ -107,11 +112,26 @@ func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machin
 		if node.Mac().String() == mac.String() {
 			return nil, false
 		}
-		if ipWithoutMask(node.IP()) == noMaskIP {
+		nodeip, err := node.IP()
+		if err != nil {
+			return nil, false
+		}
+		if ipWithoutMask(nodeip) == noMaskIP {
 			return nil, false
 		}
 	}
+	machine := &EtcdMachine{mac, ds}
 	// create it !
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()), "", &etcd.SetOptions{Dir: true})
+	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()+"/_IP"), ip.String(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()+"/_name"), machine.Name(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()+"/_first_seen"),
+		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
+	machine.CheckIn()
+	return machine, true
 }
 
 //CoreOSVersion gets the current value from etcd and returns it if the image folder exists

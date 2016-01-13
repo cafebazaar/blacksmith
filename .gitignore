@@ -8,3 +8,4 @@ deploy.sh
 remote_deploy.sh
 pxe/pxelinux_autogen.go
 web/ui_autogen.go
+web/ui/external

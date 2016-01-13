@@ -1,4 +1,4 @@
-VERSION := $(shell git describe --tags)
+VERSION ?= $(shell git describe --tags)
 COMMIT := $(shell git rev-parse HEAD)
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DOCKER_IMAGE ?= "cafebazaar/blacksmith"
@@ -27,11 +27,16 @@ blacksmith: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 pxe/pxelinux_autogen.go: pxe/pxelinux
 	$(run-generate)
 
-web/ui_autogen.go: web/ui
+EXTERNAL_FILES := web/ui/bower_components/angular/angular.min.js web/ui/bower_components/angular-route/angular-route.min.js web/ui/bower_components/angular-resource/angular-resource.min.js web/ui/bower_components/angular-xeditable/dist/js/xeditable.min.js web/ui/bower_components/jquery/dist/jquery.min.js web/ui/bower_components/bootstrap/dist/js/bootstrap.min.js web/ui/bower_components/bootstrap/dist/css/bootstrap.css web/ui/bower_components/angular-xeditable/dist/css/xeditable.css
+web/ui/external: $(EXTERNAL_FILES)
+	mkdir web/ui/external
+	cp -v $(EXTERNAL_FILES) web/ui/external
+
+web/ui_autogen.go: web/ui web/ui/external
 	$(run-generate)
 
 clean:
-	rm -f blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go
+	rm -rf blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go web/ui/external
 
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE) .

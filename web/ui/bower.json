@@ -1,11 +1,11 @@
 {
-    "name": "blacksmith-ui",
-    "version": "0.0.0",
-    "dependencies": {
-	     "bootstrap" : "3.3.5",
-       "angular" : "1.4.7",
-	     "angular-resource": "1.4.7",
-       "angular-route": "1.4.7",
-       "angular-xeditable": "0.1.8"
-    }
+	"name": "blacksmith-ui",
+	"version": "0.0.0",
+	"dependencies": {
+		"bootstrap" : "3.3.5",
+		"angular" : "1.4.7",
+		"angular-resource": "1.4.7",
+		"angular-route": "1.4.7",
+		"angular-xeditable": "0.1.8"
+	}
 }

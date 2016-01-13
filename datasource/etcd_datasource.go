@@ -37,15 +37,34 @@ type EtcdDataSource struct {
 //WorkspacePath is self explanatory
 //part of the GeneralDataSource interface implementation
 func (ds *EtcdDataSource) WorkspacePath() string {
-	//TODO
 	return ds.workspacePath
 }
 
 //Machines returns an array of the recognized machines in etcd datasource
 //part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Machines() []Machine {
-	//TODO
-	return nil
+func (ds *EtcdDataSource) Machines() ([]Machine, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, ds.parseKey(""), &etcd.GetOptions{Recursive: false})
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]Machine, 0)
+	for _, ent := range response.Node.Nodes {
+		pathToMachineDir := ent.Key
+		macStr := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
+		macAddr, err := net.ParseMAC(macStr)
+		if err != nil {
+			return nil, err
+		}
+		machine, _, err := ds.GetOrCreateMachine(macAddr)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, machine)
+	}
+	return ret, nil
 }
 
 //GetOrCreateMachine returns a Machine interface which is the accessor/getter/setter
@@ -86,13 +105,14 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 //Part of CloudConfigDataSource interace implementation
 
 func (ds *EtcdDataSource) parseKey(key string) string {
-	key = strings.Replace(key, ".", "/", -1)
-	key = strings.Replace(key, "__/", ds.etcdDir+"/", -1)
+	// key = strings.Replace(key, ".", "/", -1)
+	// key = strings.Replace(key, "__/", ds.etcdDir+"/", -1)
+	key = "blacksmith/" + key
 	return key
 }
 
 //Get parses the etcd key and returns it's value
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Get(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -105,7 +125,7 @@ func (ds *EtcdDataSource) Get(key string) (string, error) {
 }
 
 //Set sets and etcd key to a value
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Set(key string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -115,7 +135,7 @@ func (ds *EtcdDataSource) Set(key string, value string) error {
 
 //GetAndDelete gets the value of an etcd key and returns it, and deletes the record
 //afterwards
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) GetAndDelete(key string) (string, error) {
 	value, err := ds.Get(key)
 	if err != nil {
@@ -128,7 +148,7 @@ func (ds *EtcdDataSource) GetAndDelete(key string) (string, error) {
 }
 
 //Delete erases the key from etcd
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Delete(key string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

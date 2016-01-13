@@ -10,17 +10,20 @@ import (
 //in the datasource
 type Machine interface {
 	//Nic returns the hardware address of the machine
-	Nic() net.HardwareAddr
+	Mac() net.HardwareAddr
 
 	//IP reutrns the IP address associated with the machine
-	IP() net.IP
+	IP() (net.IP, error)
+
+	//Name returns the hostname of the machine
+	Name() string
 
 	//FirstSeen returns the time upon which the machine has
 	//been seen
-	FirstSeen() time.Time
+	FirstSeen() (time.Time, error)
 
 	//LastSeen returns the last time the machine has been seen
-	LastSeen() time.Time
+	LastSeen() (time.Time, error)
 
 	//GetFlag returns the value of the supplied key
 	GetFlag(key string) (string, error)
@@ -52,7 +55,19 @@ type GeneralDataSource interface {
 
 	//Machines returns a slice of Machines whose entries are present in the
 	//datasource storage
-	Machines() []Machine
+	Machines() ([]Machine, error)
+
+	//Get returns value associated with key
+	Get(key string) (string, error)
+
+	//Set sets key equal to value.
+	Set(key, value string) error
+
+	//Delete erases a key from the datasource
+	Delete(key string) error
+
+	//Gets a key, returns it's value and deletes it
+	GetAndDelete(key string) (string, error)
 }
 
 //DHCPDataSource is the functionality that a DHCP datasource has to provide
@@ -76,19 +91,19 @@ type DHCPDataSource interface {
 
 //KeyValueDataSource standardizes the interface that a datasource with key/value
 //storage support should provide
-type KeyValueDataSource interface {
-	//Get returns value associated with key
-	Get(key string) (string, error)
+//type KeyValueDataSource interface {
+//	//Get returns value associated with key
+//	Get(key string) (string, error)
 
-	//Set sets key equal to value.
-	Set(key, value string) error
+//	//Set sets key equal to value.
+//	Set(key, value string) error
 
-	//Delete erases a key from the datasource
-	Delete(key string) error
+//	//Delete erases a key from the datasource
+//	Delete(key string) error
 
-	//Gets a key, returns it's value and deletes it
-	GetAndDelete(key string) (string, error)
-}
+//	//Gets a key, returns it's value and deletes it
+//	GetAndDelete(key string) (string, error)
+//}
 
 //RestServer defines the interface that a rest server has to implement to work
 //with Blacksmith
@@ -116,16 +131,10 @@ type UIRestServer interface {
 }
 
 //MasterDataSource embedds GeneralDataSource, DHCPDataSource,
-//KeyValueDataStore and RestServer
+//and RestServer
 type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
 	//	CloudConfigDataSource
-	KeyValueDataSource
 	RestServer
-}
-
-type KeyValueGeneralDatasource interface {
-	GeneralDataSource
-	KeyValueDataSource
 }

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cafebazaar/blacksmith/cloudconfig"
+	// "github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
 	// "github.com/cafebazaar/blacksmith/dhcp"
 	"github.com/cafebazaar/blacksmith/logging"
@@ -183,8 +183,9 @@ func main() {
 
 	// serving cloudconfig
 	go func() {
-		logging.Log("REFACT CLOUDCONFIG", *workspacePathFlag)
-		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
+
+		logging.Log("REFACT CLOUDCONFIG", *workspacePathFlag+" "+cloudConfigHTTPAddr.String())
+		// log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
 	}()
 	// serving http booter
 	go func() {

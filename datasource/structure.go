@@ -10,17 +10,20 @@ import (
 //in the datasource
 type Machine interface {
 	//Nic returns the hardware address of the machine
-	Nic() net.HardwareAddr
+	Mac() net.HardwareAddr
 
 	//IP reutrns the IP address associated with the machine
-	IP() net.IP
+	IP() (net.IP, error)
+
+	//Name returns the hostname of the machine
+	Name() string
 
 	//FirstSeen returns the time upon which the machine has
 	//been seen
-	FirstSeen() time.Time
+	FirstSeen() (time.Time, error)
 
 	//LastSeen returns the last time the machine has been seen
-	LastSeen() time.Time
+	LastSeen() (time.Time, error)
 
 	//GetFlag returns the value of the supplied key
 	GetFlag(key string) (string, error)
@@ -41,10 +44,14 @@ type GeneralDataSource interface {
 	//CoreOSVerison returns the coreOs version that blacksmith supplies
 	CoreOSVersion() (string, error)
 
-	//GetOrCreateMachine returns The Machine object with the specified Hardware
-	//address if it exists. Otherwise creates it and returns a handle.
-	//second return value should be set to true if the Machine already exists
-	GetOrCreateMachine(net.HardwareAddr) (Machine, bool, error)
+	//GetMachine returns The Machine object with the specified Hardware
+	//address. Returns a flag to specify whether or not the entry exists
+	GetMachine(net.HardwareAddr) (Machine, bool)
+
+	//CreateMachine creates a machine with the specified hardware address and IP
+	//the second return value will be set to true in case of successful machine
+	//creation and to false in case of duplicate hardware address or IP
+	CreateMachine(net.HardwareAddr, net.IP) (Machine, bool)
 
 	//WorkspacePath returns the path to the workspace which is used after the
 	//machines are booted up
@@ -52,31 +59,8 @@ type GeneralDataSource interface {
 
 	//Machines returns a slice of Machines whose entries are present in the
 	//datasource storage
-	Machines() []Machine
-}
+	Machines() ([]Machine, error)
 
-//DHCPDataSource is the functionality that a DHCP datasource has to provide
-type DHCPDataSource interface {
-	//LeaseStart specifies dhcp pool starting ip
-	LeaseStart() net.IP
-	//LeaseRange specifies the dhcp pool ip range
-	LeaseRange() net.IP
-}
-
-//CloudConfigDataSource is the interface that any cloud-config file server
-//has to implement.
-type CloudConfigDataSource interface {
-	//Generates the cloud-config file using the IP Address + Mac Address from
-	//the IPMac which is passed to it as config context
-	//IP and mac address is currently passed in through a URL, therefore the
-	//function signature will be as simple as the situation (string instead of
-	//net.IP and net.HardwareAddr) and no simpler
-	IPMacCloudConfig(ip, mac string) (CloudConfig, error)
-}
-
-//KeyValueDataSource standardizes the interface that a datasource with key/value
-//storage support should provide
-type KeyValueDataSource interface {
 	//Get returns value associated with key
 	Get(key string) (string, error)
 
@@ -89,6 +73,41 @@ type KeyValueDataSource interface {
 	//Gets a key, returns it's value and deletes it
 	GetAndDelete(key string) (string, error)
 }
+
+//DHCPDataSource is the functionality that a DHCP datasource has to provide
+type DHCPDataSource interface {
+	//LeaseStart specifies dhcp pool starting ip
+	LeaseStart() net.IP
+	//LeaseRange specifies number of IPs the dhcp server can assign
+	LeaseRange() int
+}
+
+////CloudConfigDataSource is the interface that any cloud-config file server
+////has to implement.
+//type CloudConfigDataSource interface {
+//	//Generates the cloud-config file using the Machine Address from
+//	//mac which is passed to it as config context
+//	//mac address is currently passed in through a URL, therefore the
+//	//function signature will be as simple as the situation (string instead of
+//	//net.IP and net.HardwareAddr) and no simpler
+//	MacCloudConfig(mac string) (string, error)
+//}
+
+//KeyValueDataSource standardizes the interface that a datasource with key/value
+//storage support should provide
+//type KeyValueDataSource interface {
+//	//Get returns value associated with key
+//	Get(key string) (string, error)
+
+//	//Set sets key equal to value.
+//	Set(key, value string) error
+
+//	//Delete erases a key from the datasource
+//	Delete(key string) error
+
+//	//Gets a key, returns it's value and deletes it
+//	GetAndDelete(key string) (string, error)
+//}
 
 //RestServer defines the interface that a rest server has to implement to work
 //with Blacksmith
@@ -116,17 +135,10 @@ type UIRestServer interface {
 }
 
 //MasterDataSource embedds GeneralDataSource, DHCPDataSource,
-//CloudConfigDataSource, KeyValueDataStore and RestServer
+//and RestServer
 type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
-	CloudConfigDataSource
-	KeyValueDataSource
+	//	CloudConfigDataSource
 	RestServer
-}
-
-//CloudConfig specifies the functionalities that "a cloudconfig" instance should
-//provide
-type CloudConfig interface {
-	String() string
 }

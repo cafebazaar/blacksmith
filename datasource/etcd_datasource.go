@@ -11,9 +11,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/cafebazaar/blacksmith/logging"
 	etcd "github.com/coreos/etcd/client"
 	"gopkg.in/yaml.v2"
 	// "github.com/elazarl/go-bindata-assetfs"
@@ -28,7 +30,7 @@ type EtcdDataSource struct {
 	keysAPI              etcd.KeysAPI
 	client               etcd.Client
 	leaseStart           net.IP
-	leaseRange           net.IP
+	leaseRange           int
 	etcdDir              string
 	workspacePath        string
 	initialCoreOSVersion string
@@ -37,27 +39,106 @@ type EtcdDataSource struct {
 //WorkspacePath is self explanatory
 //part of the GeneralDataSource interface implementation
 func (ds *EtcdDataSource) WorkspacePath() string {
-	//TODO
 	return ds.workspacePath
 }
 
 //Machines returns an array of the recognized machines in etcd datasource
 //part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Machines() []Machine {
-	//TODO
-	return nil
+func (ds *EtcdDataSource) Machines() ([]Machine, error) {
+	// logging.Log("#MACHINES", "called")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, ds.parseKey("/machines"), &etcd.GetOptions{Recursive: false})
+	if err != nil {
+		return nil, err
+	}
+	// is := "yes"
+	// if !response.Node.Dir {
+	// 	is = "no"
+	// }
+	// logging.Log("ISDIR", is)
+	// logging.Log("NUNODES", fmt.Sprint(len(response.Node.Nodes)))
+	ret := make([]Machine, 0)
+	for _, ent := range response.Node.Nodes {
+		// logging.Log("#MACHINES ENTRY", ent.Key)
+		pathToMachineDir := ent.Key
+		macStr := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
+		macAddr, err := net.ParseMAC(macStr)
+		if err != nil {
+			return nil, err
+		}
+		machine, exist := ds.GetMachine(macAddr)
+		if !exist {
+			return nil, errors.New("Inconsistent datasource")
+		}
+		// logging.Log("Adding to machines", machine.Mac().String())
+		ret = append(ret, machine)
+	}
+	// logging.Log("#MACHINES", "return good")
+	return ret, nil
 }
 
-//GetOrCreateMachine returns a Machine interface which is the accessor/getter/setter
+//GetMachine returns a Machine interface which is the accessor/getter/setter
 //for a node in the etcd datasource. If an entry associated with the passed
-//mac address does not exist, it is created and the handle (Machine) will be
-//returned. bool returns value is set to true if the Machine already exists so
-//it can be used like:
-//machine , exists , err := GetOrCreateMachine(mac)
+//mac address does not exist the second return value will be set to false
 //part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) GetOrCreateMachine(mac net.HardwareAddr) (Machine, bool, error) {
-	//TODO
-	return nil, false, nil
+func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, ds.parseKey(path.Join("machines/"+mac.String())), nil)
+	if err != nil {
+		return nil, false
+	}
+	if response.Node.Key[strings.LastIndex(response.Node.Key, "/")+1:] == mac.String() {
+		return &EtcdMachine{mac, ds}, true
+	}
+	return nil, false
+}
+
+//CreateMachine Creates a machine, returns the handle, and writes directories and flags to etcd
+//Second return value determines whether or not Machine creation has been
+//successful
+//part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
+	logging.Log("#CREATE", mac.String()+" "+ip.String())
+	machines, err := ds.Machines()
+
+	if err != nil {
+		return nil, false
+	}
+	for _, node := range machines {
+		logging.Log("#Creating", "entry : "+node.Mac().String())
+		if node.Mac().String() == mac.String() {
+			logging.Log("#CREATING", "same mac")
+			return nil, false
+		}
+		nodeip, err := node.IP()
+		if err != nil {
+			return nil, false
+		}
+		if nodeip.String() == ip.String() {
+			return nil, false
+		}
+	}
+	logging.Log("#IP and MAC GOOD", "")
+	machine := &EtcdMachine{mac, ds}
+	// create it !
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	logging.Log("#DIR CREATION", machine.Mac().String())
+
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()), "", &etcd.SetOptions{Dir: true})
+	// ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()), "", nil)
+	logging.Log("#DIR CREATION", "DONE")
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_IP"), ip.String(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_name"), machine.Name(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_first_seen"),
+		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
+	machine.CheckIn()
+	machine.SetFlag("state", "unknown")
+	return machine, true
 }
 
 //CoreOSVersion gets the current value from etcd and returns it if the image folder exists
@@ -80,22 +161,19 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 	return coreOSVersion, nil
 }
 
-//IPMacCloudConfig generates a cloud-config file based on the IP and Mac address
-//which is passed in
+//MacCloudConfig generates a cloud-config file based on the Mac address that is passed in
+//Will generate a commented warning at the end of the cloud-config if the node's ip in the http
+//request mismatches the one in etcd
 //Part of CloudConfigDataSource interace implementation
-func (ds *EtcdDataSource) IPMacCloudConfig(ip, mac string) (CloudConfig, error) {
-	//TODO
-	return nil, nil
-}
 
 func (ds *EtcdDataSource) parseKey(key string) string {
-	key = strings.Replace(key, ".", "/", -1)
-	key = strings.Replace(key, "__/", ds.etcdDir+"/", -1)
-	return key
+	// key = strings.Replace(key, ".", "/", -1)
+	// key = strings.Replace(key, "__/", ds.etcdDir+"/", -1)
+	return path.Join("blacksmith/", key)
 }
 
 //Get parses the etcd key and returns it's value
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Get(key string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -107,8 +185,24 @@ func (ds *EtcdDataSource) Get(key string) (string, error) {
 	return response.Node.Value, nil
 }
 
+//
+// func (ds *EtcdDataSource) Ls(key string) []string {
+// 	ret := make([]string, 0)
+// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// 	defer cancel()
+//
+// 	response, err := ds.keysAPI.Get(ctx, ds.parseKey(key), &etcd.GetOptions{Recursive: false})
+// 	if err != nil {
+// 		return nil
+// 	}
+// 	for _, ent := range response.Node.Nodes {
+// 		ret = append(ret, ent.Key)
+// 	}
+// 	return ret
+// }
+
 //Set sets and etcd key to a value
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Set(key string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -118,7 +212,7 @@ func (ds *EtcdDataSource) Set(key string, value string) error {
 
 //GetAndDelete gets the value of an etcd key and returns it, and deletes the record
 //afterwards
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) GetAndDelete(key string) (string, error) {
 	value, err := ds.Get(key)
 	if err != nil {
@@ -131,7 +225,7 @@ func (ds *EtcdDataSource) GetAndDelete(key string) (string, error) {
 }
 
 //Delete erases the key from etcd
-//part of KeyValueDataSource interface implementation
+//part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Delete(key string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -283,15 +377,14 @@ func (ds *EtcdDataSource) LeaseStart() net.IP {
 //LeaseRange returns the IP range from which IP addresses are assignable to
 //clients by the DHCP server
 //part of DHCPDataSource interface implementation
-func (ds *EtcdDataSource) LeaseRange() net.IP {
-	//TODO
-	return nil
+func (ds *EtcdDataSource) LeaseRange() int {
+	return ds.leaseRange
 }
 
 //NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 //a MasterDataSource
-func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart,
-	leaseRange net.IP, etcdDir, workspacePath string) (MasterDataSource, error) {
+func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
+	leaseRange int, etcdDir, workspacePath string) (MasterDataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -333,6 +426,10 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart,
 			return nil, fmt.Errorf("Error while checking GetCoreOSVersion: %s", err)
 		}
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	instance.keysAPI.Set(ctx, instance.parseKey("machines"), "", &etcd.SetOptions{Dir: true})
 
 	return instance, nil
 }

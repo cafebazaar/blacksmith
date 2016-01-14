@@ -6,3 +6,5 @@ workspace
 vagrant_provision_after_docker_installation.local
 pxe/pxelinux_autogen.go
 web/ui_autogen.go
+deploy.sh
+remote_deploy.sh

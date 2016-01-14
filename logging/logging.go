@@ -10,7 +10,7 @@ type logEntry struct {
 	Msg       string
 }
 
-var logCh = make(chan logEntry, 10000)
+var logCh = make(chan logEntry)
 
 type minimalLogger interface {
 	Printf(format string, v ...interface{})

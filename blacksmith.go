@@ -183,9 +183,9 @@ func main() {
 
 	//<testing>
 
-	testIp := net.ParseIP("172.20.0.30")
-	testMc, _ := net.ParseMAC("08:00:27:FF:F9:DC")
-	etcdDataSource.CreateMachine(testMc, testIp)
+	// testIp := net.ParseIP("172.20.0.30")
+	// testMc, _ := net.ParseMAC("08:00:27:FF:F9:DC")
+	// etcdDataSource.CreateMachine(testMc, testIp)
 	// lis := (etcdDataSource.(*datasource.EtcdDataSource)).Ls("/machines")
 	// for _, ent := range lis {
 	// 	logging.Log("#ls", ent)

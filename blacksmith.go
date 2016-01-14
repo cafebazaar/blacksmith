@@ -175,11 +175,32 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, nil /*leaseRange*/, *etcdDirFlag, *workspacePathFlag)
+	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *etcdDirFlag, *workspacePathFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
 	}
+
+	//<testing>
+
+	testIp := net.ParseIP("172.20.0.30")
+	testMc, _ := net.ParseMAC("08:00:27:FF:F9:DC")
+	etcdDataSource.CreateMachine(testMc, testIp)
+	// lis := (etcdDataSource.(*datasource.EtcdDataSource)).Ls("/machines")
+	// for _, ent := range lis {
+	// 	logging.Log("#ls", ent)
+	// }
+	// logging.Log("#DATASOURCE", "Getting machine")
+	// mach, _ := etcdDataSource.GetMachine(testMc)
+	// logging.Log("#DATASOURCE", "GOT")
+
+	// thisip, _ := mach.IP()
+	// thismac := mach.Mac().String()
+	// thisname := mach.Name()
+	// thisfirst, _ := mach.FirstSeen()
+	// thislast, _ := mach.LastSeen()
+	// logging.Log("#MACHINE ", thisip.String()+" "+thismac+" "+thisname+" "+thisfirst.String()+" "+thislast.String())
+	//</testing>
 
 	// serving cloudconfig
 	go func() {

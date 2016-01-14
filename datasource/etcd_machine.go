@@ -118,7 +118,7 @@ func (m *EtcdMachine) DeleteFlag(key string) error {
 }
 
 func (m *EtcdMachine) prefixify(str string) string {
-	return m.Mac().String() + "/" + str
+	return "machines/" + m.Mac().String() + "/" + str
 }
 
 func (m *EtcdMachine) selfGet(key string) (string, error) {

@@ -78,8 +78,8 @@ type GeneralDataSource interface {
 type DHCPDataSource interface {
 	//LeaseStart specifies dhcp pool starting ip
 	LeaseStart() net.IP
-	//LeaseRange specifies the dhcp pool ip range
-	LeaseRange() net.IP
+	//LeaseRange specifies number of IPs the dhcp server can assign
+	LeaseRange() int
 }
 
 ////CloudConfigDataSource is the interface that any cloud-config file server

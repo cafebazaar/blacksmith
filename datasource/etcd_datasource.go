@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cafebazaar/blacksmith/logging"
 	etcd "github.com/coreos/etcd/client"
 	"gopkg.in/yaml.v2"
 	// "github.com/elazarl/go-bindata-assetfs"
@@ -29,7 +30,7 @@ type EtcdDataSource struct {
 	keysAPI              etcd.KeysAPI
 	client               etcd.Client
 	leaseStart           net.IP
-	leaseRange           net.IP
+	leaseRange           int
 	etcdDir              string
 	workspacePath        string
 	initialCoreOSVersion string
@@ -44,15 +45,23 @@ func (ds *EtcdDataSource) WorkspacePath() string {
 //Machines returns an array of the recognized machines in etcd datasource
 //part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Machines() ([]Machine, error) {
+	// logging.Log("#MACHINES", "called")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	response, err := ds.keysAPI.Get(ctx, ds.parseKey(""), &etcd.GetOptions{Recursive: false})
+	response, err := ds.keysAPI.Get(ctx, ds.parseKey("/machines"), &etcd.GetOptions{Recursive: false})
 	if err != nil {
 		return nil, err
 	}
+	// is := "yes"
+	// if !response.Node.Dir {
+	// 	is = "no"
+	// }
+	// logging.Log("ISDIR", is)
+	// logging.Log("NUNODES", fmt.Sprint(len(response.Node.Nodes)))
 	ret := make([]Machine, 0)
 	for _, ent := range response.Node.Nodes {
+		// logging.Log("#MACHINES ENTRY", ent.Key)
 		pathToMachineDir := ent.Key
 		macStr := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
 		macAddr, err := net.ParseMAC(macStr)
@@ -63,8 +72,10 @@ func (ds *EtcdDataSource) Machines() ([]Machine, error) {
 		if !exist {
 			return nil, errors.New("Inconsistent datasource")
 		}
+		// logging.Log("Adding to machines", machine.Mac().String())
 		ret = append(ret, machine)
 	}
+	// logging.Log("#MACHINES", "return good")
 	return ret, nil
 }
 
@@ -73,28 +84,17 @@ func (ds *EtcdDataSource) Machines() ([]Machine, error) {
 //mac address does not exist the second return value will be set to false
 //part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
-	machines, err := ds.Machines()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, ds.parseKey(path.Join("machines/"+mac.String())), nil)
 	if err != nil {
 		return nil, false
 	}
-	for _, node := range machines {
-		if node.Mac().String() == mac.String() {
-			return node, true
-		}
+	if response.Node.Key[strings.LastIndex(response.Node.Key, "/")+1:] == mac.String() {
+		return &EtcdMachine{mac, ds}, true
 	}
 	return nil, false
-}
-
-//CreateMachine creates a machine and associates it the passed hardware address
-//and IP. if a machine already exists with hardware address or ip equal to those
-//passed to the function, will return nil , false. otherwise Machine , true will
-//be returned
-//part of GeneralDataSource interface implementation
-
-func ipWithoutMask(ip net.IP) string {
-	ret := ip.String()
-	ret = ret[:strings.Index(ret, "/")]
-	return ret
 }
 
 //CreateMachine Creates a machine, returns the handle, and writes directories and flags to etcd
@@ -102,35 +102,42 @@ func ipWithoutMask(ip net.IP) string {
 //successful
 //part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
+	logging.Log("#CREATE", mac.String()+" "+ip.String())
 	machines, err := ds.Machines()
-	noMaskIP := ipWithoutMask(ip)
 
 	if err != nil {
 		return nil, false
 	}
 	for _, node := range machines {
+		logging.Log("#Creating", "entry : "+node.Mac().String())
 		if node.Mac().String() == mac.String() {
+			logging.Log("#CREATING", "same mac")
 			return nil, false
 		}
 		nodeip, err := node.IP()
 		if err != nil {
 			return nil, false
 		}
-		if ipWithoutMask(nodeip) == noMaskIP {
+		if nodeip.String() == ip.String() {
 			return nil, false
 		}
 	}
+	logging.Log("#IP and MAC GOOD", "")
 	machine := &EtcdMachine{mac, ds}
 	// create it !
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+	logging.Log("#DIR CREATION", machine.Mac().String())
 
-	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()), "", &etcd.SetOptions{Dir: true})
-	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()+"/_IP"), ip.String(), &etcd.SetOptions{})
-	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()+"/_name"), machine.Name(), &etcd.SetOptions{})
-	ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()+"/_first_seen"),
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()), "", &etcd.SetOptions{Dir: true})
+	// ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()), "", nil)
+	logging.Log("#DIR CREATION", "DONE")
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_IP"), ip.String(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_name"), machine.Name(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_first_seen"),
 		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
 	machine.CheckIn()
+	machine.SetFlag("state", "unknown")
 	return machine, true
 }
 
@@ -162,8 +169,7 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 func (ds *EtcdDataSource) parseKey(key string) string {
 	// key = strings.Replace(key, ".", "/", -1)
 	// key = strings.Replace(key, "__/", ds.etcdDir+"/", -1)
-	key = "blacksmith/" + key
-	return key
+	return path.Join("blacksmith/", key)
 }
 
 //Get parses the etcd key and returns it's value
@@ -178,6 +184,22 @@ func (ds *EtcdDataSource) Get(key string) (string, error) {
 	}
 	return response.Node.Value, nil
 }
+
+//
+// func (ds *EtcdDataSource) Ls(key string) []string {
+// 	ret := make([]string, 0)
+// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// 	defer cancel()
+//
+// 	response, err := ds.keysAPI.Get(ctx, ds.parseKey(key), &etcd.GetOptions{Recursive: false})
+// 	if err != nil {
+// 		return nil
+// 	}
+// 	for _, ent := range response.Node.Nodes {
+// 		ret = append(ret, ent.Key)
+// 	}
+// 	return ret
+// }
 
 //Set sets and etcd key to a value
 //part of GeneralDataSource interface implementation
@@ -355,15 +377,14 @@ func (ds *EtcdDataSource) LeaseStart() net.IP {
 //LeaseRange returns the IP range from which IP addresses are assignable to
 //clients by the DHCP server
 //part of DHCPDataSource interface implementation
-func (ds *EtcdDataSource) LeaseRange() net.IP {
-	//TODO
-	return nil
+func (ds *EtcdDataSource) LeaseRange() int {
+	return ds.leaseRange
 }
 
 //NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 //a MasterDataSource
-func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart,
-	leaseRange net.IP, etcdDir, workspacePath string) (MasterDataSource, error) {
+func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
+	leaseRange int, etcdDir, workspacePath string) (MasterDataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -405,6 +426,10 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart,
 			return nil, fmt.Errorf("Error while checking GetCoreOSVersion: %s", err)
 		}
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	instance.keysAPI.Set(ctx, instance.parseKey("machines"), "", &etcd.SetOptions{Dir: true})
 
 	return instance, nil
 }

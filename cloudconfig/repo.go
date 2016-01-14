@@ -72,11 +72,16 @@ func (ds *cloudConfigDataSource) ExecuteTemplate(templateName string /*, c *Conf
 	buf := new(bytes.Buffer)
 	ds.templates.Funcs(map[string]interface{}{
 		"V": func(key string) (interface{}, error) {
-			return ds.currentMachine.GetFlag(key)
+			if strings.HasPrefix(key, "flags.me.") {
+				return ds.currentMachine.GetFlag(key[strings.LastIndex(key, ".")+1:])
+			}
+			return "", nil
 		},
 		"S": func(key string, value string) (interface{}, error) {
-			err := ds.currentMachine.SetFlag(key, value)
-			return true, err
+			if strings.HasPrefix(key, "flags.me.") {
+				return true, ds.currentMachine.SetFlag(key[strings.LastIndex(key, ".")+1:], value)
+			}
+			return false, nil
 		},
 		"VD": func(key string) (interface{}, error) {
 			return ds.currentMachine.GetAndDeleteFlag(key)

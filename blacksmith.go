@@ -215,7 +215,7 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.Fatalln(pxe.ServeHTTPBooter(httpAddr ,etcdDataSource , templates)
+		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, etcdDataSource, templates))
 	}()
 	// serving tftp
 	go func() {

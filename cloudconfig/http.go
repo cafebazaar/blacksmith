@@ -17,7 +17,15 @@ import (
 //cloudConfigDataSource embedds a CloudConfigDataSource which is an
 //interface and provides a means of conceptually using the interface as the
 //method receiver
+
 type cloudConfigDataSource struct {
+	datasource.GeneralDataSource
+	executeLock    *sync.Mutex
+	templates      *template.Template
+	currentMachine datasource.Machine
+}
+
+type bootParamsDataSource struct {
 	datasource.GeneralDataSource
 	executeLock    *sync.Mutex
 	templates      *template.Template

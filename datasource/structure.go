@@ -80,6 +80,12 @@ type DHCPDataSource interface {
 	LeaseStart() net.IP
 	//LeaseRange specifies number of IPs the dhcp server can assign
 	LeaseRange() int
+
+	//Assign finds an IP for the specified nic
+	Assign(nic string) (net.IP, error)
+
+	//Request is how to client requests to use the Ip address
+	Request(nic string, currentIP net.IP) (net.IP, error)
 }
 
 ////CloudConfigDataSource is the interface that any cloud-config file server

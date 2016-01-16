@@ -12,7 +12,7 @@ import (
 
 	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
-	// "github.com/cafebazaar/blacksmith/dhcp"
+	"github.com/cafebazaar/blacksmith/dhcp"
 	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/cafebazaar/blacksmith/pxe"
 	"github.com/cafebazaar/blacksmith/web"
@@ -231,6 +231,14 @@ func main() {
 	}()
 
 	go func() {
+		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
+			IFName:     dhcpIF.Name,
+			ServerIP:   serverIP,
+			RouterAddr: leaseRouter,
+			SubnetMask: leaseSubnet,
+			DNSAddr:    leaseDNS,
+		},
+			etcdDataSource))
 	}()
 
 	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)

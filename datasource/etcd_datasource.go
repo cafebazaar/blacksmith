@@ -13,10 +13,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cafebazaar/blacksmith/logging"
 	etcd "github.com/coreos/etcd/client"
+	"github.com/krolaw/dhcp4"
 	"gopkg.in/yaml.v2"
 	// "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/mux"
@@ -34,6 +36,8 @@ type EtcdDataSource struct {
 	etcdDir              string
 	workspacePath        string
 	initialCoreOSVersion string
+	dhcpAssignLock       *sync.Mutex
+	dhcpDataLock         *sync.Mutex
 }
 
 //WorkspacePath is self explanatory
@@ -130,11 +134,17 @@ func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machin
 	logging.Log("#DIR CREATION", machine.Mac().String())
 
 	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()), "", &etcd.SetOptions{Dir: true})
-	// ds.keysAPI.Set(ctx, ds.parseKey(machine.Mac().String()), "", nil)
-	logging.Log("#DIR CREATION", "DONE")
-	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_IP"), ip.String(), &etcd.SetOptions{})
-	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_name"), machine.Name(), &etcd.SetOptions{})
-	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()+"/_first_seen"),
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel1()
+	ds.keysAPI.Set(ctx1, ds.parseKey("machines/"+machine.Mac().String()+"/_IP"), ip.String(), &etcd.SetOptions{})
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel2()
+	ds.keysAPI.Set(ctx2, ds.parseKey("machines/"+machine.Mac().String()+"/_name"), machine.Name(), &etcd.SetOptions{})
+
+	ctx3, cancel3 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel3()
+	ds.keysAPI.Set(ctx3, ds.parseKey("machines/"+machine.Mac().String()+"/_first_seen"),
 		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
 	machine.CheckIn()
 	machine.SetFlag("state", "unknown")
@@ -249,8 +259,8 @@ func (ds *EtcdDataSource) Handler() http.Handler {
 	mux.HandleFunc("/files", ds.DeleteFile).Methods("DELETE")
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
 		http.FileServer(http.Dir(filepath.Join(ds.WorkspacePath(), "files")))))
-	pwd , _ := os.Getwd()
-  mux.PathPrefix("/ui/").Handler(http.FileServer(http.Dir(filepath.Join(pwd , "web/"))))
+	pwd, _ := os.Getwd()
+	mux.PathPrefix("/ui/").Handler(http.FileServer(http.Dir(filepath.Join(pwd, "web/"))))
 	// mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/",
 	// http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "/web/ui"})))
 
@@ -316,47 +326,47 @@ func (ds *EtcdDataSource) DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 }
 
-type lease struct{
-	Nic string
-	IP net.IP
+type lease struct {
+	Nic           string
+	IP            net.IP
 	FirstAssigned time.Time
-	LastAssigned time.Time
-	ExpireTime time.Time
+	LastAssigned  time.Time
+	ExpireTime    time.Time
 }
 
-func nodeToLease(node Machine)(*lease, error){
+func nodeToLease(node Machine) (*lease, error) {
 	mac := node.Mac()
-	ip , err := node.IP()
-	if err != nil{
+	ip, err := node.IP()
+	if err != nil {
 		return nil, err
 	}
-	first , err := node.FirstSeen()
-	if err != nil{
-		return nil , err
+	first, err := node.FirstSeen()
+	if err != nil {
+		return nil, err
 	}
-	last , err := node.LastSeen()
-	if err != nil{
-		return nil , err
+	last, err := node.LastSeen()
+	if err != nil {
+		return nil, err
 	}
 	exp := time.Now() // <- ??? TODO
-	return &lease{mac.String() , ip , first , last , exp} , nil
+	return &lease{mac.String(), ip, first, last, exp}, nil
 }
 
 //NodesList creates a list of the currently known nodes based on the etcd
 //entries
 //part of UIRestServer interface implementation
 func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
-	leases :=  make(map[string]lease)
+	leases := make(map[string]lease)
 	machines, err := ds.Machines()
 	if err != nil {
 		http.Error(w, "Error in fetching lease data", 500)
 	}
-	for _ , node := range machines{
+	for _, node := range machines {
 		l, err := nodeToLease(node)
-		if err != nil{
+		if err != nil {
 			http.Error(w, "Error in fetching lease data", 500)
 		}
-		leases[node.Name()]  = *l
+		leases[node.Name()] = *l
 	}
 
 	nodesJSON, err := json.Marshal(leases)
@@ -421,6 +431,104 @@ func (ds *EtcdDataSource) LeaseRange() int {
 	return ds.leaseRange
 }
 
+func (ds *EtcdDataSource) lockDHCPAssign() {
+	ds.dhcpAssignLock.Lock()
+}
+
+func (ds *EtcdDataSource) unlockdhcpAssign() {
+	ds.dhcpAssignLock.Unlock()
+}
+
+func (ds *EtcdDataSource) lockDHCPData() {
+	ds.dhcpDataLock.Lock()
+}
+
+func (ds *EtcdDataSource) unlockDHCPData() {
+	ds.dhcpDataLock.Unlock()
+}
+
+func (ds *EtcdDataSource) store(m Machine, ip net.IP) {
+	ds.lockDHCPData()
+	defer ds.unlockDHCPData()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+m.Mac().String()+"/_IP"),
+		ip.String(), &etcd.SetOptions{})
+
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel1()
+	ds.keysAPI.Set(ctx1, ds.parseKey("machines/"+m.Mac().String()+"/_last_seen"),
+		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
+}
+
+//Assign assigns an ip to the node with the specified nic
+//Will use etcd machines records as LeasePool
+//part of DHCPDataSource interface implementation
+func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
+	ds.lockDHCPAssign()
+	defer ds.unlockdhcpAssign()
+
+	assignedIPs := make(map[string]bool)
+
+	//find by Mac
+	machines, _ := ds.Machines()
+	for _, node := range machines {
+		if node.Mac().String() == nic {
+			ip, _ := node.IP()
+			ds.store(node, ip)
+		}
+		nodeIP, _ := node.IP()
+		assignedIPs[nodeIP.String()] = true
+	}
+	//find an unused ip
+	for i := 0; i < ds.LeaseRange(); i++ {
+		ip := dhcp4.IPAdd(ds.LeaseStart(), i)
+		if _, exists := assignedIPs[ip.String()]; !exists {
+			macAddress, _ := net.ParseMAC(nic)
+			ds.CreateMachine(macAddress, ip)
+		}
+	}
+
+	//use an expired ip
+	//not implemented yet
+
+	return nil, nil
+}
+
+//Request answers a dhcp request
+//Uses etcd as backend
+//part of DHCPDataSource interface implementation
+func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) {
+	ds.lockDHCPAssign()
+	defer ds.unlockdhcpAssign()
+
+	machines, _ := ds.Machines()
+
+	macExists, ipExists := false, false
+
+	for _, node := range machines {
+		thisNodeIP, _ := node.IP()
+		ipMatch := thisNodeIP.String() == currentIP.String()
+		macMatch := nic == node.Mac().String()
+
+		if ipMatch && macMatch {
+			ds.store(node, thisNodeIP)
+			return currentIP, nil
+		}
+
+		ipExists = ipExists || ipMatch
+		macExists = macExists || macMatch
+
+	}
+	if ipExists || macExists {
+		return nil, errors.New("Missmatch in lease pool")
+	}
+	macAddress, _ := net.ParseMAC(nic)
+	ds.CreateMachine(macAddress, currentIP)
+	return currentIP, nil
+}
+
 //NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 //a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
@@ -448,6 +556,8 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		etcdDir:              etcdDir,
 		workspacePath:        workspacePath,
 		initialCoreOSVersion: iVals.CoreOSVersion,
+		dhcpAssignLock:       &sync.Mutex{},
+		dhcpDataLock:         &sync.Mutex{},
 	}
 
 	_, err = instance.CoreOSVersion()

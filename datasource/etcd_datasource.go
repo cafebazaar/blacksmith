@@ -249,6 +249,8 @@ func (ds *EtcdDataSource) Handler() http.Handler {
 	mux.HandleFunc("/files", ds.DeleteFile).Methods("DELETE")
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
 		http.FileServer(http.Dir(filepath.Join(ds.WorkspacePath(), "files")))))
+	pwd , _ := os.Getwd()
+  mux.PathPrefix("/ui/").Handler(http.FileServer(http.Dir(filepath.Join(pwd , "web/"))))
 	// mux.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/",
 	// http.FileServer(&assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, Prefix: "/web/ui"})))
 
@@ -314,22 +316,55 @@ func (ds *EtcdDataSource) DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 }
 
+type lease struct{
+	Nic string
+	IP net.IP
+	FirstAssigned time.Time
+	LastAssigned time.Time
+	ExpireTime time.Time
+}
+
+func nodeToLease(node Machine)(*lease, error){
+	mac := node.Mac()
+	ip , err := node.IP()
+	if err != nil{
+		return nil, err
+	}
+	first , err := node.FirstSeen()
+	if err != nil{
+		return nil , err
+	}
+	last , err := node.LastSeen()
+	if err != nil{
+		return nil , err
+	}
+	exp := time.Now() // <- ??? TODO
+	return &lease{mac.String() , ip , first , last , exp} , nil
+}
+
 //NodesList creates a list of the currently known nodes based on the etcd
 //entries
 //part of UIRestServer interface implementation
 func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
-	//TODO
+	leases :=  make(map[string]lease)
+	machines, err := ds.Machines()
+	if err != nil {
+		http.Error(w, "Error in fetching lease data", 500)
+	}
+	for _ , node := range machines{
+		l, err := nodeToLease(node)
+		if err != nil{
+			http.Error(w, "Error in fetching lease data", 500)
+		}
+		leases[node.Name()]  = *l
+	}
 
-	// leases, err := a.pool.Leases()
-	// if err != nil {
-	// 	http.Error(w, "Error in fetching lease data", 500)
-	// }
-	// nodesJSON, err := json.Marshal(leases)
-	// if err != nil {
-	// 	io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
-	// 	return
-	// }
-	// io.WriteString(w, string(nodesJSON))
+	nodesJSON, err := json.Marshal(leases)
+	if err != nil {
+		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
+		return
+	}
+	io.WriteString(w, string(nodesJSON))
 }
 
 type uploadedFile struct {
@@ -363,7 +398,12 @@ func (ds *EtcdDataSource) Files(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ds *EtcdDataSource) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
-
+	endpointsJSON, err := json.Marshal(ds.client.Endpoints())
+	if err != nil {
+		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
+		return
+	}
+	io.WriteString(w, string(endpointsJSON))
 }
 
 //LeaseStart returns the first IP address that the DHCP server can offer to a

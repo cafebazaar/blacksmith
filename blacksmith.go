@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
-	// "path"
+	"path"
 	"strings"
 	"time"
 
@@ -183,9 +183,9 @@ func main() {
 
 	//<testing>
 
-	testIp := net.ParseIP("172.20.0.30")
-	testMc, _ := net.ParseMAC("08:00:27:FF:F9:DC")
-	etcdDataSource.CreateMachine(testMc, testIp)
+	// testIp := net.ParseIP("172.20.0.30")
+	// testMc, _ := net.ParseMAC("08:00:27:FF:F9:DC")
+	// etcdDataSource.CreateMachine(testMc, testIp)
 	// lis := (etcdDataSource.(*datasource.EtcdDataSource)).Ls("/machines")
 	// for _, ent := range lis {
 	// 	logging.Log("#ls", ent)
@@ -210,6 +210,12 @@ func main() {
 	}()
 	// serving http booter
 	go func() {
+		templates, err := cloudconfig.FromPath(etcdDataSource,
+			path.Join(*workspacePathFlag, "config/bootparanm"))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		log.Fatalln(pxe.ServeHTTPBooter(httpAddr ,etcdDataSource , templates)
 	}()
 	// serving tftp
 	go func() {

@@ -338,14 +338,17 @@ func nodeToLease(node Machine) (*lease, error) {
 	mac := node.Mac()
 	ip, err := node.IP()
 	if err != nil {
+		return nil, errors.New("IP")
 		return nil, err
 	}
 	first, err := node.FirstSeen()
 	if err != nil {
+		return nil, errors.New("FIRST")
 		return nil, err
 	}
 	last, err := node.LastSeen()
 	if err != nil {
+		return nil, errors.New("LAST")
 		return nil, err
 	}
 	exp := time.Now() // <- ??? TODO
@@ -356,15 +359,20 @@ func nodeToLease(node Machine) (*lease, error) {
 //entries
 //part of UIRestServer interface implementation
 func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
+	logging.Log("#NODELIST", "CALLED")
 	leases := make(map[string]lease)
 	machines, err := ds.Machines()
-	if err != nil {
+	if err != nil || machines == nil {
 		http.Error(w, "Error in fetching lease data", 500)
 	}
 	for _, node := range machines {
 		l, err := nodeToLease(node)
 		if err != nil {
 			http.Error(w, "Error in fetching lease data", 500)
+		}
+		if l == nil {
+			logging.Log("#NODELIST", "couldn't fill lease")
+			logging.Log("#NODELIST", err.Error())
 		}
 		leases[node.Name()] = *l
 	}
@@ -420,8 +428,7 @@ func (ds *EtcdDataSource) etcdEndpoints(w http.ResponseWriter, r *http.Request) 
 //DHCP client
 //part of DHCPDataSource interface implementation
 func (ds *EtcdDataSource) LeaseStart() net.IP {
-	//TODO
-	return nil
+	return ds.leaseStart
 }
 
 //LeaseRange returns the IP range from which IP addresses are assignable to
@@ -470,23 +477,38 @@ func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
 	defer ds.unlockdhcpAssign()
 
 	assignedIPs := make(map[string]bool)
-
 	//find by Mac
 	machines, _ := ds.Machines()
 	for _, node := range machines {
 		if node.Mac().String() == nic {
 			ip, _ := node.IP()
 			ds.store(node, ip)
+			return ip, nil
 		}
 		nodeIP, _ := node.IP()
 		assignedIPs[nodeIP.String()] = true
 	}
+
+	// logging.Log("#DHCP", "already assigned")
+	// for k, _ := range assignedIPs {
+	// 	logging.Log("#DHCP", k)
+	// }
+	logging.Log("#Trying to find me : ", nic)
+	logging.Log("#DHCP", "mac not found")
+	logging.Log("#DHCP", fmt.Sprintf("lease range : %d", ds.LeaseRange()))
+	logging.Log("#DHCP", "start : "+ds.LeaseStart().String())
+	// return nil, nil
 	//find an unused ip
 	for i := 0; i < ds.LeaseRange(); i++ {
 		ip := dhcp4.IPAdd(ds.LeaseStart(), i)
 		if _, exists := assignedIPs[ip.String()]; !exists {
 			macAddress, _ := net.ParseMAC(nic)
+			logging.Log("#DHCP", "creating machine")
+			logging.Log("#DHCP", macAddress.String()+" "+ip.String())
 			ds.CreateMachine(macAddress, ip)
+			return ip, nil
+		} else {
+			// logging.Log("#DHCP", "already exists : "+ip.String() + " nic : )
 		}
 	}
 
@@ -500,6 +522,7 @@ func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
 //Uses etcd as backend
 //part of DHCPDataSource interface implementation
 func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) {
+	logging.Log("#Request : ", nic+" "+currentIP.String())
 	ds.lockDHCPAssign()
 	defer ds.unlockdhcpAssign()
 
@@ -507,10 +530,13 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 
 	macExists, ipExists := false, false
 
+	logging.Log("#REQUEST : ", "my ip : "+currentIP.String()+" my mac : "+nic)
+
 	for _, node := range machines {
 		thisNodeIP, _ := node.IP()
 		ipMatch := thisNodeIP.String() == currentIP.String()
 		macMatch := nic == node.Mac().String()
+		logging.Log("#REQUEST : ", "their : "+thisNodeIP.String()+" th mac : "+node.Mac().String())
 
 		if ipMatch && macMatch {
 			ds.store(node, thisNodeIP)
@@ -522,6 +548,7 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 
 	}
 	if ipExists || macExists {
+		logging.Log("#Request", "Missmatch in lease pool")
 		return nil, errors.New("Missmatch in lease pool")
 	}
 	macAddress, _ := net.ParseMAC(nic)
@@ -550,10 +577,14 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 
 	fmt.Printf("Initial Values: CoreOSVersion=%s\n", iVals.CoreOSVersion)
 
+	logging.Log("#NEW", "supplied starting ip"+leaseStart.String())
+
 	instance := &EtcdDataSource{
 		keysAPI:              kapi,
 		client:               client,
 		etcdDir:              etcdDir,
+		leaseStart:           leaseStart,
+		leaseRange:           leaseRange,
 		workspacePath:        workspacePath,
 		initialCoreOSVersion: iVals.CoreOSVersion,
 		dhcpAssignLock:       &sync.Mutex{},

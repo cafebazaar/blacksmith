@@ -5,6 +5,7 @@ import (
 	"strings"
 	//	"net/url"
 	//	"fmt"
+	"bytes"
 	"net/http"
 	"path"
 	"sync"
@@ -59,6 +60,17 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	// }
 
 	clientMacAddressString := req[1]
+	if strings.Index(clientMacAddressString, ":") == -1 {
+		var tmpmac bytes.Buffer
+		for i := 0; i < 12; i++ { // mac address length
+			tmpmac.WriteString(clientMacAddressString[i : i+1])
+			if i%2 == 1 {
+				tmpmac.WriteString(":")
+			}
+		}
+		clientMacAddressString = tmpmac.String()[:len(tmpmac.String())-1]
+	}
+	// logging.Log("#CLOUD", clientMacAddressString)
 	clientMac, err := net.ParseMAC(clientMacAddressString)
 	if err != nil {
 		return
@@ -67,6 +79,8 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	if !exist {
 		return
 	}
+	theIp, _ := machine.IP()
+	logging.Log("#CLOUD", theIp.String())
 	datasource.currentMachine = machine
 	datasource.executeLock.Lock()
 	defer datasource.executeLock.Unlock()

@@ -84,15 +84,15 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 	switch msgType {
 	case dhcp4.Discover:
 		ip, err := h.datasource.Assign(p.CHAddr().String())
-		logging.Log("#DHCP", "chosen ip : "+ip.String())
+		// logging.Log("#DHCP", "chosen ip : "+ip.String())
 		if err != nil {
 			logging.Debug("DHCP", "err in lease pool - %s", err.Error())
-			logging.Log("#DHCP", "bad return 1")
+			// logging.Log("#DHCP", "bad return 1")
 			return nil // pool is full
 		}
-		logging.Log("#DHCP4 DISCOVER IP : ", ip.String())
+		// logging.Log("#DHCP4 DISCOVER IP : ", ip.String())
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-		logging.Log("#DHCP", "setting packet ip to "+ip.String())
+		// logging.Log("#DHCP", "setting packet ip to "+ip.String())
 		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, h.settings.LeaseDuration, replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
@@ -103,35 +103,35 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			packet.AddOption(97, guid)
 			packet.AddOption(43, h.fillPXE())
 		} else {
-			logging.Log("#DHCP", "dhcp discover - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
+			// logging.Log("#DHCP", "dhcp discover - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
 		}
 		return packet
 	case dhcp4.Request:
 		if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(h.settings.ServerIP) {
-			logging.Log("#DHCP", "bad return 2")
+			// logging.Log("#DHCP", "bad return 2")
 			return nil // this message is not ours
 		}
 		requestedIP := net.IP(options[dhcp4.OptionRequestedIPAddress])
 		if requestedIP == nil {
 			requestedIP = net.IP(p.CIAddr())
 		}
-		logging.Log("#DHCP 4 dhcp request : ", requestedIP.String())
+		// logging.Log("#DHCP 4 dhcp request : ", requestedIP.String())
 		if len(requestedIP) != 4 || requestedIP.Equal(net.IPv4zero) {
 			logging.Debug("DHCP", "dhcp request - CHADDR %s - bad request", p.CHAddr().String())
-			logging.Log("#DHCP", "bad return 5")
+			// logging.Log("#DHCP", "bad return 5")
 			return nil
 		}
 		_, err := h.datasource.Request(p.CHAddr().String(), requestedIP)
 		if err != nil {
 			logging.Debug("DHCP", "dhcp request - CHADDR %s - Requested IP %s - NO MATCH", p.CHAddr().String(), requestedIP.String())
-			logging.Log("#DHCP", "bad return 3")
+			// logging.Log("#DHCP", "bad return 3")
 
 			return dhcp4.ReplyPacket(p, dhcp4.NAK, h.settings.ServerIP, nil, 0, nil)
 		}
 
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-		logging.Log("#DHCP", "setting packet ip to : "+requestedIP.String())
-		logging.Log("#DHCP", "duration : "+h.settings.LeaseDuration.String())
+		// logging.Log("#DHCP", "setting packet ip to : "+requestedIP.String())
+		// logging.Log("#DHCP", "duration : "+h.settings.LeaseDuration.String())
 		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, h.settings.LeaseDuration, replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
@@ -148,10 +148,10 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 
 		return packet
 	case dhcp4.Release, dhcp4.Decline:
-		logging.Log("#DHCP", "bad return 4")
+		// logging.Log("#DHCP", "bad return 4")
 
 		return nil
 	}
-	logging.Log("#DHCP", "bad return 5")
+	// logging.Log("#DHCP", "bad return 5")
 	return nil
 }

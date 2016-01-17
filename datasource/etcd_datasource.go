@@ -106,16 +106,16 @@ func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
 //successful
 //part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
-	logging.Log("#CREATE", mac.String()+" "+ip.String())
+	// logging.Log("#CREATE", mac.String()+" "+ip.String())
 	machines, err := ds.Machines()
 
 	if err != nil {
 		return nil, false
 	}
 	for _, node := range machines {
-		logging.Log("#Creating", "entry : "+node.Mac().String())
+		// logging.Log("#Creating", "entry : "+node.Mac().String())
 		if node.Mac().String() == mac.String() {
-			logging.Log("#CREATING", "same mac")
+			// logging.Log("#CREATING", "same mac")
 			return nil, false
 		}
 		nodeip, err := node.IP()
@@ -126,12 +126,12 @@ func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machin
 			return nil, false
 		}
 	}
-	logging.Log("#IP and MAC GOOD", "")
+	// logging.Log("#IP and MAC GOOD", "")
 	machine := &EtcdMachine{mac, ds}
 	// create it !
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	logging.Log("#DIR CREATION", machine.Mac().String())
+	// logging.Log("#DIR CREATION", machine.Mac().String())
 
 	ds.keysAPI.Set(ctx, ds.parseKey("machines/"+machine.Mac().String()), "", &etcd.SetOptions{Dir: true})
 	ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
@@ -359,7 +359,7 @@ func nodeToLease(node Machine) (*lease, error) {
 //entries
 //part of UIRestServer interface implementation
 func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
-	logging.Log("#NODELIST", "CALLED")
+	// logging.Log("#NODELIST", "CALLED")
 	leases := make(map[string]lease)
 	machines, err := ds.Machines()
 	if err != nil || machines == nil {
@@ -371,8 +371,8 @@ func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error in fetching lease data", 500)
 		}
 		if l == nil {
-			logging.Log("#NODELIST", "couldn't fill lease")
-			logging.Log("#NODELIST", err.Error())
+			// logging.Log("#NODELIST", "couldn't fill lease")
+			// logging.Log("#NODELIST", err.Error())
 		}
 		leases[node.Name()] = *l
 	}
@@ -493,18 +493,18 @@ func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
 	// for k, _ := range assignedIPs {
 	// 	logging.Log("#DHCP", k)
 	// }
-	logging.Log("#Trying to find me : ", nic)
-	logging.Log("#DHCP", "mac not found")
-	logging.Log("#DHCP", fmt.Sprintf("lease range : %d", ds.LeaseRange()))
-	logging.Log("#DHCP", "start : "+ds.LeaseStart().String())
+	// logging.Log("#Trying to find me : ", nic)
+	// logging.Log("#DHCP", "mac not found")
+	// logging.Log("#DHCP", fmt.Sprintf("lease range : %d", ds.LeaseRange()))
+	// logging.Log("#DHCP", "start : "+ds.LeaseStart().String())
 	// return nil, nil
 	//find an unused ip
 	for i := 0; i < ds.LeaseRange(); i++ {
 		ip := dhcp4.IPAdd(ds.LeaseStart(), i)
 		if _, exists := assignedIPs[ip.String()]; !exists {
 			macAddress, _ := net.ParseMAC(nic)
-			logging.Log("#DHCP", "creating machine")
-			logging.Log("#DHCP", macAddress.String()+" "+ip.String())
+			// logging.Log("#DHCP", "creating machine")
+			// logging.Log("#DHCP", macAddress.String()+" "+ip.String())
 			ds.CreateMachine(macAddress, ip)
 			return ip, nil
 		} else {
@@ -530,13 +530,13 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 
 	macExists, ipExists := false, false
 
-	logging.Log("#REQUEST : ", "my ip : "+currentIP.String()+" my mac : "+nic)
+	// logging.Log("#REQUEST : ", "my ip : "+currentIP.String()+" my mac : "+nic)
 
 	for _, node := range machines {
 		thisNodeIP, _ := node.IP()
 		ipMatch := thisNodeIP.String() == currentIP.String()
 		macMatch := nic == node.Mac().String()
-		logging.Log("#REQUEST : ", "their : "+thisNodeIP.String()+" th mac : "+node.Mac().String())
+		// logging.Log("#REQUEST : ", "their : "+thisNodeIP.String()+" th mac : "+node.Mac().String())
 
 		if ipMatch && macMatch {
 			ds.store(node, thisNodeIP)
@@ -548,7 +548,7 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 
 	}
 	if ipExists || macExists {
-		logging.Log("#Request", "Missmatch in lease pool")
+		// logging.Log("#Request", "Missmatch in lease pool")
 		return nil, errors.New("Missmatch in lease pool")
 	}
 	macAddress, _ := net.ParseMAC(nic)
@@ -577,7 +577,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 
 	fmt.Printf("Initial Values: CoreOSVersion=%s\n", iVals.CoreOSVersion)
 
-	logging.Log("#NEW", "supplied starting ip"+leaseStart.String())
+	// logging.Log("#NEW", "supplied starting ip"+leaseStart.String())
 
 	instance := &EtcdDataSource{
 		keysAPI:              kapi,

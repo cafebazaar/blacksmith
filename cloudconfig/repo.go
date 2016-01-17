@@ -80,15 +80,15 @@ func (ds *cloudConfigDataSource) ExecuteTemplate(templateName string /*, c *Conf
 		},
 		"S": func(key string, value string) (interface{}, error) {
 			if strings.HasPrefix(key, "flags.me.") {
-				return true, ds.currentMachine.SetFlag(key[strings.LastIndex(key, ".")+1:], value)
+				return "", ds.currentMachine.SetFlag(key[strings.LastIndex(key, ".")+1:], value)
 			}
-			return false, nil
+			return "", nil
 		},
 		"VD": func(key string) (interface{}, error) {
 			return ds.currentMachine.GetAndDeleteFlag(key)
 		},
 		"D": func(key string) (interface{}, error) {
-			return true, ds.currentMachine.DeleteFlag(key)
+			return "", ds.currentMachine.DeleteFlag(key)
 		},
 		"b64": func(text string) interface{} {
 			return base64.StdEncoding.EncodeToString([]byte(text))
@@ -157,7 +157,7 @@ func (ds *bootParamsDataSource) ExecuteTemplate(templateName string /*, c *Confi
 		},
 		"S": func(key string, value string) (interface{}, error) {
 			if strings.HasPrefix(key, "flags.me.") {
-				return true, ds.currentMachine.SetFlag(key[strings.LastIndex(key, ".")+1:], value)
+				return "", ds.currentMachine.SetFlag(key[strings.LastIndex(key, ".")+1:], value)
 			}
 			return false, nil
 		},

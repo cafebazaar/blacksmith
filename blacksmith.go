@@ -210,6 +210,7 @@ func main() {
 	}()
 	// serving http booter
 	go func() {
+
 		templates, err := cloudconfig.FromPath(etcdDataSource,
 			path.Join(*workspacePathFlag, "config/bootparams"))
 		if err != nil {

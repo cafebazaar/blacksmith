@@ -6,13 +6,13 @@ import (
 	"log"
 	"net"
 	"os"
-	// "path"
+	"path"
 	"strings"
 	"time"
 
 	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
-	// "github.com/cafebazaar/blacksmith/dhcp"
+	"github.com/cafebazaar/blacksmith/dhcp"
 	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/cafebazaar/blacksmith/pxe"
 	"github.com/cafebazaar/blacksmith/web"
@@ -210,6 +210,13 @@ func main() {
 	}()
 	// serving http booter
 	go func() {
+
+		templates, err := cloudconfig.FromPath(etcdDataSource,
+			path.Join(*workspacePathFlag, "config/bootparams"))
+		if err != nil {
+			log.Fatalln(err)
+		}
+		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, etcdDataSource, templates))
 	}()
 	// serving tftp
 	go func() {
@@ -225,6 +232,15 @@ func main() {
 	}()
 
 	go func() {
+		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
+			IFName:        dhcpIF.Name,
+			ServerIP:      serverIP,
+			RouterAddr:    leaseRouter,
+			LeaseDuration: time.Hour * 876000, //100 years
+			SubnetMask:    leaseSubnet,
+			DNSAddr:       leaseDNS,
+		},
+			etcdDataSource))
 	}()
 
 	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)

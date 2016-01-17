@@ -29,10 +29,7 @@ func (m *EtcdMachine) IP() (net.IP, error) {
 	if err != nil {
 		return nil, err
 	}
-	IP, _, err := net.ParseCIDR(ipstring)
-	if err != nil {
-		return nil, err
-	}
+	IP := net.ParseIP(ipstring)
 	return IP, nil
 }
 
@@ -65,7 +62,7 @@ func (m *EtcdMachine) CheckIn() {
 //queries etcd
 //part of Machine interface implementaiton
 func (m *EtcdMachine) FirstSeen() (time.Time, error) {
-	unixNanoString, err := m.selfGet("firstSeen")
+	unixNanoString, err := m.selfGet("_first_seen")
 	if err != nil {
 		return timeError(err)
 	}
@@ -75,7 +72,7 @@ func (m *EtcdMachine) FirstSeen() (time.Time, error) {
 //LastSeen returns the last time the machine has  been ???
 //part of Machine interface implementation
 func (m *EtcdMachine) LastSeen() (time.Time, error) {
-	unixNanoString, err := m.selfGet("lastSeen")
+	unixNanoString, err := m.selfGet("_last_seen")
 	if err != nil {
 		return timeError(err)
 	}

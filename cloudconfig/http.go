@@ -5,6 +5,7 @@ import (
 	"strings"
 	//	"net/url"
 	//	"fmt"
+	"bytes"
 	"net/http"
 	"path"
 	"sync"
@@ -17,7 +18,16 @@ import (
 //cloudConfigDataSource embedds a CloudConfigDataSource which is an
 //interface and provides a means of conceptually using the interface as the
 //method receiver
+
 type cloudConfigDataSource struct {
+	datasource.GeneralDataSource
+	executeLock       *sync.Mutex
+	templates         *template.Template
+	ignitionTemplates *template.Template
+	currentMachine    datasource.Machine
+}
+
+type bootParamsDataSource struct {
 	datasource.GeneralDataSource
 	executeLock    *sync.Mutex
 	templates      *template.Template
@@ -35,7 +45,7 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if req[0] != "cloud" {
+	if req[0] != "cloud" && req[0] != "ignition" {
 		//No ignition support for now
 		http.NotFound(w, r)
 		return
@@ -51,6 +61,17 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	// }
 
 	clientMacAddressString := req[1]
+	if strings.Index(clientMacAddressString, ":") == -1 {
+		var tmpmac bytes.Buffer
+		for i := 0; i < 12; i++ { // mac address length
+			tmpmac.WriteString(clientMacAddressString[i : i+1])
+			if i%2 == 1 {
+				tmpmac.WriteString(":")
+			}
+		}
+		clientMacAddressString = tmpmac.String()[:len(tmpmac.String())-1]
+	}
+	// logging.Log("#CLOUD", clientMacAddressString)
 	clientMac, err := net.ParseMAC(clientMacAddressString)
 	if err != nil {
 		return
@@ -59,10 +80,17 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	if !exist {
 		return
 	}
+	theIp, _ := machine.IP()
+	logging.Log("#CLOUD", theIp.String())
 	datasource.currentMachine = machine
 	datasource.executeLock.Lock()
 	defer datasource.executeLock.Unlock()
-	config, err := datasource.macCloudConfig(clientMacAddressString)
+	var config string
+	if req[0] == "cloud" {
+		config, err = datasource.macCloudConfig(clientMacAddressString)
+	} else {
+		config, err = datasource.ignition()
+	}
 	if err != nil {
 		http.Error(w, "internal server error - error in generating config", 500)
 		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
@@ -71,7 +99,7 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "application/x-yaml")
 
 	//always validate the cloudconfig. Don't if explicitly stated.
-	if value, exists := queryMap["validate"]; !exists || value != "false" {
+	if value, exists := queryMap["validate"]; req[0] == "cloud" && (!exists || value != "false") {
 		config += validateCloudConfig(config)
 	}
 
@@ -114,7 +142,12 @@ func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource d
 	if err != nil {
 		return err
 	}
-	ccdataSource := cloudConfigDataSource{datasource, &sync.Mutex{}, cctemplates, nil}
+	igtemplates, err := FromPath(datasource, path.Join(datasource.WorkspacePath(), "config/ignition"))
+	if err != nil {
+		return err
+	}
+
+	ccdataSource := cloudConfigDataSource{datasource, &sync.Mutex{}, cctemplates, igtemplates, nil}
 
 	return http.ListenAndServe(listenAddr.String(), serveUtilityMultiplexer(ccdataSource))
 }

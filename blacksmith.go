@@ -232,11 +232,12 @@ func main() {
 
 	go func() {
 		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			IFName:     dhcpIF.Name,
-			ServerIP:   serverIP,
-			RouterAddr: leaseRouter,
-			SubnetMask: leaseSubnet,
-			DNSAddr:    leaseDNS,
+			IFName:        dhcpIF.Name,
+			ServerIP:      serverIP,
+			RouterAddr:    leaseRouter,
+			LeaseDuration: time.Hour * 876000, //100 years
+			SubnetMask:    leaseSubnet,
+			DNSAddr:       leaseDNS,
 		},
 			etcdDataSource))
 	}()

@@ -92,6 +92,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		}
 		logging.Log("#DHCP4 DISCOVER IP : ", ip.String())
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+		logging.Log("#DHCP", "setting packet ip to "+ip.String())
 		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, h.settings.LeaseDuration, replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
@@ -117,6 +118,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		logging.Log("#DHCP 4 dhcp request : ", requestedIP.String())
 		if len(requestedIP) != 4 || requestedIP.Equal(net.IPv4zero) {
 			logging.Debug("DHCP", "dhcp request - CHADDR %s - bad request", p.CHAddr().String())
+			logging.Log("#DHCP", "bad return 5")
 			return nil
 		}
 		_, err := h.datasource.Request(p.CHAddr().String(), requestedIP)
@@ -128,6 +130,8 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		}
 
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+		logging.Log("#DHCP", "setting packet ip to : "+requestedIP.String())
+		logging.Log("#DHCP", "duration : "+h.settings.LeaseDuration.String())
 		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, h.settings.LeaseDuration, replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
@@ -141,6 +145,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 		}
 		packet.AddOption(12, []byte("node"+macAddress)) // host name option
+
 		return packet
 	case dhcp4.Release, dhcp4.Decline:
 		logging.Log("#DHCP", "bad return 4")

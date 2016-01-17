@@ -15,10 +15,13 @@ import (
 	"github.com/cafebazaar/blacksmith/logging"
 )
 
+const (
+	debugTag = "CLOUDCONFIG"
+)
+
 //cloudConfigDataSource embedds a CloudConfigDataSource which is an
 //interface and provides a means of conceptually using the interface as the
 //method receiver
-
 type cloudConfigDataSource struct {
 	datasource.GeneralDataSource
 	executeLock       *sync.Mutex
@@ -35,12 +38,14 @@ type bootParamsDataSource struct {
 }
 
 func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	req := strings.Split(r.URL.Path, "/")[1:]
 
 	queryMap, _ := extractQueries(r.URL.RawQuery)
 
 	if len(req) != 2 {
-		logging.Log("CLOUDCONFIG", "Received request - request not found")
+		logging.Log(debugTag, "Received request - request not found")
 		http.NotFound(w, r)
 		return
 	}
@@ -51,14 +56,7 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	logging.Log("REFACT CLOUDCONFIG", "cloud request ! ! !")
-
-	// clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
-	// if err != nil {
-	// 	http.Error(w, "internal server error - parsing host and port", 500)
-	// 	logging.Log("CLOUDCONFIG", "Error - %s with mac %s - %s", req[0], req[1], err.Error())
-	// 	return
-	// }
+	logging.Log(debugTag, "cloud request ! ! !")
 
 	clientMacAddressString := req[1]
 	if strings.Index(clientMacAddressString, ":") == -1 {
@@ -71,7 +69,6 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 		}
 		clientMacAddressString = tmpmac.String()[:len(tmpmac.String())-1]
 	}
-	// logging.Log("#CLOUD", clientMacAddressString)
 	clientMac, err := net.ParseMAC(clientMacAddressString)
 	if err != nil {
 		return
@@ -80,8 +77,6 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	if !exist {
 		return
 	}
-	theIp, _ := machine.IP()
-	logging.Log("#CLOUD", theIp.String())
 	datasource.currentMachine = machine
 	datasource.executeLock.Lock()
 	defer datasource.executeLock.Unlock()
@@ -93,7 +88,7 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	}
 	if err != nil {
 		http.Error(w, "internal server error - error in generating config", 500)
-		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
+		logging.Log(debugTag, "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-yaml")
@@ -104,7 +99,6 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	}
 
 	w.Write([]byte(config))
-	logging.Log("CLOUDCONFIG", "Received request - %s with mac %s", req[0], req[1])
 }
 
 func extractQueries(rawQueryString string) (map[string]string, error) {
@@ -136,7 +130,7 @@ func serveUtilityMultiplexer(datasource cloudConfigDataSource) *http.ServeMux {
 //ServeCloudConfig is run cuncurrently alongside other blacksmith services
 //Provides cloudconfig to machines at boot time
 func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource datasource.GeneralDataSource) error {
-	logging.Log("CLOUDCONFIG", "Listening on %s", listenAddr.String())
+	logging.Log(debugTag, "Listening on %s", listenAddr.String())
 
 	cctemplates, err := FromPath(datasource, path.Join(datasource.WorkspacePath(), "config/cloudconfig"))
 	if err != nil {

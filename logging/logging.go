@@ -1,6 +1,9 @@
 package logging // import "github.com/cafebazaar/blacksmith/logging"
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
 const logFormat = "%c[%s] %s"
 
@@ -39,4 +42,18 @@ func Log(subsystem string, msg string, args ...interface{}) {
 // Debug wrtites Debug level logs to logger
 func Debug(subsystem string, msg string, args ...interface{}) {
 	logCh <- logEntry{subsystem, true, fmt.Sprintf(msg, args...)}
+}
+
+func httpRequestMsg(r *http.Request) string {
+	return fmt.Sprintf("%s RemoteAddr:%s Method:%s Referer:%s UserAgent:%s", r.URL, r.RemoteAddr, r.Method, r.Referer(), r.UserAgent())
+}
+
+// LogHTTPRequest wrtites Info level logs of HTTP requests to logger
+func LogHTTPRequest(subsystem string, r *http.Request) {
+	logCh <- logEntry{subsystem, false, httpRequestMsg(r)}
+}
+
+// DebugHTTPRequest wrtites Debug level logs of HTTP requests to logger
+func DebugHTTPRequest(subsystem string, r *http.Request) {
+	logCh <- logEntry{subsystem, true, httpRequestMsg(r)}
 }

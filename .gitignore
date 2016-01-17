@@ -1,10 +1,20 @@
-blacksmith
-example/example
 .vagrant
 *~
-workspace
+
+# Local customizations
 vagrant_provision_after_docker_installation.local
+
+# Auto generated
+blacksmith
 pxe/pxelinux_autogen.go
 web/ui_autogen.go
+web/ui/external
+
+# temporary
+datasource/ui_autogen.go
+
+# local
+example/example
 deploy.sh
 remote_deploy.sh
+workspace

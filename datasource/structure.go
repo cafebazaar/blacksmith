@@ -140,11 +140,15 @@ type UIRestServer interface {
 	Upload(w http.ResponseWriter, r *http.Request)
 }
 
-//MasterDataSource embedds GeneralDataSource, DHCPDataSource,
-//and RestServer
+type HADataSource interface {
+	IsMaster() bool
+}
+
+//MasterDataSource embedds GeneralDataSource, DHCPDataSource, RestServer,
+//and HADataSource
 type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
-	//	CloudConfigDataSource
 	RestServer
+	HADataSource
 }

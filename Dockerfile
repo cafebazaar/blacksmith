@@ -7,4 +7,3 @@ ENTRYPOINT ["/app/blacksmith"]
 WORKDIR /app
 
 COPY blacksmith /app/
-COPY . /app/

@@ -19,8 +19,8 @@ import (
 	etcd "github.com/coreos/etcd/client"
 )
 
-//go:generate go-bindata -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
-//go:generate go-bindata -o web/ui_autogen.go -pkg web web/ui/...
+//go:generate esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
+//go:generate esc -o datasource/ui_autogen.go -prefix=web -ignore=bower_components -pkg datasource web/ui
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
@@ -30,9 +30,11 @@ const (
 		/config/ignition/main.yaml
 		/initial.yaml
 `
+	debugTag = "MAIN"
 )
 
 var (
+	versionFlag       = flag.Bool("version", false, "Print version info and exit")
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
@@ -45,13 +47,16 @@ var (
 	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
 	leaseDNSFlag    = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
 
-	version   = "v0.2"
+	version   string
 	commit    string
 	buildTime string
 )
 
 func init() {
-	// If commit, branch, or build time are not set, make that clear.
+	// If version, commit, or build time are not set, make that clear.
+	if version == "" {
+		version = "unknown"
+	}
 	if commit == "" {
 		commit = "unknown"
 	}
@@ -91,6 +96,15 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 func main() {
 	var err error
 	flag.Parse()
+
+	fmt.Printf("Blacksmith (%s)\n", version)
+	fmt.Printf("  Commit:        %s\n", commit)
+	fmt.Printf("  Build Time:    %s\n", buildTime)
+
+	if *versionFlag {
+		os.Exit(0)
+	}
+
 	// etcd config
 	if etcdFlag == nil || etcdDirFlag == nil {
 		fmt.Fprint(os.Stderr, "please specify the etcd endpoints\n")
@@ -156,10 +170,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Blacksmith (%s)\n", version)
-	fmt.Printf("  Commit:        %s\n", commit)
-	fmt.Printf("  Build Time:    %s\n", buildTime)
-
 	fmt.Printf("Server IP:       %s\n", serverIP.String())
 	fmt.Printf("Interface IP:    %s\n", dhcpIP.String())
 	fmt.Printf("Interface Name:  %s\n", dhcpIF.Name)
@@ -167,7 +177,7 @@ func main() {
 	// datasources
 	etcdClient, err := etcd.New(etcd.Config{
 		Endpoints:               strings.Split(*etcdFlag, ","),
-		HeaderTimeoutPerRequest: time.Second,
+		HeaderTimeoutPerRequest: 5 * time.Second,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create etcd connection: %s\n", err)
@@ -181,67 +191,71 @@ func main() {
 		os.Exit(1)
 	}
 
-	//<testing>
-
-	// testIp := net.ParseIP("172.20.0.30")
-	// testMc, _ := net.ParseMAC("08:00:27:FF:F9:DC")
-	// etcdDataSource.CreateMachine(testMc, testIp)
-	// lis := (etcdDataSource.(*datasource.EtcdDataSource)).Ls("/machines")
-	// for _, ent := range lis {
-	// 	logging.Log("#ls", ent)
-	// }
-	// logging.Log("#DATASOURCE", "Getting machine")
-	// mach, _ := etcdDataSource.GetMachine(testMc)
-	// logging.Log("#DATASOURCE", "GOT")
-
-	// thisip, _ := mach.IP()
-	// thismac := mach.Mac().String()
-	// thisname := mach.Name()
-	// thisfirst, _ := mach.FirstSeen()
-	// thislast, _ := mach.LastSeen()
-	// logging.Log("#MACHINE ", thisip.String()+" "+thismac+" "+thisname+" "+thisfirst.String()+" "+thislast.String())
-	//</testing>
-
-	// serving cloudconfig
 	go func() {
-
-		logging.Log("REFACT CLOUDCONFIG", *workspacePathFlag+" "+cloudConfigHTTPAddr.String())
-		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
+		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
 	}()
-	// serving http booter
-	go func() {
 
-		templates, err := cloudconfig.FromPath(etcdDataSource,
-			path.Join(*workspacePathFlag, "config/bootparams"))
-		if err != nil {
-			log.Fatalln(err)
+	for {
+		// waiting til we're officially the master instance
+		for !etcdDataSource.IsMaster() {
+			logging.Debug(debugTag, "Not master, waiting to be promoted...")
+			time.Sleep(datasource.StandbyMasterUpdateTime)
 		}
-		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, etcdDataSource, templates))
-	}()
-	// serving tftp
-	go func() {
-		log.Fatalln(pxe.ServeTFTP(tftpAddr))
-	}()
-	// pxe protocol
-	go func() {
-		log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
-	}()
-	// serving web
-	go func() {
-		log.Fatalln(web.ServeWeb(etcdDataSource, webAddr))
-	}()
 
-	go func() {
-		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			IFName:        dhcpIF.Name,
-			ServerIP:      serverIP,
-			RouterAddr:    leaseRouter,
-			LeaseDuration: time.Hour * 876000, //100 years
-			SubnetMask:    leaseSubnet,
-			DNSAddr:       leaseDNS,
-		},
-			etcdDataSource))
-	}()
+		logging.Debug(debugTag, "Now we're the master instance. Starting the services...")
 
-	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
+		// a dummy loop, to create and scope, to make it possible to kill the services
+		for {
+
+			// serving cloudconfig
+			go func() {
+				log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
+			}()
+
+			// serving http booter
+			go func() {
+				templates, err := cloudconfig.FromPath(
+					etcdDataSource, path.Join(*workspacePathFlag, "config/bootparams"))
+				if err != nil {
+					log.Fatalln(err)
+				}
+				log.Fatalln(pxe.ServeHTTPBooter(httpAddr, etcdDataSource, templates))
+			}()
+
+			// serving tftp
+			go func() {
+				log.Fatalln(pxe.ServeTFTP(tftpAddr))
+			}()
+
+			// pxe protocol
+			go func() {
+				log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
+			}()
+
+			// serving web
+			go func() {
+				log.Fatalln(web.ServeWeb(etcdDataSource, webAddr))
+			}()
+
+			// serving dhcp
+			go func() {
+				log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
+					IFName:        dhcpIF.Name,
+					ServerIP:      serverIP,
+					RouterAddr:    leaseRouter,
+					LeaseDuration: time.Hour * 876000, //100 years
+					SubnetMask:    leaseSubnet,
+					DNSAddr:       leaseDNS,
+				}, etcdDataSource))
+			}()
+
+			for etcdDataSource.IsMaster() {
+				time.Sleep(datasource.ActiveMasterUpdateTime)
+			}
+
+			logging.Debug(debugTag, "Now we're NOT the master. breaking...")
+			break // to kill the services created inside goroutines
+		}
+		// let's try again
+	}
 }

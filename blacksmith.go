@@ -13,6 +13,7 @@ import (
 	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/dhcp"
+	"github.com/cafebazaar/blacksmith/hacluster"
 	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/cafebazaar/blacksmith/pxe"
 	"github.com/cafebazaar/blacksmith/web"
@@ -33,6 +34,7 @@ const (
 		/config/ignition/main.yaml
 		/initial.yaml
 `
+	debugTag = "MAIN"
 )
 
 var (
@@ -180,7 +182,7 @@ func main() {
 	// datasources
 	etcdClient, err := etcd.New(etcd.Config{
 		Endpoints:               strings.Split(*etcdFlag, ","),
-		HeaderTimeoutPerRequest: time.Second,
+		HeaderTimeoutPerRequest: 5 * time.Second,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't create etcd connection: %s\n", err)
@@ -205,48 +207,73 @@ func main() {
 		"flags":   flagsDataSource,
 	}
 
-	// serving cloudconfig
+	blackInstance := hacluster.NewMasterHaSpec(runtimeConfig.DataSource, runtimeConfig.EtcdDir)
+
 	go func() {
-		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
+		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
 	}()
 
-	// serving http booter
-	go func() {
-		repo, err := cloudconfig.FromPath(datasources, path.Join(*workspacePathFlag, "config/bootparams"))
-		if err != nil {
-			log.Fatalln(err)
+	for {
+		// waiting til we're officially the master instance
+		for !blackInstance.IsMaster() {
+			logging.Debug(debugTag, "Not master, waiting to be promoted...")
+			time.Sleep(hacluster.StandbyMasterUpdateTime)
 		}
-		log.Fatalln(pxe.ServeHTTPBooter(httpAddr, runtimeConfig, repo))
-	}()
-	// serving tftp
-	go func() {
-		log.Fatalln(pxe.ServeTFTP(tftpAddr))
-	}()
-	// pxe protocol
-	go func() {
-		log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
-	}()
-	// serving dhcp
-	leasePool, err := dhcp.NewLeasePool(kapi, *etcdDirFlag, leaseStart, leaseRange, leaseDuration)
-	if err != nil {
-		log.Fatalln(err)
+
+		logging.Debug(debugTag, "Now we're the master instance. Starting the services...")
+
+		// a dummy loop, to create and scope, to make it possible to kill the services
+		for {
+			// serving cloudconfig
+			go func() {
+				log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, datasources))
+			}()
+
+			// serving http booter
+			go func() {
+				repo, err := cloudconfig.FromPath(datasources, path.Join(*workspacePathFlag, "config/bootparams"))
+				if err != nil {
+					log.Fatalln(err)
+				}
+				log.Fatalln(pxe.ServeHTTPBooter(httpAddr, runtimeConfig, repo))
+			}()
+			// serving tftp
+			go func() {
+				log.Fatalln(pxe.ServeTFTP(tftpAddr))
+			}()
+			// pxe protocol
+			go func() {
+				log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
+			}()
+			// serving dhcp
+			leasePool, err := dhcp.NewLeasePool(kapi, *etcdDirFlag, leaseStart, leaseRange, leaseDuration)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			// serving web
+			go func() {
+				restServer := web.NewRest(leasePool, runtimeConfig)
+				log.Fatalln(web.ServeWeb(restServer, webAddr))
+			}()
+
+			go func() {
+				log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
+					IFName:        dhcpIF.Name,
+					LeaseDuration: leaseDuration,
+					ServerIP:      serverIP,
+					RouterAddr:    leaseRouter,
+					SubnetMask:    leaseSubnet,
+					DNSAddr:       leaseDNS,
+				}, leasePool))
+			}()
+
+			for blackInstance.IsMaster() {
+				time.Sleep(hacluster.ActiveMasterUpdateTime)
+			}
+
+			logging.Debug(debugTag, "Now we're NOT the master. breaking...")
+			break // to kill the services created inside go threads
+		}
+		// let's try again
 	}
-	// serving web
-	go func() {
-		restServer := web.NewRest(leasePool, runtimeConfig)
-		log.Fatalln(web.ServeWeb(restServer, webAddr))
-	}()
-
-	go func() {
-		log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			IFName:        dhcpIF.Name,
-			LeaseDuration: leaseDuration,
-			ServerIP:      serverIP,
-			RouterAddr:    leaseRouter,
-			SubnetMask:    leaseSubnet,
-			DNSAddr:       leaseDNS,
-		}, leasePool))
-	}()
-
-	logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
 }

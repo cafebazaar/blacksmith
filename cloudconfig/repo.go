@@ -119,6 +119,13 @@ func (ds *cloudConfigDataSource) macCloudConfig(mac string) (string, error) {
 	return ds.ExecuteTemplate("main")
 }
 
+func (ds *cloudConfigDataSource) ignition() (string, error) {
+	if ds.ignitionTemplates.Lookup("main") == nil {
+		return "", nil
+	}
+	return ds.ExecuteTemplate("main")
+}
+
 var bootParamsRepo *bootParamsDataSource
 
 //MacBootParamsGenerator generates boot params requested by http booter from

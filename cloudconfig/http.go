@@ -21,9 +21,10 @@ import (
 
 type cloudConfigDataSource struct {
 	datasource.GeneralDataSource
-	executeLock    *sync.Mutex
-	templates      *template.Template
-	currentMachine datasource.Machine
+	executeLock       *sync.Mutex
+	templates         *template.Template
+	ignitionTemplates *template.Template
+	currentMachine    datasource.Machine
 }
 
 type bootParamsDataSource struct {
@@ -44,7 +45,7 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if req[0] != "cloud" {
+	if req[0] != "cloud" && req[0] != "ignition" {
 		//No ignition support for now
 		http.NotFound(w, r)
 		return
@@ -84,7 +85,12 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	datasource.currentMachine = machine
 	datasource.executeLock.Lock()
 	defer datasource.executeLock.Unlock()
-	config, err := datasource.macCloudConfig(clientMacAddressString)
+	var config string
+	if req[0] == "cloud" {
+		config, err = datasource.macCloudConfig(clientMacAddressString)
+	} else {
+		config, err = datasource.ignition()
+	}
 	if err != nil {
 		http.Error(w, "internal server error - error in generating config", 500)
 		logging.Log("CLOUDCONFIG", "Error when generating config - %s with mac %s - %s", req[0], req[1], err.Error())
@@ -93,7 +99,7 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "application/x-yaml")
 
 	//always validate the cloudconfig. Don't if explicitly stated.
-	if value, exists := queryMap["validate"]; !exists || value != "false" {
+	if value, exists := queryMap["validate"]; req[0] == "cloud" && (!exists || value != "false") {
 		config += validateCloudConfig(config)
 	}
 
@@ -136,7 +142,12 @@ func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource d
 	if err != nil {
 		return err
 	}
-	ccdataSource := cloudConfigDataSource{datasource, &sync.Mutex{}, cctemplates, nil}
+	igtemplates, err := FromPath(datasource, path.Join(datasource.WorkspacePath(), "config/ignition"))
+	if err != nil {
+		return err
+	}
+
+	ccdataSource := cloudConfigDataSource{datasource, &sync.Mutex{}, cctemplates, igtemplates, nil}
 
 	return http.ListenAndServe(listenAddr.String(), serveUtilityMultiplexer(ccdataSource))
 }

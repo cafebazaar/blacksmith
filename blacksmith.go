@@ -107,7 +107,7 @@ func main() {
 
 	// etcd config
 	if etcdFlag == nil || etcdDirFlag == nil {
-		fmt.Fprint(os.Stderr, "please specify the etcd endpoints\n")
+		fmt.Fprint(os.Stderr, "\nPlease specify the etcd endpoints\n")
 		os.Exit(1)
 	}
 
@@ -117,17 +117,19 @@ func main() {
 	var dhcpIF *net.Interface
 	if *listenIFFlag != "" {
 		dhcpIF, err = net.InterfaceByName(*listenIFFlag)
+		if err != nil {
+			fmt.Fprint(os.Stderr, "\nError while trying to get the interface: %s\n")
+			os.Exit(1)
+		}
 	} else {
-		fmt.Fprint(os.Stderr, "please specify an interface\n")
+		fmt.Fprint(os.Stderr, "\nPlease specify an interface\n")
 		os.Exit(1)
-	}
-	if err != nil {
-		log.Fatalln(err)
 	}
 
 	dhcpIP, err := interfaceIP(dhcpIF)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Fprint(os.Stderr, "\nError while trying to get the ip from the interface: %s\n")
+		os.Exit(1)
 	}
 
 	// used for replying in dhcp and pxe
@@ -150,23 +152,23 @@ func main() {
 	leaseDNS := net.ParseIP(*leaseDNSFlag)
 
 	if leaseStart == nil {
-		fmt.Fprint(os.Stderr, "please specify the lease start ip\n")
+		fmt.Fprint(os.Stderr, "\nPlease specify the lease start ip\n")
 		os.Exit(1)
 	}
 	if leaseRange <= 1 {
-		fmt.Fprint(os.Stderr, "lease range should be greater that 1\n")
+		fmt.Fprint(os.Stderr, "\nLease range should be greater that 1\n")
 		os.Exit(1)
 	}
 	if leaseSubnet == nil {
-		fmt.Fprint(os.Stderr, "please specify the lease subnet\n")
+		fmt.Fprint(os.Stderr, "\nPlease specify the lease subnet\n")
 		os.Exit(1)
 	}
 	if leaseRouter == nil {
-		fmt.Fprint(os.Stderr, "please specify the IP address of network router\n")
+		fmt.Fprint(os.Stderr, "\nPlease specify the IP address of network router\n")
 		os.Exit(1)
 	}
 	if leaseDNS == nil {
-		fmt.Fprint(os.Stderr, "please specify an DNS server\n")
+		fmt.Fprint(os.Stderr, "\nPlease specify an DNS server\n")
 		os.Exit(1)
 	}
 
@@ -180,14 +182,21 @@ func main() {
 		HeaderTimeoutPerRequest: 5 * time.Second,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't create etcd connection: %s\n", err)
+		fmt.Fprintf(os.Stderr, "\nCouldn't create etcd connection: %s\n", err)
 		os.Exit(1)
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
 	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *etcdDirFlag, *workspacePathFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "couldn't create runtime configuration: %s\n", err)
+		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
+		os.Exit(1)
+	}
+
+	templates, err := cloudconfig.FromPath(
+		etcdDataSource, path.Join(*workspacePathFlag, "config/bootparams"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\nError while initiating templates system: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -195,67 +204,59 @@ func main() {
 		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
 	}()
 
-	for {
-		// waiting til we're officially the master instance
-		for !etcdDataSource.IsMaster() {
-			logging.Debug(debugTag, "Not master, waiting to be promoted...")
-			time.Sleep(datasource.StandbyMasterUpdateTime)
-		}
-
-		logging.Debug(debugTag, "Now we're the master instance. Starting the services...")
-
-		// a dummy loop, to create and scope, to make it possible to kill the services
-		for {
-
-			// serving cloudconfig
-			go func() {
-				log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
-			}()
-
-			// serving http booter
-			go func() {
-				templates, err := cloudconfig.FromPath(
-					etcdDataSource, path.Join(*workspacePathFlag, "config/bootparams"))
-				if err != nil {
-					log.Fatalln(err)
-				}
-				log.Fatalln(pxe.ServeHTTPBooter(httpAddr, etcdDataSource, templates))
-			}()
-
-			// serving tftp
-			go func() {
-				log.Fatalln(pxe.ServeTFTP(tftpAddr))
-			}()
-
-			// pxe protocol
-			go func() {
-				log.Fatalln(pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port}))
-			}()
-
-			// serving web
-			go func() {
-				log.Fatalln(web.ServeWeb(etcdDataSource, webAddr))
-			}()
-
-			// serving dhcp
-			go func() {
-				log.Fatalln(dhcp.ServeDHCP(&dhcp.DHCPSetting{
-					IFName:        dhcpIF.Name,
-					ServerIP:      serverIP,
-					RouterAddr:    leaseRouter,
-					LeaseDuration: time.Hour * 876000, //100 years
-					SubnetMask:    leaseSubnet,
-					DNSAddr:       leaseDNS,
-				}, etcdDataSource))
-			}()
-
-			for etcdDataSource.IsMaster() {
-				time.Sleep(datasource.ActiveMasterUpdateTime)
-			}
-
-			logging.Debug(debugTag, "Now we're NOT the master. breaking...")
-			break // to kill the services created inside goroutines
-		}
-		// let's try again
+	// waiting til we're officially the master instance
+	for !etcdDataSource.IsMaster() {
+		logging.Debug(debugTag, "Not master, waiting to be promoted...")
+		time.Sleep(datasource.StandbyMasterUpdateTime)
 	}
+
+	logging.Debug(debugTag, "Now we're the master instance. Starting the services...")
+
+	// serving cloudconfig
+	go func() {
+		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
+	}()
+
+	// serving http booter
+	go func() {
+		err := pxe.ServeHTTPBooter(httpAddr, etcdDataSource, templates)
+		log.Fatalf("\nError while serving http booter: %s\n", err)
+	}()
+
+	// serving tftp
+	go func() {
+		err := pxe.ServeTFTP(tftpAddr)
+		log.Fatalf("\nError while serving tftp: %s\n", err)
+	}()
+
+	// pxe protocol
+	go func() {
+		err := pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port})
+		log.Fatalf("\nError while serving pxe: %s\n", err)
+	}()
+
+	// serving api
+	go func() {
+		err := web.ServeWeb(etcdDataSource, webAddr)
+		log.Fatalf("\nError while serving api: %s\n", err)
+	}()
+
+	// serving dhcp
+	go func() {
+		err := dhcp.ServeDHCP(&dhcp.DHCPSetting{
+			IFName:        dhcpIF.Name,
+			ServerIP:      serverIP,
+			RouterAddr:    leaseRouter,
+			LeaseDuration: time.Hour * 876000, //100 years
+			SubnetMask:    leaseSubnet,
+			DNSAddr:       leaseDNS,
+		}, etcdDataSource)
+		log.Fatalf("\nError while serving dhcp: %s\n", err)
+	}()
+
+	for etcdDataSource.IsMaster() {
+		time.Sleep(datasource.ActiveMasterUpdateTime)
+	}
+
+	logging.Debug(debugTag, "Now we're NOT the master. Terminating. Hoping to be restarted by the service manager.")
 }

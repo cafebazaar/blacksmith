@@ -3,6 +3,7 @@ package cloudconfig // import "github.com/cafebazaar/blacksmith/cloudconfig"
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"path"
@@ -31,7 +32,7 @@ func findFiles(path string) ([]string, error) {
 func FromPath(datasource datasource.GeneralDataSource, tmplPath string) (*template.Template, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while trying to create repo from %s: %s", tmplPath, err)
 	}
 
 	t := template.New("")

@@ -42,5 +42,4 @@ if [ ! -f /usr/local/go/bin/go ]; then
   echo "Installing Go... Done."
 fi
 
-cd /go/src/github.com/cafebazaar/blacksmith
-sudo -u vagrant make docker
+sudo -u vagrant /vagrant/vagrant_make.sh

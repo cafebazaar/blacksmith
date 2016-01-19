@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
@@ -33,19 +34,20 @@ type nodeContext struct {
 }
 
 type HTTPBooter struct {
-	listenAddr     net.TCPAddr
-	ldlinux        http.File
-	key            [32]byte
-	runtimeConfig  *datasource.RuntimeConfiguration
-	bootParamsRepo *cloudconfig.Repo
+	listenAddr          net.TCPAddr
+	ldlinux             http.File
+	key                 [32]byte
+	datasource          datasource.GeneralDataSource
+	bootParamsTemplates *template.Template
 }
 
-func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux http.File, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*HTTPBooter, error) {
+func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux http.File,
+	ds datasource.GeneralDataSource, bootParamsTemplates *template.Template) (*HTTPBooter, error) {
 	booter := &HTTPBooter{
-		listenAddr:     listenAddr,
-		ldlinux:        ldlinux,
-		runtimeConfig:  runtimeConfig,
-		bootParamsRepo: bootParamsRepo,
+		listenAddr:          listenAddr,
+		ldlinux:             ldlinux,
+		datasource:          ds,
+		bootParamsTemplates: bootParamsTemplates,
 	}
 	if _, err := io.ReadFull(rand.Reader, booter.key[:]); err != nil {
 		return nil, fmt.Errorf("cannot initialize ephemeral signing key: %s", err)
@@ -94,7 +96,7 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	// pxelinux to shut down PXE booting and continue with the
 	// next local boot method.
 
-	coreOSVersion, _ := b.runtimeConfig.GetCoreOSVersion()
+	coreOSVersion, _ := b.datasource.CoreOSVersion()
 
 	KernelURL := "http://" + r.Host + "/f/" + coreOSVersion + "/kernel"
 	InitrdURL := "http://" + r.Host + "/f/" + coreOSVersion + "/initrd"
@@ -107,10 +109,12 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// generate bootparams config
-	params, err := b.bootParamsRepo.GenerateConfig(&cloudconfig.ConfigContext{
-		MacAddr: strings.Replace(mac.String(), ":", "", -1),
-		IP:      "",
-	})
+	params, err := cloudconfig.MacBootParamsGenerator(b.datasource, mac.String(),
+		b.bootParamsTemplates)
+	// params, err := b.bootParamsRepo.GenerateConfig(&cloudconfig.ConfigContext{
+	// MacAddr: strings.Replace(mac.String(), ":", "", -1),
+	// IP:      "",
+	// })
 	if err != nil {
 		logging.Log("HTTPBOOTER", "error in bootparam template - %s", err.Error())
 		http.Error(w, "error in bootparam template", 500)
@@ -140,7 +144,7 @@ APPEND initrd=%s %s
 // BootSpec. Additionally returns a pretty name for the blob for
 // logging purposes.
 func (b *HTTPBooter) coreOS(version string, id string) (io.ReadCloser, error) {
-	imagePath := filepath.Join(b.runtimeConfig.WorkspacePath, "images")
+	imagePath := filepath.Join(b.datasource.WorkspacePath(), "images")
 	switch id {
 	case "kernel":
 		path := filepath.Join(imagePath, version, "coreos_production_pxe.vmlinuz")
@@ -182,22 +186,23 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	logging.Log("HTTPBOOTER", "Sent %s to %s (%d bytes)", id, r.RemoteAddr, written)
 }
 
-func HTTPBooterMux(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) (*http.ServeMux, error) {
-	pxelinuxDir := FS(false)
-	ldlinux, err := pxelinuxDir.Open("/pxelinux/ldlinux.c32")
+func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.GeneralDataSource,
+	bootParamsTemplates *template.Template) (*http.ServeMux, error) {
+	ldlinux, err := FS(false).Open("/pxelinux/ldlinux.c32")
 	if err != nil {
 		return nil, err
 	}
-	booter, err := NewHTTPBooter(listenAddr, ldlinux, runtimeConfig, bootParamsRepo)
+	booter, err := NewHTTPBooter(listenAddr, ldlinux, ds, bootParamsTemplates)
 	if err != nil {
 		return nil, err
 	}
 	return booter.Mux(), nil
 }
 
-func ServeHTTPBooter(listenAddr net.TCPAddr, runtimeConfig *datasource.RuntimeConfiguration, bootParamsRepo *cloudconfig.Repo) error {
+func ServeHTTPBooter(listenAddr net.TCPAddr, ds datasource.GeneralDataSource,
+	bootParamsTemplates *template.Template) error {
 	logging.Log("HTTPBOOTER", "Listening on %s", listenAddr.String())
-	mux, err := HTTPBooterMux(listenAddr, runtimeConfig, bootParamsRepo)
+	mux, err := HTTPBooterMux(listenAddr, ds, bootParamsTemplates)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,6 @@
-package hacluster // import "github.com/cafebazaar/blacksmith/hacluster"
+package datasource
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/cafebazaar/blacksmith/logging"
@@ -14,64 +13,50 @@ const (
 	StandbyMasterUpdateTime = 15 * time.Second
 	MasterTtlTime           = ActiveMasterUpdateTime * 3
 
-	debugTag       = "HA"
-	invalidEtcdKey = "INVALID"
-	masterKey      = "instances"
-	etcdTimeout    = 5 * time.Second
+	debugTag         = "HA"
+	invalidEtcdKey   = "INVALID"
+	instancesEtcdDir = "instances"
+	etcdTimeout      = 5 * time.Second
 )
 
-type MasterHaSpec struct {
-	etcdDir string
-	etcdKey string
-	kapi    etcd.KeysAPI
-}
-
-func NewMasterHaSpec(kapi etcd.KeysAPI, etcdDir string) *MasterHaSpec {
-	return &MasterHaSpec{
-		etcdKey: invalidEtcdKey,
-		etcdDir: fmt.Sprintf("%s/%s", etcdDir, masterKey),
-		kapi:    kapi,
-	}
-}
-
-func (b *MasterHaSpec) registerOnEtcd() error {
+func (ds *EtcdDataSource) registerOnEtcd() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	masterOrderOption := etcd.CreateInOrderOptions{
 		TTL: MasterTtlTime,
 	}
-	resp, err := b.kapi.CreateInOrder(ctx, b.etcdDir, "", &masterOrderOption)
+	resp, err := ds.keysAPI.CreateInOrder(ctx, ds.prefixify(instancesEtcdDir), "", &masterOrderOption)
 	if err != nil {
 		return err
 	}
 
-	b.etcdKey = resp.Node.Key
+	ds.instancesEtcdDir = resp.Node.Key
 	return nil
 }
 
-func (b *MasterHaSpec) updateOnEtcd() error {
+func (ds *EtcdDataSource) etcdHeartbeat() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	masterSetOption := etcd.SetOptions{
 		PrevExist: etcd.PrevExist,
 		TTL:       MasterTtlTime,
 	}
-	_, err := b.kapi.Set(ctx, b.etcdKey, "", &masterSetOption)
+	_, err := ds.keysAPI.Set(ctx, ds.instancesEtcdDir, "", &masterSetOption)
 	return err
 }
 
-func (b *MasterHaSpec) IsMaster() bool {
+func (ds *EtcdDataSource) IsMaster() bool {
 	var err error
-	if b.etcdKey == invalidEtcdKey {
-		err = b.registerOnEtcd()
+	if ds.instancesEtcdDir == invalidEtcdKey {
+		err = ds.registerOnEtcd()
 		if err != nil {
 			logging.Log(debugTag, "error while registerOnEtcd: %s", err)
 			return false
 		}
 	} else {
-		err = b.updateOnEtcd()
+		err = ds.etcdHeartbeat()
 		if err != nil {
-			b.etcdKey = invalidEtcdKey
+			ds.instancesEtcdDir = invalidEtcdKey
 			logging.Log(debugTag, "error while updateOnEtcd: %s", err)
 			return false
 		}
@@ -84,7 +69,7 @@ func (b *MasterHaSpec) IsMaster() bool {
 		Quorum:    true,
 		Sort:      true,
 	}
-	resp, err := b.kapi.Get(ctx, b.etcdDir, &masterGetOptions)
+	resp, err := ds.keysAPI.Get(ctx, ds.prefixify(instancesEtcdDir), &masterGetOptions)
 	if err != nil {
 		logging.Log(debugTag, "error while getting the dir list from etcd: %s", err)
 		return false
@@ -93,7 +78,7 @@ func (b *MasterHaSpec) IsMaster() bool {
 		logging.Log(debugTag, "empty list while getting the dir list from etcd")
 		return false
 	}
-	if resp.Node.Nodes[0].Key == b.etcdKey {
+	if resp.Node.Nodes[0].Key == ds.instancesEtcdDir {
 		return true
 	}
 	return false

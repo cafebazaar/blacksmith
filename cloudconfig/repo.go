@@ -3,18 +3,15 @@ package cloudconfig // import "github.com/cafebazaar/blacksmith/cloudconfig"
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"path"
 	"strings"
-	"sync"
 	"text/template"
-)
 
-type Repo struct {
-	templates   *template.Template
-	dataSources map[string]DataSource
-	executeLock sync.Mutex
-}
+	"github.com/cafebazaar/blacksmith/datasource"
+)
 
 func findFiles(path string) ([]string, error) {
 	infos, err := ioutil.ReadDir(path)
@@ -31,10 +28,11 @@ func findFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error) {
+//FromPath creates templates from the files located in the specifed path
+func FromPath(datasource datasource.GeneralDataSource, tmplPath string) (*template.Template, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error while trying to create repo from %s: %s", tmplPath, err)
 	}
 
 	t := template.New("")
@@ -68,40 +66,43 @@ func FromPath(dataSources map[string]DataSource, tmplPath string) (*Repo, error)
 	if err != nil {
 		return nil, err
 	}
-	return &Repo{
-		templates:   t,
-		dataSources: dataSources,
-	}, nil
+	return t, nil
 }
 
-func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, error) {
+func (ds *cloudConfigDataSource) ExecuteTemplate(templateName string) (string, error) {
 	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
 	buf := new(bytes.Buffer)
-	r.templates.Funcs(map[string]interface{}{
+	ds.templates.Funcs(map[string]interface{}{
 		"V": func(key string) (interface{}, error) {
-			return GetValue(r.dataSources, c, key)
+			if strings.HasPrefix(key, "flags.me.") {
+				return ds.currentMachine.GetFlag(key[strings.LastIndex(key, ".")+1:])
+			}
+			return "", nil
 		},
 		"S": func(key string, value string) (interface{}, error) {
-			return Set(r.dataSources, c, key, value)
+			if strings.HasPrefix(key, "flags.me.") {
+				return "", ds.currentMachine.SetFlag(key[strings.LastIndex(key, ".")+1:], value)
+			}
+			return "", nil
 		},
 		"VD": func(key string) (interface{}, error) {
-			return GetAndDelete(r.dataSources, c, key)
+			return ds.currentMachine.GetAndDeleteFlag(key)
 		},
 		"D": func(key string) (interface{}, error) {
-			return Delete(r.dataSources, c, key)
+			return "", ds.currentMachine.DeleteFlag(key)
 		},
 		"b64": func(text string) interface{} {
 			return base64.StdEncoding.EncodeToString([]byte(text))
 		},
 		"b64template": func(templateName string) (interface{}, error) {
-			text, err := r.ExecuteTemplate(templateName, c)
+			text, err := ds.ExecuteTemplate(templateName)
 			if err != nil {
 				return nil, err
 			}
 			return base64.StdEncoding.EncodeToString([]byte(text)), nil
 		},
 	})
-	err := r.templates.ExecuteTemplate(buf, templateName, nil)
+	err := ds.templates.ExecuteTemplate(buf, templateName, nil)
 	if err != nil {
 		return "", err
 	}
@@ -110,12 +111,86 @@ func (r *Repo) ExecuteTemplate(templateName string, c *ConfigContext) (string, e
 	return str, err
 }
 
-func (r *Repo) GenerateConfig(c *ConfigContext) (string, error) {
-	r.executeLock.Lock()
-	defer r.executeLock.Unlock()
+// What the hell is the parameter FIXME
+func (ds *cloudConfigDataSource) macCloudConfig(mac string) (string, error) {
 
-	if r.templates.Lookup("main") == nil {
+	if ds.templates.Lookup("main") == nil {
 		return "", nil
 	}
-	return r.ExecuteTemplate("main", c)
+	return ds.ExecuteTemplate("main")
+}
+
+func (ds *cloudConfigDataSource) ignition() (string, error) {
+	if ds.ignitionTemplates.Lookup("main") == nil {
+		return "", nil
+	}
+	return ds.ExecuteTemplate("main")
+}
+
+var bootParamsRepo *bootParamsDataSource
+
+//MacBootParamsGenerator generates boot params requested by http booter from
+//the supplied templates, mac address and datasource
+//VERY VERY VERY ILLFORMED
+//THE REQUESTS SHOULD BE MADE THROUGH THE INTERFACE THAT http.go PROVIDES.
+//YOU ABSOLUTELY NEED TO FIXME
+func MacBootParamsGenerator(ds datasource.GeneralDataSource, mac string,
+	bootParamsTemplates *template.Template) (string, error) {
+	bootParamsRepo.executeLock.Lock()
+	defer bootParamsRepo.executeLock.Unlock()
+
+	macAddress, _ := net.ParseMAC(mac)
+	bootParamsRepo.GeneralDataSource = ds
+	bootParamsRepo.templates = bootParamsTemplates
+	bootParamsRepo.currentMachine, _ = ds.GetMachine(macAddress)
+	return bootParamsRepo.generateConfig()
+}
+
+func (ds *bootParamsDataSource) generateConfig() (string, error) {
+	if ds.templates.Lookup("main") == nil {
+		return "", nil
+	}
+	return ds.ExecuteTemplate("main")
+}
+
+func (ds *bootParamsDataSource) ExecuteTemplate(templateName string) (string, error) {
+	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
+	buf := new(bytes.Buffer)
+	ds.templates.Funcs(map[string]interface{}{
+		"V": func(key string) (interface{}, error) {
+			if strings.HasPrefix(key, "flags.me.") {
+				return ds.currentMachine.GetFlag(key[strings.LastIndex(key, ".")+1:])
+			}
+			return "", nil
+		},
+		"S": func(key string, value string) (interface{}, error) {
+			if strings.HasPrefix(key, "flags.me.") {
+				return "", ds.currentMachine.SetFlag(key[strings.LastIndex(key, ".")+1:], value)
+			}
+			return false, nil
+		},
+		"VD": func(key string) (interface{}, error) {
+			return ds.currentMachine.GetAndDeleteFlag(key)
+		},
+		"D": func(key string) (interface{}, error) {
+			return true, ds.currentMachine.DeleteFlag(key)
+		},
+		"b64": func(text string) interface{} {
+			return base64.StdEncoding.EncodeToString([]byte(text))
+		},
+		"b64template": func(templateName string) (interface{}, error) {
+			text, err := ds.ExecuteTemplate(templateName)
+			if err != nil {
+				return nil, err
+			}
+			return base64.StdEncoding.EncodeToString([]byte(text)), nil
+		},
+	})
+	err := ds.templates.ExecuteTemplate(buf, templateName, nil)
+	if err != nil {
+		return "", err
+	}
+	str := buf.String()
+	str = strings.Trim(str, "\n")
+	return str, err
 }

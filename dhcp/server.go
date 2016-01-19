@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/krolaw/dhcp4"
 )
@@ -19,8 +20,8 @@ type DHCPSetting struct {
 	DNSAddr       net.IP
 }
 
-func ServeDHCP(settings *DHCPSetting, leasePool *LeasePool) error {
-	handler, err := newDHCPHandler(settings, leasePool)
+func ServeDHCP(settings *DHCPSetting, datasource datasource.DHCPDataSource) error {
+	handler, err := newDHCPHandler(settings, datasource)
 	if err != nil {
 		logging.Debug("DHCP", "Error in connecting etcd - %s", err.Error())
 		return err
@@ -41,11 +42,11 @@ func ServeDHCP(settings *DHCPSetting, leasePool *LeasePool) error {
 
 type DHCPHandler struct {
 	settings    *DHCPSetting
-	leasePool   *LeasePool
+	datasource  datasource.DHCPDataSource
 	dhcpOptions dhcp4.Options
 }
 
-func newDHCPHandler(settings *DHCPSetting, leasePool *LeasePool) (*DHCPHandler, error) {
+func newDHCPHandler(settings *DHCPSetting, datasource datasource.DHCPDataSource) (*DHCPHandler, error) {
 	h := &DHCPHandler{
 		settings: settings,
 	}
@@ -54,11 +55,7 @@ func newDHCPHandler(settings *DHCPSetting, leasePool *LeasePool) (*DHCPHandler, 
 		dhcp4.OptionRouter:           settings.RouterAddr.To4(),
 		dhcp4.OptionDomainNameServer: settings.DNSAddr.To4(),
 	}
-	var err error
-	h.leasePool = leasePool
-	if err != nil {
-		return nil, err
-	}
+	h.datasource = datasource
 	return h, nil
 }
 
@@ -81,11 +78,12 @@ func (h *DHCPHandler) fillPXE() []byte {
 	return pxe.Bytes()
 }
 
+//
 func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
 	var macAddress string = strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
 	switch msgType {
 	case dhcp4.Discover:
-		ip, err := h.leasePool.Assign(p.CHAddr().String())
+		ip, err := h.datasource.Assign(p.CHAddr().String())
 		if err != nil {
 			logging.Debug("DHCP", "err in lease pool - %s", err.Error())
 			return nil // pool is full
@@ -93,8 +91,8 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
 		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, h.settings.LeaseDuration, replyOptions)
 		// this is a pxe request
-		guidVal, is_pxe := options[97]
-		if is_pxe {
+		guidVal, isPxe := options[97]
+		if isPxe {
 			logging.Log("DHCP", "dhcp discover with PXE - CHADDR %s - IP %s - our ip %s", p.CHAddr().String(), ip.String(), h.settings.ServerIP.String())
 			guid := guidVal[1:]
 			packet.AddOption(60, []byte("PXEClient"))
@@ -116,17 +114,18 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			logging.Debug("DHCP", "dhcp request - CHADDR %s - bad request", p.CHAddr().String())
 			return nil
 		}
-		_, err := h.leasePool.Request(p.CHAddr().String(), requestedIP)
+		_, err := h.datasource.Request(p.CHAddr().String(), requestedIP)
 		if err != nil {
 			logging.Debug("DHCP", "dhcp request - CHADDR %s - Requested IP %s - NO MATCH", p.CHAddr().String(), requestedIP.String())
+
 			return dhcp4.ReplyPacket(p, dhcp4.NAK, h.settings.ServerIP, nil, 0, nil)
 		}
 
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
 		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, h.settings.LeaseDuration, replyOptions)
 		// this is a pxe request
-		guidVal, is_pxe := options[97]
-		if is_pxe {
+		guidVal, isPxe := options[97]
+		if isPxe {
 			logging.Log("DHCP", "dhcp request with PXE - CHADDR %s - Requested IP %s - our ip %s - ACCEPTED", p.CHAddr().String(), requestedIP.String(), h.settings.ServerIP.String())
 			guid := guidVal[1:]
 			packet.AddOption(60, []byte("PXEClient"))
@@ -136,8 +135,10 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 		}
 		packet.AddOption(12, []byte("node"+macAddress)) // host name option
+
 		return packet
 	case dhcp4.Release, dhcp4.Decline:
+
 		return nil
 	}
 	return nil

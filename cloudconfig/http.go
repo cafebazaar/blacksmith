@@ -19,9 +19,9 @@ const (
 	debugTag = "CLOUDCONFIG"
 )
 
-//cloudConfigDataSource embedds a CloudConfigDataSource which is an
-//interface and provides a means of conceptually using the interface as the
-//method receiver
+// cloudConfigDataSource embedds a CloudConfigDataSource which is an
+// interface and provides a means of conceptually using the interface as the
+// method receiver
 type cloudConfigDataSource struct {
 	datasource.GeneralDataSource
 	executeLock       *sync.Mutex
@@ -51,7 +51,6 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 	}
 
 	if req[0] != "cloud" && req[0] != "ignition" {
-		//No ignition support for now
 		http.NotFound(w, r)
 		return
 	}
@@ -127,8 +126,8 @@ func serveUtilityMultiplexer(datasource cloudConfigDataSource) *http.ServeMux {
 	return mux
 }
 
-//ServeCloudConfig is run cuncurrently alongside other blacksmith services
-//Provides cloudconfig to machines at boot time
+// ServeCloudConfig is run cuncurrently alongside other blacksmith services
+// Provides cloudconfig to machines at boot time
 func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource datasource.GeneralDataSource) error {
 	logging.Log(debugTag, "Listening on %s", listenAddr.String())
 

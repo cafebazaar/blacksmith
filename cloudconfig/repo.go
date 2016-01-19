@@ -28,7 +28,7 @@ func findFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-//FromPath ????
+//FromPath creates templates from the files located in the specifed path
 func FromPath(datasource datasource.GeneralDataSource, tmplPath string) (*template.Template, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
@@ -69,7 +69,7 @@ func FromPath(datasource datasource.GeneralDataSource, tmplPath string) (*templa
 	return t, nil
 }
 
-func (ds *cloudConfigDataSource) ExecuteTemplate(templateName string /*, c *ConfigContext*/) (string, error) {
+func (ds *cloudConfigDataSource) ExecuteTemplate(templateName string) (string, error) {
 	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
 	buf := new(bytes.Buffer)
 	ds.templates.Funcs(map[string]interface{}{
@@ -153,7 +153,7 @@ func (ds *bootParamsDataSource) generateConfig() (string, error) {
 	return ds.ExecuteTemplate("main")
 }
 
-func (ds *bootParamsDataSource) ExecuteTemplate(templateName string /*, c *ConfigContext*/) (string, error) {
+func (ds *bootParamsDataSource) ExecuteTemplate(templateName string) (string, error) {
 	// rewrite funcs to include context and hold a lock so it doesn't get overwrite
 	buf := new(bytes.Buffer)
 	ds.templates.Funcs(map[string]interface{}{

@@ -233,6 +233,8 @@ func (ds *EtcdDataSource) Handler() http.Handler {
 // Upload does what it is supposed to do!
 // part of UIRestServer interface implementation
 func (ds *EtcdDataSource) Upload(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	const MaxFileSize = 1 << 30
 	// This feels like a bad hack...
 	if r.ContentLength > MaxFileSize {
@@ -273,6 +275,8 @@ func (ds *EtcdDataSource) Upload(w http.ResponseWriter, r *http.Request) {
 // DeleteFile allows the deletion of a file through http Request
 // part of the UIRestServer interface implementation
 func (ds *EtcdDataSource) DeleteFile(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	name := r.FormValue("name")
 
 	if name != "" {
@@ -319,6 +323,8 @@ func nodeToLease(node Machine) (*lease, error) {
 // entries
 // part of UIRestServer interface implementation
 func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	leases := make(map[string]lease)
 	machines, err := ds.Machines()
 	if err != nil || machines == nil {
@@ -351,6 +357,8 @@ type uploadedFile struct {
 // Files allows utilization of the uploaded/shared files through http requests
 // part of UIRestServer interface implementation
 func (ds *EtcdDataSource) Files(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	files, err := ioutil.ReadDir(filepath.Join(ds.WorkspacePath(), "files"))
 	if err != nil {
 		http.Error(w, err.Error(), 500)
@@ -373,6 +381,8 @@ func (ds *EtcdDataSource) Files(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ds *EtcdDataSource) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
+	logging.LogHTTPRequest(debugTag, r)
+
 	endpointsJSON, err := json.Marshal(ds.client.Endpoints())
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
@@ -469,7 +479,6 @@ func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
 // Uses etcd as backend
 // part of DHCPDataSource interface implementation
 func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) {
-	logging.Log("#Request : ", nic+" "+currentIP.String())
 	ds.lockDHCPAssign()
 	defer ds.unlockdhcpAssign()
 

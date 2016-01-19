@@ -111,8 +111,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// listen ip address for http, tftp
-	var listenIP = net.IP{0, 0, 0, 0}
 	// finding interface by interface name
 	var dhcpIF *net.Interface
 	if *listenIFFlag != "" {
@@ -126,23 +124,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	dhcpIP, err := interfaceIP(dhcpIF)
+	serverIP, err := interfaceIP(dhcpIF)
 	if err != nil {
 		fmt.Fprint(os.Stderr, "\nError while trying to get the ip from the interface: %s\n")
 		os.Exit(1)
 	}
 
-	// used for replying in dhcp and pxe
-	var serverIP = net.IPv4zero
-	if serverIP.Equal(net.IPv4zero) {
-		serverIP = dhcpIP
-	}
+	// component ports
+	// web api is exposed to 0.0.0.0
+	var webAddr = net.TCPAddr{IP: net.IPv4zero, Port: 8000}
 
-	var httpAddr = net.TCPAddr{IP: listenIP, Port: 70}
-	var tftpAddr = net.UDPAddr{IP: listenIP, Port: 69}
-	var webAddr = net.TCPAddr{IP: listenIP, Port: 8000}
-	var cloudConfigHTTPAddr = net.TCPAddr{IP: listenIP, Port: 8001}
-	var pxeAddr = net.UDPAddr{IP: dhcpIP, Port: 4011}
+	// other services are exposed just through the given interface
+	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}
+	var tftpAddr = net.UDPAddr{IP: serverIP, Port: 69}
+	var cloudConfigHTTPAddr = net.TCPAddr{IP: serverIP, Port: 8001}
+	var pxeAddr = net.UDPAddr{IP: serverIP, Port: 4011}
+	// 67 -> dhcp
 
 	// dhcp setting
 	leaseStart := net.ParseIP(*leaseStartFlag)
@@ -172,8 +169,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Server IP:       %s\n", serverIP.String())
-	fmt.Printf("Interface IP:    %s\n", dhcpIP.String())
+	fmt.Printf("Interface IP:    %s\n", serverIP.String())
 	fmt.Printf("Interface Name:  %s\n", dhcpIF.Name)
 
 	// datasources
@@ -219,7 +215,7 @@ func main() {
 
 	// serving http booter
 	go func() {
-		err := pxe.ServeHTTPBooter(httpAddr, etcdDataSource, templates)
+		err := pxe.ServeHTTPBooter(httpBooterAddr, etcdDataSource, templates)
 		log.Fatalf("\nError while serving http booter: %s\n", err)
 	}()
 
@@ -231,7 +227,7 @@ func main() {
 
 	// pxe protocol
 	go func() {
-		err := pxe.ServePXE(pxeAddr, serverIP, net.TCPAddr{IP: serverIP, Port: httpAddr.Port})
+		err := pxe.ServePXE(pxeAddr, serverIP, httpBooterAddr)
 		log.Fatalf("\nError while serving pxe: %s\n", err)
 	}()
 
@@ -244,12 +240,11 @@ func main() {
 	// serving dhcp
 	go func() {
 		err := dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			IFName:        dhcpIF.Name,
-			ServerIP:      serverIP,
-			RouterAddr:    leaseRouter,
-			LeaseDuration: time.Hour * 876000, //100 years
-			SubnetMask:    leaseSubnet,
-			DNSAddr:       leaseDNS,
+			IFName:     dhcpIF.Name,
+			ServerIP:   serverIP,
+			RouterAddr: leaseRouter,
+			SubnetMask: leaseSubnet,
+			DNSAddr:    leaseDNS,
 		}, etcdDataSource)
 		log.Fatalf("\nError while serving dhcp: %s\n", err)
 	}()
@@ -259,4 +254,6 @@ func main() {
 	}
 
 	logging.Debug(debugTag, "Now we're NOT the master. Terminating. Hoping to be restarted by the service manager.")
+
+	// TODO: etcdDataSource.RemoveInstance for graceful shutdown
 }

@@ -11,13 +11,16 @@ import (
 	"github.com/krolaw/dhcp4"
 )
 
+const (
+	infiniteLeaseDuration = time.Hour * 876000 //100 years
+)
+
 type DHCPSetting struct {
-	IFName        string
-	LeaseDuration time.Duration // TTL of this lease range
-	ServerIP      net.IP
-	RouterAddr    net.IP
-	SubnetMask    net.IP
-	DNSAddr       net.IP
+	IFName     string
+	ServerIP   net.IP
+	RouterAddr net.IP
+	SubnetMask net.IP
+	DNSAddr    net.IP
 }
 
 func ServeDHCP(settings *DHCPSetting, datasource datasource.DHCPDataSource) error {
@@ -26,7 +29,8 @@ func ServeDHCP(settings *DHCPSetting, datasource datasource.DHCPDataSource) erro
 		logging.Debug("DHCP", "Error in connecting etcd - %s", err.Error())
 		return err
 	}
-	logging.Log("DHCP", "Listening on :67 - with server IP %s", settings.ServerIP.String())
+	logging.Log("DHCP", "Listening on %s:67 (interface: %s)",
+		settings.ServerIP.String(), settings.IFName)
 	if settings.IFName != "" {
 		err = dhcp4.ListenAndServeIf(settings.IFName, handler)
 	} else {
@@ -89,7 +93,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			return nil // pool is full
 		}
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, h.settings.LeaseDuration, replyOptions)
+		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, infiniteLeaseDuration, replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
 		if isPxe {
@@ -122,7 +126,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		}
 
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, h.settings.LeaseDuration, replyOptions)
+		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, infiniteLeaseDuration, replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
 		if isPxe {

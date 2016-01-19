@@ -55,8 +55,6 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	logging.Log(debugTag, "cloud request ! ! !")
-
 	clientMacAddressString := req[1]
 	if strings.Index(clientMacAddressString, ":") == -1 {
 		var tmpmac bytes.Buffer

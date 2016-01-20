@@ -39,5 +39,5 @@ clean:
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE) .
 
-push:
+push: docker
 	docker push $(DOCKER_IMAGE)

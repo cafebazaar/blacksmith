@@ -2,6 +2,7 @@ package dhcp // import "github.com/cafebazaar/blacksmith/dhcp"
 
 import (
 	"bytes"
+	"math/rand"
 	"net"
 	"strings"
 	"time"
@@ -12,8 +13,14 @@ import (
 )
 
 const (
-	infiniteLeaseDuration = time.Hour * 876000 //100 years
+	minLeaseHours = 24
+	maxLeaseHours = 48
 )
+
+func randLeaseDuration() time.Duration {
+	n := (minLeaseHours + rand.Intn(maxLeaseHours-minLeaseHours))
+	return time.Duration(n) * time.Hour
+}
 
 type DHCPSetting struct {
 	IFName     string
@@ -39,6 +46,9 @@ func ServeDHCP(settings *DHCPSetting, datasource datasource.DHCPDataSource) erro
 	if err != nil {
 		logging.Debug("DHCP", "Error in server - %s", err.Error())
 	}
+
+	rand.Seed(time.Now().UTC().UnixNano())
+
 	return err
 }
 
@@ -93,7 +103,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			return nil // pool is full
 		}
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, infiniteLeaseDuration, replyOptions)
+		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, randLeaseDuration(), replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
 		if isPxe {
@@ -126,7 +136,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		}
 
 		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, infiniteLeaseDuration, replyOptions)
+		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, randLeaseDuration(), replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
 		if isPxe {

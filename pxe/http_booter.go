@@ -1,7 +1,6 @@
 package pxe
 
 import (
-	"crypto/rand"
 	"fmt"
 	"io"
 	"net"
@@ -35,22 +34,18 @@ type nodeContext struct {
 
 type HTTPBooter struct {
 	listenAddr          net.TCPAddr
-	ldlinux             http.File
-	key                 [32]byte
+	ldlinux             []byte
 	datasource          datasource.GeneralDataSource
 	bootParamsTemplates *template.Template
 }
 
-func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux http.File,
+func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte,
 	ds datasource.GeneralDataSource, bootParamsTemplates *template.Template) (*HTTPBooter, error) {
 	booter := &HTTPBooter{
 		listenAddr:          listenAddr,
 		ldlinux:             ldlinux,
 		datasource:          ds,
 		bootParamsTemplates: bootParamsTemplates,
-	}
-	if _, err := io.ReadFull(rand.Reader, booter.key[:]); err != nil {
-		return nil, fmt.Errorf("cannot initialize ephemeral signing key: %s", err)
 	}
 	return booter, nil
 }
@@ -66,7 +61,7 @@ func (b *HTTPBooter) Mux() *http.ServeMux {
 func (b *HTTPBooter) ldlinuxHandler(w http.ResponseWriter, r *http.Request) {
 	logging.LogHTTPRequest("HTTPBOOTER", r)
 	w.Header().Set("Content-Type", "application/octet-stream")
-	io.Copy(w, b.ldlinux)
+	w.Write(b.ldlinux)
 }
 
 func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
@@ -188,7 +183,7 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 
 func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.GeneralDataSource,
 	bootParamsTemplates *template.Template) (*http.ServeMux, error) {
-	ldlinux, err := FS(false).Open("/pxelinux/ldlinux.c32")
+	ldlinux, err := FSByte(false, "/pxelinux/ldlinux.c32")
 	if err != nil {
 		return nil, err
 	}

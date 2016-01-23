@@ -86,6 +86,12 @@ type DHCPDataSource interface {
 
 	// Request is how to client requests to use the Ip address
 	Request(nic string, currentIP net.IP) (net.IP, error)
+
+	// DNSAddresses returns addresses of the dns servers present in the network which
+	// can answer "what is the ip address of nodeX ?"
+	// a byte slice is returned to be used as option 6 (rfc2132) in a dhcp Request
+	// reply packet
+	DNSAddresses() ([]byte, error)
 }
 
 // RestServer defines the interface that a rest server has to implement to work

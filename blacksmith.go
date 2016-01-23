@@ -45,7 +45,7 @@ var (
 	leaseRangeFlag  = flag.Int("lease-range", 0, "Lease range")
 	leaseSubnetFlag = flag.String("lease-subnet", "", "Subnet of specified lease")
 	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
-	leaseDNSFlag    = flag.String("dns", "", "Default DNS that assigned to DHCP clients")
+	leaseDNSFlag    = flag.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")
 
 	version   string
 	commit    string
@@ -146,7 +146,7 @@ func main() {
 	leaseRange := *leaseRangeFlag
 	leaseSubnet := net.ParseIP(*leaseSubnetFlag)
 	leaseRouter := net.ParseIP(*leaseRouterFlag)
-	leaseDNS := net.ParseIP(*leaseDNSFlag)
+	dnsIPStrings := strings.Split(*leaseDNSFlag, ",")
 
 	if leaseStart == nil {
 		fmt.Fprint(os.Stderr, "\nPlease specify the lease start ip\n")
@@ -164,7 +164,7 @@ func main() {
 		fmt.Fprint(os.Stderr, "\nPlease specify the IP address of network router\n")
 		os.Exit(1)
 	}
-	if leaseDNS == nil {
+	if len(dnsIPStrings) == 0 {
 		fmt.Fprint(os.Stderr, "\nPlease specify an DNS server\n")
 		os.Exit(1)
 	}
@@ -183,7 +183,8 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *clusterNameFlag, *workspacePathFlag)
+	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart,
+		leaseRange, *clusterNameFlag, *workspacePathFlag, serverIP, dnsIPStrings)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
@@ -244,7 +245,7 @@ func main() {
 			ServerIP:   serverIP,
 			RouterAddr: leaseRouter,
 			SubnetMask: leaseSubnet,
-			DNSAddr:    leaseDNS,
+			DNSAddr:    net.ParseIP(dnsIPStrings[0]),
 		}, etcdDataSource)
 		log.Fatalf("\nError while serving dhcp: %s\n", err)
 	}()

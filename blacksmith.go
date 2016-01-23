@@ -39,7 +39,7 @@ var (
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
-	etcdDirFlag       = flag.String("etcd-dir", "blacksmith", "The etcd directory prefix")
+	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 
 	leaseStartFlag  = flag.String("lease-start", "", "Begining of lease starting IP")
 	leaseRangeFlag  = flag.Int("lease-range", 0, "Lease range")
@@ -106,7 +106,7 @@ func main() {
 	}
 
 	// etcd config
-	if etcdFlag == nil || etcdDirFlag == nil {
+	if etcdFlag == nil || clusterNameFlag == nil {
 		fmt.Fprint(os.Stderr, "\nPlease specify the etcd endpoints\n")
 		os.Exit(1)
 	}
@@ -183,7 +183,7 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *etcdDirFlag, *workspacePathFlag)
+	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart, leaseRange, *clusterNameFlag, *workspacePathFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)

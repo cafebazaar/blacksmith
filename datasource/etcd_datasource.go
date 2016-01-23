@@ -36,7 +36,7 @@ type EtcdDataSource struct {
 	client               etcd.Client
 	leaseStart           net.IP
 	leaseRange           int
-	etcdDir              string
+	clusterName          string
 	workspacePath        string
 	initialCoreOSVersion string
 	dhcpAssignLock       *sync.Mutex
@@ -163,7 +163,7 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 }
 
 func (ds *EtcdDataSource) prefixify(key string) string {
-	return path.Join(ds.etcdDir, key)
+	return path.Join(ds.clusterName, key)
 }
 
 // Get parses the etcd key and returns it's value
@@ -519,7 +519,7 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, etcdDir, workspacePath string) (MasterDataSource, error) {
+	leaseRange int, clusterName, workspacePath string) (MasterDataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -540,7 +540,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	instance := &EtcdDataSource{
 		keysAPI:              kapi,
 		client:               client,
-		etcdDir:              etcdDir,
+		clusterName:          clusterName,
 		leaseStart:           leaseStart,
 		leaseRange:           leaseRange,
 		workspacePath:        workspacePath,
@@ -561,7 +561,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 			if err != nil {
 				return nil, fmt.Errorf("Error while initializing etcd tree: %s", err)
 			}
-			fmt.Printf("Initialized etcd tree (%s)", etcdDir)
+			fmt.Printf("Initialized etcd tree (%s)", clusterName)
 		} else {
 			return nil, fmt.Errorf("Error while checking GetCoreOSVersion: %s", err)
 		}

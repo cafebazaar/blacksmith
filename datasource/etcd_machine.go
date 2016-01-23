@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"bytes"
 	"errors"
 	"net"
 	"strconv"
@@ -35,8 +36,7 @@ func (m *EtcdMachine) IP() (net.IP, error) {
 
 // Name returns this machine's hostname
 func (m *EtcdMachine) Name() string {
-	tempName := "node" + m.Mac().String()
-	return strings.Replace(tempName, ":", "", -1)
+	return nameFromMac(m.Mac().String())
 }
 
 func unixNanoStringToTime(unixNano string) (time.Time, error) {
@@ -115,7 +115,7 @@ func (m *EtcdMachine) DeleteFlag(key string) error {
 }
 
 func (m *EtcdMachine) prefixify(str string) string {
-	return "machines/" + m.Mac().String() + "/" + str
+	return "machines/" + m.Name() + "/" + str
 }
 
 func (m *EtcdMachine) selfGet(key string) (string, error) {
@@ -128,4 +128,27 @@ func (m *EtcdMachine) selfSet(key, value string) error {
 
 func (m *EtcdMachine) selfDelete(key string) error {
 	return m.etcd.Delete(m.prefixify(key))
+}
+
+func nameFromMac(mac string) string {
+	return strings.Replace("node"+mac, ":", "", -1)
+}
+
+func macFromName(name string) string {
+	return colonLessMacToMac(name[len("node"):])
+}
+
+func colonLessMacToMac(colonLess string) string {
+	coloned := colonLess
+	if strings.Index(colonLess, ":") == -1 {
+		var tmpmac bytes.Buffer
+		for i := 0; i < 12; i++ { // colon-less mac address length
+			tmpmac.WriteString(colonLess[i : i+1])
+			if i%2 == 1 {
+				tmpmac.WriteString(":")
+			}
+		}
+		coloned = tmpmac.String()[:len(tmpmac.String())-1]
+	}
+	return coloned
 }

@@ -63,7 +63,8 @@ func (ds *EtcdDataSource) Machines() ([]Machine, error) {
 	ret := make([]Machine, 0)
 	for _, ent := range response.Node.Nodes {
 		pathToMachineDir := ent.Key
-		macStr := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
+		machineName := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
+		macStr := macFromName(machineName)
 		macAddr, err := net.ParseMAC(macStr)
 		if err != nil {
 			return nil, err
@@ -85,11 +86,12 @@ func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	response, err := ds.keysAPI.Get(ctx, ds.prefixify(path.Join("machines/"+mac.String())), nil)
+	machineName := nameFromMac(mac.String())
+	response, err := ds.keysAPI.Get(ctx, ds.prefixify(path.Join("machines/"+machineName)), nil)
 	if err != nil {
 		return nil, false
 	}
-	if response.Node.Key[strings.LastIndex(response.Node.Key, "/")+1:] == mac.String() {
+	if response.Node.Key[strings.LastIndex(response.Node.Key, "/")+1:] == machineName {
 		return &EtcdMachine{mac, ds}, true
 	}
 	return nil, false
@@ -122,18 +124,18 @@ func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machin
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	ds.keysAPI.Set(ctx, ds.prefixify("machines/"+machine.Mac().String()), "", &etcd.SetOptions{Dir: true})
+	ds.keysAPI.Set(ctx, ds.prefixify("machines/"+machine.Name()), "", &etcd.SetOptions{Dir: true})
 	ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel1()
-	ds.keysAPI.Set(ctx1, ds.prefixify("machines/"+machine.Mac().String()+"/_IP"), ip.String(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx1, ds.prefixify("machines/"+machine.Name()+"/_IP"), ip.String(), &etcd.SetOptions{})
 
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel2()
-	ds.keysAPI.Set(ctx2, ds.prefixify("machines/"+machine.Mac().String()+"/_name"), machine.Name(), &etcd.SetOptions{})
+	ds.keysAPI.Set(ctx2, ds.prefixify("machines/"+machine.Name()+"/_mac"), machine.Mac().String(), &etcd.SetOptions{})
 
 	ctx3, cancel3 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel3()
-	ds.keysAPI.Set(ctx3, ds.prefixify("machines/"+machine.Mac().String()+"/_first_seen"),
+	ds.keysAPI.Set(ctx3, ds.prefixify("machines/"+machine.Name()+"/_first_seen"),
 		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
 	machine.CheckIn()
 	machine.SetFlag("state", "unknown")
@@ -427,13 +429,19 @@ func (ds *EtcdDataSource) store(m Machine, ip net.IP) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	ds.keysAPI.Set(ctx, ds.prefixify("machines/"+m.Mac().String()+"/_IP"),
+	ds.keysAPI.Set(ctx, ds.prefixify("machines/"+m.Name()+"/_IP"),
 		ip.String(), &etcd.SetOptions{})
 
 	ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel1()
-	ds.keysAPI.Set(ctx1, ds.prefixify("machines/"+m.Mac().String()+"/_last_seen"),
+	ds.keysAPI.Set(ctx1, ds.prefixify("machines/"+m.Name()+"/_last_seen"),
 		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel2()
+	ds.keysAPI.Set(ctx2, ds.prefixify("machines/"+m.Name()+"/_mac"),
+		m.Mac().String(), &etcd.SetOptions{})
+
 }
 
 // Assign assigns an ip to the node with the specified nic

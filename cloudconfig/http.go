@@ -1,11 +1,12 @@
 package cloudconfig
 
 import (
+	"bytes"
 	"net"
 	"strings"
 	//	"net/url"
 	//	"fmt"
-	"bytes"
+
 	"net/http"
 	"path"
 	"sync"
@@ -55,17 +56,8 @@ func (datasource *cloudConfigDataSource) handler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	clientMacAddressString := req[1]
-	if strings.Index(clientMacAddressString, ":") == -1 {
-		var tmpmac bytes.Buffer
-		for i := 0; i < 12; i++ { // mac address length
-			tmpmac.WriteString(clientMacAddressString[i : i+1])
-			if i%2 == 1 {
-				tmpmac.WriteString(":")
-			}
-		}
-		clientMacAddressString = tmpmac.String()[:len(tmpmac.String())-1]
-	}
+	clientMacAddressString := colonLessMacToMac(req[1])
+
 	clientMac, err := net.ParseMAC(clientMacAddressString)
 	if err != nil {
 		return
@@ -141,4 +133,19 @@ func ServeCloudConfig(listenAddr net.TCPAddr, workspacePath string, datasource d
 	ccdataSource := cloudConfigDataSource{datasource, &sync.Mutex{}, cctemplates, igtemplates, nil}
 
 	return http.ListenAndServe(listenAddr.String(), serveUtilityMultiplexer(ccdataSource))
+}
+
+func colonLessMacToMac(colonLess string) string {
+	coloned := colonLess
+	if strings.Index(colonLess, ":") == -1 {
+		var tmpmac bytes.Buffer
+		for i := 0; i < 12; i++ { // colon-less mac address length
+			tmpmac.WriteString(colonLess[i : i+1])
+			if i%2 == 1 {
+				tmpmac.WriteString(":")
+			}
+		}
+		coloned = tmpmac.String()[:len(tmpmac.String())-1]
+	}
+	return coloned
 }

@@ -149,7 +149,10 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 		}
 		packet.AddOption(12, []byte("node"+macAddress)) // host name option
-
+		dns, err := h.datasource.DNSAddresses()
+		if err == nil {
+			packet.AddOption(6, dns)
+		}
 		return packet
 	case dhcp4.Release, dhcp4.Decline:
 

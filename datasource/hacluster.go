@@ -25,7 +25,7 @@ func (ds *EtcdDataSource) registerOnEtcd() error {
 	masterOrderOption := etcd.CreateInOrderOptions{
 		TTL: MasterTtlTime,
 	}
-	resp, err := ds.keysAPI.CreateInOrder(ctx, ds.prefixify(instancesEtcdDir), "", &masterOrderOption)
+	resp, err := ds.keysAPI.CreateInOrder(ctx, ds.prefixify(instancesEtcdDir), ds.serverIP.String(), &masterOrderOption)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (ds *EtcdDataSource) etcdHeartbeat() error {
 		PrevExist: etcd.PrevExist,
 		TTL:       MasterTtlTime,
 	}
-	_, err := ds.keysAPI.Set(ctx, ds.instancesEtcdDir, "", &masterSetOption)
+	_, err := ds.keysAPI.Set(ctx, ds.instancesEtcdDir, ds.serverIP.String(), &masterSetOption)
 	return err
 }
 

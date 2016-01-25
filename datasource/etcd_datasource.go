@@ -36,12 +36,13 @@ type EtcdDataSource struct {
 	client               etcd.Client
 	leaseStart           net.IP
 	leaseRange           int
-	etcdDir              string
+	clusterName          string
 	workspacePath        string
 	initialCoreOSVersion string
 	dhcpAssignLock       *sync.Mutex
 	dhcpDataLock         *sync.Mutex
 	instancesEtcdDir     string // HA
+	serverIP             net.IP
 }
 
 // WorkspacePath is self explanatory
@@ -137,6 +138,11 @@ func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machin
 	defer cancel3()
 	ds.keysAPI.Set(ctx3, ds.prefixify("machines/"+machine.Name()+"/_first_seen"),
 		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
+
+	ctx4, cancel4 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel4()
+	ds.keysAPI.Set(ctx4, "skydns/"+ds.clusterName+"/"+machine.Name(), fmt.Sprintf(`{"host":"%s"}`, ip.String()), nil)
+
 	machine.CheckIn()
 	machine.SetFlag("state", "unknown")
 	return machine, true
@@ -163,7 +169,7 @@ func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
 }
 
 func (ds *EtcdDataSource) prefixify(key string) string {
-	return path.Join(ds.etcdDir, key)
+	return path.Join(ds.clusterName, key)
 }
 
 // Get parses the etcd key and returns it's value
@@ -407,6 +413,27 @@ func (ds *EtcdDataSource) LeaseRange() int {
 	return ds.leaseRange
 }
 
+// DNSAddresses returns the ip addresses of the present skydns servers in the
+// network, marshalled as specified in rfc2132 (option 6)
+// part of DHCPDataSource ineterface implementation
+func (ds *EtcdDataSource) DNSAddresses() ([]byte, error) {
+	ret := make([]byte, 0)
+
+	// These values are set by hacluster.registerOnEtcd
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	response, err := ds.keysAPI.Get(ctx, ds.prefixify(instancesEtcdDir), &etcd.GetOptions{Recursive: false})
+	if err != nil {
+		return ret, err
+	}
+	for _, ent := range response.Node.Nodes {
+		ipString := ent.Value
+
+		ret = append(ret, (net.ParseIP(ipString).To4())...)
+	}
+	return ret, nil
+}
+
 func (ds *EtcdDataSource) lockDHCPAssign() {
 	ds.dhcpAssignLock.Lock()
 }
@@ -519,7 +546,7 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, etcdDir, workspacePath string) (MasterDataSource, error) {
+	leaseRange int, clusterName, workspacePath string, serverIP net.IP, defaultNameServers []string) (MasterDataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -540,7 +567,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	instance := &EtcdDataSource{
 		keysAPI:              kapi,
 		client:               client,
-		etcdDir:              etcdDir,
+		clusterName:          clusterName,
 		leaseStart:           leaseStart,
 		leaseRange:           leaseRange,
 		workspacePath:        workspacePath,
@@ -548,6 +575,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		dhcpAssignLock:       &sync.Mutex{},
 		dhcpDataLock:         &sync.Mutex{},
 		instancesEtcdDir:     invalidEtcdKey,
+		serverIP:             serverIP,
 	}
 
 	_, err = instance.CoreOSVersion()
@@ -561,7 +589,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 			if err != nil {
 				return nil, fmt.Errorf("Error while initializing etcd tree: %s", err)
 			}
-			fmt.Printf("Initialized etcd tree (%s)", etcdDir)
+			fmt.Printf("Initialized etcd tree (%s)", clusterName)
 		} else {
 			return nil, fmt.Errorf("Error while checking GetCoreOSVersion: %s", err)
 		}
@@ -570,6 +598,25 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	instance.keysAPI.Set(ctx, instance.prefixify("machines"), "", &etcd.SetOptions{Dir: true})
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel2()
+	instance.keysAPI.Set(ctx2, "skydns", "", &etcd.SetOptions{Dir: true})
+
+	ctx3, cancel3 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel3()
+	instance.keysAPI.Set(ctx3, "skydns/"+instance.clusterName, "", &etcd.SetOptions{Dir: true})
+	quoteEnclosedNameservers := make([]string, 0)
+	for _, v := range defaultNameServers {
+		quoteEnclosedNameservers = append(quoteEnclosedNameservers, fmt.Sprintf(`"%s"`, v))
+	}
+	commaSeparatedQouteEnclosedNameservers := strings.Join(quoteEnclosedNameservers, ",")
+
+	skydnsconfig := fmt.Sprintf(`{"dns_addr":"%s:53","nameservers":[%s],"domain":"%s."}`,
+		instance.serverIP.String(), commaSeparatedQouteEnclosedNameservers, clusterName)
+	ctx4, cancel4 := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel4()
+	instance.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)
 
 	return instance, nil
 }

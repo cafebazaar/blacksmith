@@ -253,7 +253,6 @@ func main() {
 			ServerIP:   serverIP,
 			RouterAddr: leaseRouter,
 			SubnetMask: leaseSubnet,
-			DNSAddr:    net.ParseIP(dnsIPStrings[0]),
 		}, etcdDataSource)
 		log.Fatalf("\nError while serving dhcp: %s\n", err)
 	}()

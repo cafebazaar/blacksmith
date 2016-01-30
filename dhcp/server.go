@@ -91,14 +91,16 @@ func (h *DHCPHandler) fillPXE() []byte {
 //
 func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
 	dns, err := h.datasource.DNSAddresses()
+	var dhcpOptions dhcp4.Options
 	if err == nil {
-		h.dhcpOptions = dhcp4.Options{
+		dhcpOptions = dhcp4.Options{
 			dhcp4.OptionSubnetMask:       h.settings.SubnetMask.To4(),
 			dhcp4.OptionRouter:           h.settings.RouterAddr.To4(),
 			dhcp4.OptionDomainNameServer: dns,
 		}
 	} else {
 		logging.Log(debugTag, "Failed to read dns addresses")
+		return nil
 	}
 
 	var macAddress string = strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
@@ -109,7 +111,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			logging.Debug("DHCP", "err in lease pool - %s", err.Error())
 			return nil // pool is full
 		}
-		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+		replyOptions := dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
 		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, randLeaseDuration(), replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]
@@ -142,7 +144,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 			return dhcp4.ReplyPacket(p, dhcp4.NAK, h.settings.ServerIP, nil, 0, nil)
 		}
 
-		replyOptions := h.dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+		replyOptions := dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
 		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, randLeaseDuration(), replyOptions)
 		// this is a pxe request
 		guidVal, isPxe := options[97]

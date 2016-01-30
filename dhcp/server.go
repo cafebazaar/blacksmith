@@ -91,16 +91,15 @@ func (h *DHCPHandler) fillPXE() []byte {
 //
 func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
 	dns, err := h.datasource.DNSAddresses()
-	var dhcpOptions dhcp4.Options
-	if err == nil {
-		dhcpOptions = dhcp4.Options{
-			dhcp4.OptionSubnetMask:       h.settings.SubnetMask.To4(),
-			dhcp4.OptionRouter:           h.settings.RouterAddr.To4(),
-			dhcp4.OptionDomainNameServer: dns,
-		}
-	} else {
+	if err != nil {
 		logging.Log(debugTag, "Failed to read dns addresses")
 		return nil
+	}
+
+	dhcpOptions := dhcp4.Options{
+		dhcp4.OptionSubnetMask:       h.settings.SubnetMask.To4(),
+		dhcp4.OptionRouter:           h.settings.RouterAddr.To4(),
+		dhcp4.OptionDomainNameServer: dns,
 	}
 
 	var macAddress string = strings.Join(strings.Split(p.CHAddr().String(), ":"), "")

@@ -44,9 +44,9 @@ IP=$(ip addr | awk '/inet/ && /'$INTERFACE'/{sub(/\/.*$/,"",$2); print $2}')
 
 # TODO: calculate instead of assuming the simple case
 IFS=. read -r i1 i2 i3 i4 <<< "$IP"
-[ "$i4" -lt 10 ] || echo "Warning: Your IP will be among those the dhcp is going to assign to the nodes! (Detected IP: $IP)" 1>&2
+[ "$i4" -lt 21 ] || echo "Warning: Your IP will be among those the dhcp is going to assign to the nodes! (Detected IP: $IP)" 1>&2
 
-LEASE_START="$i1.$i2.$i3.11"
+LEASE_START="$i1.$i2.$i3.21"
 LEASE_RANGE=244
 LEASE_SUBNET="255.255.255.0"
 ROUTER="$i1.$i2.$i3.1"

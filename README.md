@@ -8,11 +8,14 @@
 [Travis Widget]: https://travis-ci.org/cafebazaar/blacksmith.svg?branch=master
 
 Blacksmith is a collection of DHCP, PXE, TFTP, and HTTP server,
-created with the purpose of booting CoreOS on bare-metal machines and
-configuring them by serving generated [cloud-config] and [ignition] files.
+created with the purpose of booting CoreOS on bare-metal machines,
+configuring them by serving generated [cloud-config] and [ignition] files, and
+maintaining the over the time.
+Blacksmith uses etcd to store the states, and to elect a leader. So You can run
+multiple instances of Blacksmith to provide a high available CoreOS over bare-metal
+infrastructure.
 
-Warning: **UNDER HEAVY DEVELOPMENT**. The data-source model may dramatically
-change in the near future. To be notified about the project getting more stable,
+Warning: **UNDER DEVELOPMENT**. To be notified about the project getting more stable,
 please subscribe to [this issue](https://github.com/cafebazaar/blacksmith/issues/5).
 
 [cloud-config]: https://github.com/coreos/coreos-cloudinit
@@ -33,34 +36,40 @@ the script.
 $ sudo ./install-as-docker.sh <workspace-path> <etcd-endpoints> <network-interface>
 ```
 
+## DNS
+In some IaaS environments, machine names are resolvable in the internal network.
+Some softwares (Kubernetes?) count on it. To provide similar functionality, you
+need to run [SkyDNS] on the same instances you run Blacksmith on. Blacksmith will
+configure them through etcd.
+
+[SkyDNS]: https://github.com/skynetservices/skydns
+
 ## Under the Hood
 Check [this](docs/UnderTheHood.md).
 
 ## Development
 
-*TODO: Add docker independent development instructions*
-
 You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test environment:
 
 ```bash
-(HOST)$ vagrant up --provider=libvirt pxeserver
-(HOST)$ vagrant ssh pxeserver
+make blacksmith
 
 ### Clone and prepare workspace
-(PXESERVER)$ cd ~
-(PXESERVER)$ git clone https://github.com/cafebazaar/blacksmith-workspace-kubernetes.git
-(PXESERVER)$ cd blacksmith-workspace-kubernetes
-(PXESERVER)$ make update
+mkdir workspaces
+cd workspaces
+git clone https://github.com/cafebazaar/blacksmith-workspace-kubernetes.git
+cd blacksmith-workspace-kubernetes
+make update
+cd ..
+ln -s blacksmith-workspace-kubernetes/workspace current
 
-### Run etcd as Docker service
-(PXESERVER)$ sudo docker run -d -p 4001:4001 -p 2380:2380 -p 2379:2379 --restart=always --name etcd quay.io/coreos/etcd:v2.0.3  -name etcd0  -advertise-client-urls http://10.10.10.2:2379,http://10.10.10.2:4001  -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001  -initial-advertise-peer-urls http://10.10.10.2:2380  -listen-peer-urls http://0.0.0.0:2380  -initial-cluster-token etcd-cluster-1  -initial-cluster etcd0=http://10.10.10.2:2380  -initial-cluster-state new -cors '*'
+# Start 3 machines, which will be provisioned to serve a 3-node etcd cluster,
+# 3 working instances of SkyDNS, and a 3-node Blacksmith cluster
+vagrant up --provider=libvirt
 
-### Install Blacksmith as Docker service
-(PXESERVER)$ cd /vagrant
-(PXESERVER)$ go generate
-(PXESERVER)$ docker build -t cafebazaar/blacksmith
-(PXESERVER)$ sudo ./install-as-docker.sh ~/blacksmith-workspace-kubernetes/workspace http://10.10.10.2:4001 eth1
+### Check the logs
+vagrant ssh pxeserver1 -c "docker logs -f blacksmith_docker"
 
-### In another terminal
-(HOST)$ vagrant up --provider=libvirt pxeclient1
+### In another terminal, start a client machine
+vagrant up --provider=libvirt pxeclient1
 ```

@@ -17,4 +17,4 @@ datasource/ui_autogen.go
 example/example
 deploy.sh
 remote_deploy.sh
-workspace
+workspaces

@@ -29,17 +29,53 @@ fi
 if [ ! -f /usr/local/go/bin/go ]; then
   echo "Installing Go..."
   cd /tmp
-  wget -cO go.tar.gz https://storage.googleapis.com/golang/go1.5.1.linux-amd64.tar.gz
+  wget -cO go.tar.gz https://storage.googleapis.com/golang/go1.5.1.linux-amd64.tar.gz || wget -cO go.tar.gz http://netix.dl.sourceforge.net/project/gnuhub/go1.5.1.linux-amd64.tar.gz
   tar -C /usr/local -xzf go.tar.gz
   rm go.tar.gz
 
   echo 'export GOPATH=/go' >> ~/.profile
-  echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
+  echo 'export PATH=$PATH:/usr/local/go/bin:/go/bin' >> ~/.profile
 
   echo 'export GOPATH=/go' >> ~vagrant/.profile
-  echo 'export PATH=$PATH:/usr/local/go/bin' >> ~vagrant/.profile
+  echo 'export PATH=$PATH:/usr/local/go/bin:/go/bin' >> ~vagrant/.profile
 
   echo "Installing Go... Done."
 fi
 
+echo
+echo "Total number of pxeservers: $1"
+echo "Index number of this pxeserver: $2"
+echo "Workspace: $3"
+echo
+
+[ -d "$3" ] || echo "Workspace doesn't exists. Please prepare it and reprovision this instance."
+[ -d "$3" ] || exit 1
+
+ETCD_CLUSTER=""
+ETCD_ENDPOINTS=""
+for i in `seq 1 $1`; do
+  if [ "$i" -gt "1" ]; then
+    ETCD_CLUSTER="${ETCD_CLUSTER},"
+    ETCD_ENDPOINTS="${ETCD_ENDPOINTS},"
+  fi
+  ETCD_CLUSTER="${ETCD_CLUSTER}etcd${i}=http://10.10.10.1${i}:2380"
+  ETCD_ENDPOINTS="${ETCD_ENDPOINTS}http://10.10.10.1${i}:2379"
+done
+
+[ "$4" -eq "1" ] && docker kill etcd || echo "OK!"
+[ "$4" -eq "1" ] && docker rm etcd || echo "OK!"
+docker run -d -p 2379:2379 -p 2380:2380 --restart=always --name etcd quay.io/coreos/etcd:v2.2.4 \
+ -name etcd${2}   -advertise-client-urls http://10.10.10.1${2}:2379 \
+ -listen-client-urls http://0.0.0.0:2379 \
+ -initial-advertise-peer-urls http://10.10.10.1${2}:2380 \
+ -listen-peer-urls http://0.0.0.0:2380 \
+ -initial-cluster-token etcd-cluster \
+ -initial-cluster $ETCD_CLUSTER \
+ -initial-cluster-state new -cors '*'
+
+[ "$4" -eq "1" ] && docker kill skydns || echo "OK!"
+[ "$4" -eq "1" ] && docker rm skydns || echo "OK!"
+docker inspect skydns || docker run -d -p 53:53 --restart=always --name skydns -e ETCD_MACHINES=$ETCD_ENDPOINTS skynetservices/skydns \
 sudo -u vagrant /vagrant/vagrant_make.sh
+
+exec /vagrant/install-as-docker.sh $3 $ETCD_ENDPOINTS eth1

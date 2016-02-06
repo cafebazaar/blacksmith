@@ -5,73 +5,51 @@ unless Vagrant.has_plugin?("vagrant-libvirt")
   raise Vagrant::Errors::VagrantError.new, "Please install the vagrant-libvirt plugin running 'vagrant plugin install vagrant-libvirt'"
 end
 
+num_servers = (ENV['NUM_SERVERS'] || 3).to_i
+num_clients = (ENV['NUM_CLIENTS'] || 3).to_i
+workspace_path = (ENV['WORKSPACE'] || "/vagrant/workspaces/current")
+overwrite_dockers = (ENV['OVERWRITE_DOCKERS'] || "1")
+
 Vagrant.configure("2") do |config|
 
-  config.vm.define :pxeserver do |pxeserver|
-    pxeserver.vm.box = "naelyn/ubuntu-trusty64-libvirt"
+  num_servers.times do |n|
+    config.vm.define "pxeserver#{n+1}" do |pxeserver|
+      pxeserver.vm.box = "naelyn/ubuntu-trusty64-libvirt"
 
-    pxeserver.vm.provider :libvirt do |pxeserver_vm|
-      pxeserver_vm.memory = 2048
-      pxeserver_vm.cpus = 2
-      pxeserver_vm.graphics_port = 5900
-      pxeserver_vm.graphics_ip = '0.0.0.0'
-    end
+      pxeserver.vm.provider :libvirt do |pxeserver_vm|
+        pxeserver_vm.memory = 2048
+        pxeserver_vm.cpus = 2
+      end
 
-    pxeserver.vm.provision :shell, path: 'vagrant_provision.sh'
+      pxeserver.vm.provision :shell, inline: "/vagrant/vagrant_provision.sh #{num_servers} #{n+1} #{workspace_path} #{overwrite_dockers}"
 
-    pxeserver.vm.network :private_network,
-        :ip => '10.10.10.2',
-        :libvirt__dhcp_enabled => 'false'
-  end
-
-  config.vm.define :pxeserver2, autostart: false do |pxeserver2|
-    pxeserver2.vm.box = "naelyn/ubuntu-trusty64-libvirt"
-
-    pxeserver2.vm.provider :libvirt do |pxeserver2_vm|
-      pxeserver2_vm.memory = 2048
-      pxeserver2_vm.cpus = 2
-      pxeserver2_vm.graphics_port = 5901
-      pxeserver2_vm.graphics_ip = '0.0.0.0'
-    end
-
-    pxeserver2.vm.provision :shell, path: 'vagrant_provision.sh'
-
-    pxeserver2.vm.network :private_network,
-        :ip => '10.10.10.3',
-        :libvirt__dhcp_enabled => 'false'
-  end
-
-  config.vm.define :pxeclient1, autostart: false do |pxeclient1|
-
-    pxeclient1.vm.network :private_network,
-        :mac => '52:54:00:ff:00:01',
-        :ip => '10.10.10.100',                # Dummy
-        :libvirt__dhcp_enabled => 'false'
-
-    pxeclient1.vm.provider :libvirt do |pxeclient1_vm|
-      pxeclient1_vm.memory = 2048
-      pxeclient1_vm.cpus = 2
-      pxeclient1_vm.graphics_port = 5910
-      pxeclient1_vm.graphics_ip = '0.0.0.0'
-      pxeclient1_vm.storage :file, :size => '20G', :type => 'qcow2'
-      pxeclient1_vm.boot 'network'
+      pxeserver.vm.network :private_network,
+          :libvirt__network_name => "pxenetwork",
+          :libvirt__netmask => "255.255.255.0",
+          :libvirt__dhcp_enabled => false,
+          :mac => "52:54:00:ff:00:0#{n+1}",
+          :ip => "10.10.10.1#{n+1}"
+      pxeserver.vm.hostname = "pxeserver#{n+1}"
     end
   end
 
-  config.vm.define :pxeclient2, autostart: false do |pxeclient2|
+  num_clients.times do |n|
+    config.vm.define "pxeclient#{n+1}", autostart: false do |pxeclient|
 
-    pxeclient2.vm.network :private_network,
-        :mac => '52:54:00:ff:00:02',
-        :ip => '10.10.10.101',                # Dummy
-        :libvirt__dhcp_enabled => 'false'
+      pxeclient.vm.network :private_network,
+          :libvirt__network_name => "pxenetwork",
+          :libvirt__netmask => "255.255.255.0",
+          :libvirt__dhcp_enabled => false,
+          :mac => "52:54:00:ff:00:1#{n+1}",
+          :ip => "10.10.10.10#{n+1}"
 
-    pxeclient2.vm.provider :libvirt do |pxeclient2_vm|
-      pxeclient2_vm.memory = 2048
-      pxeclient2_vm.cpus = 2
-      pxeclient2_vm.graphics_port = 5911
-      pxeclient2_vm.graphics_ip = '0.0.0.0'
-      pxeclient2_vm.storage :file, :size => '20G', :type => 'qcow2'
-      pxeclient2_vm.boot 'network'
-    end
+      pxeclient.vm.provider :libvirt do |pxeclient_vm|
+        pxeclient_vm.memory = 2048
+        pxeclient_vm.cpus = 2
+        pxeclient_vm.storage :file, :size => '20G', :type => 'qcow2'
+        pxeclient_vm.boot 'network'
+      end
+	end
   end
+
 end

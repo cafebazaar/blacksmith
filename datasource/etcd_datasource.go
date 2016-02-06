@@ -608,12 +608,11 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	instance.keysAPI.Set(ctx3, "skydns/"+instance.clusterName, "", &etcd.SetOptions{Dir: true})
 	quoteEnclosedNameservers := make([]string, 0)
 	for _, v := range defaultNameServers {
-		quoteEnclosedNameservers = append(quoteEnclosedNameservers, fmt.Sprintf(`"%s"`, v))
+		quoteEnclosedNameservers = append(quoteEnclosedNameservers, fmt.Sprintf(`"%s:53"`, v))
 	}
 	commaSeparatedQouteEnclosedNameservers := strings.Join(quoteEnclosedNameservers, ",")
 
-	skydnsconfig := fmt.Sprintf(`{"dns_addr":"%s:53","nameservers":[%s],"domain":"%s."}`,
-		instance.serverIP.String(), commaSeparatedQouteEnclosedNameservers, clusterName)
+	skydnsconfig := fmt.Sprintf(`{"dns_addr":"0.0.0.0:53","nameservers":[%s],"domain":"%s."}`, commaSeparatedQouteEnclosedNameservers, clusterName)
 	ctx4, cancel4 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel4()
 	instance.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)

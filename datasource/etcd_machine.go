@@ -36,7 +36,7 @@ func (m *EtcdMachine) IP() (net.IP, error) {
 
 // Name returns this machine's hostname
 func (m *EtcdMachine) Name() string {
-	return nameFromMac(m.Mac().String())
+	return nameFromMac(m.Mac().String()) + "." + m.etcd.ClusterName()
 }
 
 func unixNanoStringToTime(unixNano string) (time.Time, error) {
@@ -135,6 +135,7 @@ func nameFromMac(mac string) string {
 }
 
 func macFromName(name string) string {
+	name = strings.Split(name, ".")[0]
 	return colonLessMacToMac(name[len("node"):])
 }
 

@@ -87,7 +87,7 @@ func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	machineName := nameFromMac(mac.String())
+	machineName := nameFromMac(mac.String()) + "." + ds.ClusterName()
 	response, err := ds.keysAPI.Get(ctx, ds.prefixify(path.Join("machines/"+machineName)), nil)
 	if err != nil {
 		return nil, false
@@ -141,7 +141,7 @@ func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machin
 
 	ctx4, cancel4 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel4()
-	ds.keysAPI.Set(ctx4, "skydns/"+ds.clusterName+"/"+machine.Name(), fmt.Sprintf(`{"host":"%s"}`, ip.String()), nil)
+	ds.keysAPI.Set(ctx4, "skydns/"+ds.clusterName+"/"+strings.Split(machine.Name(), ".")[0], fmt.Sprintf(`{"host":"%s"}`, ip.String()), nil)
 
 	machine.CheckIn()
 	machine.SetFlag("state", "unknown")
@@ -215,6 +215,11 @@ func (ds *EtcdDataSource) Delete(key string) error {
 	defer cancel()
 	_, err := ds.keysAPI.Delete(ctx, ds.prefixify(key), nil)
 	return err
+}
+
+// ClusterName returns the name of the cluster
+func (ds *EtcdDataSource) ClusterName() string {
+	return ds.clusterName
 }
 
 type initialValues struct {

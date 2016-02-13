@@ -25,6 +25,7 @@ func randLeaseDuration() time.Duration {
 }
 
 type DHCPSetting struct {
+	Suffix     string
 	IFName     string
 	ServerIP   net.IP
 	RouterAddr net.IP
@@ -156,7 +157,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		} else {
 			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 		}
-		packet.AddOption(12, []byte("node"+macAddress)) // host name option
+		packet.AddOption(12, []byte("node"+macAddress+"."+h.settings.Suffix)) // host name option
 		return packet
 	case dhcp4.Release, dhcp4.Decline:
 

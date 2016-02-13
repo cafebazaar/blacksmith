@@ -72,6 +72,9 @@ type GeneralDataSource interface {
 
 	// Gets a key, returns it's value and deletes it
 	GetAndDelete(key string) (string, error)
+
+	// ClusterName returns the name of the ClusterName
+	ClusterName() string
 }
 
 // DHCPDataSource is the functionality that a DHCP datasource has to provide

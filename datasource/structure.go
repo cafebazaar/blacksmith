@@ -125,7 +125,7 @@ type UIRestServer interface {
 // HADataSource specifies the methods that are used for high availablity purposes
 type HADataSource interface {
 	IsMaster() bool
-	// TODO: RemoveInstance for graceful shutdown
+	RemoveInstance() error
 }
 
 // MasterDataSource embedds GeneralDataSource, DHCPDataSource, RestServer,

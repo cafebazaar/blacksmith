@@ -71,11 +71,11 @@ docker run -d -p 2379:2379 -p 2380:2380 --restart=always --name etcd quay.io/cor
  -listen-peer-urls http://0.0.0.0:2380 \
  -initial-cluster-token etcd-cluster \
  -initial-cluster $ETCD_CLUSTER \
- -initial-cluster-state new -cors '*'
+ -initial-cluster-state new -cors '*' || [ "$4" -ne "1" ]
 
 [ "$4" -eq "1" ] && docker kill skydns || echo "OK!"
 [ "$4" -eq "1" ] && docker rm skydns || echo "OK!"
-docker inspect skydns || docker run -d -p 53:53 --restart=always --name skydns -e ETCD_MACHINES=$ETCD_ENDPOINTS skynetservices/skydns \
-sudo -u vagrant /vagrant/vagrant_make.sh
+docker inspect skydns || docker run -d -p 53:53 --restart=always --name skydns -e ETCD_MACHINES=$ETCD_ENDPOINTS skynetservices/skydns
+sudo -u vagrant /vagrant/vagrant_make.sh || [ "$4" -ne "1" ]
 
 exec /vagrant/install-as-docker.sh $3 $ETCD_ENDPOINTS eth1

@@ -45,6 +45,7 @@ func (ds *EtcdDataSource) etcdHeartbeat() error {
 	return err
 }
 
+// IsMaster checks for being master, and makes a heartbeat
 func (ds *EtcdDataSource) IsMaster() bool {
 	var err error
 	if ds.instancesEtcdDir == invalidEtcdKey {
@@ -82,4 +83,13 @@ func (ds *EtcdDataSource) IsMaster() bool {
 		return true
 	}
 	return false
+}
+
+// RemoveInstance removes the instance key from the list of instances, used to
+// gracefully shutdown the instance
+func (ds *EtcdDataSource) RemoveInstance() error {
+	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
+	defer cancel()
+	_, err := ds.keysAPI.Delete(ctx, ds.instancesEtcdDir, nil)
+	return err
 }

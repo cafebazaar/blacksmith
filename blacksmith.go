@@ -6,8 +6,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/cafebazaar/blacksmith/cloudconfig"
@@ -91,6 +93,16 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 		}
 	}
 	return nil, fmt.Errorf("interface %s has no usable unicast addresses", iface.Name)
+}
+
+func gracefulShutdown(etcdDataSource datasource.MasterDataSource) {
+	err := etcdDataSource.RemoveInstance()
+	if err != nil {
+		log.Printf("\nError while removing the instance: %s\n", err)
+	} else {
+		fmt.Fprint(os.Stderr, "\nBlacksmith is gracefully shutdown\n")
+	}
+	os.Exit(0)
 }
 
 func main() {
@@ -209,6 +221,20 @@ func main() {
 		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
 	}()
 
+	// serving api
+	go func() {
+		err := web.ServeWeb(etcdDataSource, webAddr)
+		log.Fatalf("\nError while serving api: %s\n", err)
+	}()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		for _ = range c {
+			gracefulShutdown(etcdDataSource)
+		}
+	}()
+
 	// waiting til we're officially the master instance
 	for !etcdDataSource.IsMaster() {
 		logging.Debug(debugTag, "Not master, waiting to be promoted...")
@@ -240,12 +266,6 @@ func main() {
 		log.Fatalf("\nError while serving pxe: %s\n", err)
 	}()
 
-	// serving api
-	go func() {
-		err := web.ServeWeb(etcdDataSource, webAddr)
-		log.Fatalf("\nError while serving api: %s\n", err)
-	}()
-
 	// serving dhcp
 	go func() {
 		err := dhcp.ServeDHCP(&dhcp.DHCPSetting{
@@ -264,5 +284,5 @@ func main() {
 
 	logging.Debug(debugTag, "Now we're NOT the master. Terminating. Hoping to be restarted by the service manager.")
 
-	// TODO: etcdDataSource.RemoveInstance for graceful shutdown
+	gracefulShutdown(etcdDataSource)
 }

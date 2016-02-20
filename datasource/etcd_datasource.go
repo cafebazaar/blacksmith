@@ -1,14 +1,10 @@
 package datasource
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
-	"net/http"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -16,22 +12,29 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cafebazaar/blacksmith/logging"
 	etcd "github.com/coreos/etcd/client"
-	"github.com/gorilla/mux"
 	"github.com/krolaw/dhcp4"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
+
+	"github.com/cafebazaar/blacksmith/logging"
 )
 
 const (
 	coreosVersionKey = "coreos-version"
 )
 
+type BlacksmithVersion struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildTime string `json:"buildTime"`
+}
+
 // EtcdDataSource implements MasterDataSource interface using etcd as it's
 // datasource
 // Implements MasterDataSource interface
 type EtcdDataSource struct {
+	version              BlacksmithVersion
 	keysAPI              etcd.KeysAPI
 	client               etcd.Client
 	leaseStart           net.IP
@@ -45,7 +48,13 @@ type EtcdDataSource struct {
 	serverIP             net.IP
 }
 
-// WorkspacePath is self explanatory
+// Version is returns the version details of the current blacksmith instance
+// part of the GeneralDataSource interface implementation
+func (ds *EtcdDataSource) Version() BlacksmithVersion {
+	return ds.version
+}
+
+// WorkspacePath returns the path to the workspace
 // part of the GeneralDataSource interface implementation
 func (ds *EtcdDataSource) WorkspacePath() string {
 	return ds.workspacePath
@@ -226,184 +235,6 @@ type initialValues struct {
 	CoreOSVersion string `yaml:"coreos-version"`
 }
 
-// Handler uses a multiplexing router to route http requests
-// part of the RestServer interface implementation
-func (ds *EtcdDataSource) Handler() http.Handler {
-	mux := mux.NewRouter()
-	mux.HandleFunc("/api/nodes", ds.NodesList)
-	mux.HandleFunc("/api/etcd-endpoints", ds.etcdEndpoints)
-
-	mux.HandleFunc("/upload/", ds.Upload)
-	mux.HandleFunc("/files", ds.Files).Methods("GET")
-	mux.HandleFunc("/files", ds.DeleteFile).Methods("DELETE")
-	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
-		http.FileServer(http.Dir(filepath.Join(ds.WorkspacePath(), "files")))))
-	mux.PathPrefix("/ui/").Handler(http.FileServer(FS(false)))
-
-	return mux
-}
-
-// Upload does what it is supposed to do!
-// part of UIRestServer interface implementation
-func (ds *EtcdDataSource) Upload(w http.ResponseWriter, r *http.Request) {
-	logging.LogHTTPRequest(debugTag, r)
-
-	const MaxFileSize = 1 << 30
-	// This feels like a bad hack...
-	if r.ContentLength > MaxFileSize {
-		http.Error(w, "Request too large", 400)
-		return
-	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, MaxFileSize)
-
-	err := r.ParseMultipartForm(1024)
-	if err != nil {
-		http.Error(w, "File too large", 400)
-		return
-	}
-
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		panic(err)
-	}
-
-	dst, err := os.Create(filepath.Join(ds.WorkspacePath(), "files", header.Filename))
-	defer dst.Close()
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-	}
-
-	written, err := io.Copy(dst, io.LimitReader(file, MaxFileSize))
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-	}
-
-	if written == MaxFileSize {
-		http.Error(w, "File too large", 400)
-		return
-	}
-}
-
-// DeleteFile allows the deletion of a file through http Request
-// part of the UIRestServer interface implementation
-func (ds *EtcdDataSource) DeleteFile(w http.ResponseWriter, r *http.Request) {
-	logging.LogHTTPRequest(debugTag, r)
-
-	name := r.FormValue("name")
-
-	if name != "" {
-		err := os.Remove(filepath.Join(ds.WorkspacePath(), "files", name))
-
-		if err != nil {
-			http.Error(w, err.Error(), 404)
-
-			return
-		}
-	} else {
-		http.Error(w, "No file name specified.", 400)
-	}
-
-}
-
-type lease struct {
-	Nic           string
-	IP            net.IP
-	FirstAssigned time.Time
-	LastAssigned  time.Time
-	ExpireTime    time.Time
-}
-
-func nodeToLease(node Machine) (*lease, error) {
-	mac := node.Mac()
-	ip, err := node.IP()
-	if err != nil {
-		return nil, errors.New("IP")
-	}
-	first, err := node.FirstSeen()
-	if err != nil {
-		return nil, errors.New("FIRST")
-	}
-	last, err := node.LastSeen()
-	if err != nil {
-		return nil, errors.New("LAST")
-	}
-	exp := time.Now() // <- ??? TODO
-	return &lease{mac.String(), ip, first, last, exp}, nil
-}
-
-// NodesList creates a list of the currently known nodes based on the etcd
-// entries
-// part of UIRestServer interface implementation
-func (ds *EtcdDataSource) NodesList(w http.ResponseWriter, r *http.Request) {
-	logging.LogHTTPRequest(debugTag, r)
-
-	leases := make(map[string]lease)
-	machines, err := ds.Machines()
-	if err != nil || machines == nil {
-		http.Error(w, "Error in fetching lease data", 500)
-	}
-	for _, node := range machines {
-		l, err := nodeToLease(node)
-		if err != nil {
-			http.Error(w, "Error in fetching lease data", 500)
-		}
-		if l != nil {
-			leases[node.Name()] = *l
-		}
-	}
-
-	nodesJSON, err := json.Marshal(leases)
-	if err != nil {
-		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
-		return
-	}
-	io.WriteString(w, string(nodesJSON))
-}
-
-type uploadedFile struct {
-	Name                 string    `json:"name"`
-	Size                 int64     `json:"size"`
-	LastModificationDate time.Time `json:"lastModifiedDate"`
-}
-
-// Files allows utilization of the uploaded/shared files through http requests
-// part of UIRestServer interface implementation
-func (ds *EtcdDataSource) Files(w http.ResponseWriter, r *http.Request) {
-	logging.LogHTTPRequest(debugTag, r)
-
-	files, err := ioutil.ReadDir(filepath.Join(ds.WorkspacePath(), "files"))
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-	}
-
-	var filesList []uploadedFile
-	for _, f := range files {
-		if f.Name()[0] == '.' {
-			continue
-		}
-		var uploadedFile uploadedFile
-		uploadedFile.Size = f.Size()
-		uploadedFile.LastModificationDate = f.ModTime()
-		uploadedFile.Name = f.Name()
-		filesList = append(filesList, uploadedFile)
-	}
-
-	jsoned, _ := json.Marshal(filesList)
-	io.WriteString(w, string(jsoned))
-}
-
-func (ds *EtcdDataSource) etcdEndpoints(w http.ResponseWriter, r *http.Request) {
-	logging.LogHTTPRequest(debugTag, r)
-
-	endpointsJSON, err := json.Marshal(ds.client.Endpoints())
-	if err != nil {
-		io.WriteString(w, fmt.Sprintf("{'error': %s}", err))
-		return
-	}
-	io.WriteString(w, string(endpointsJSON))
-}
-
 // LeaseStart returns the first IP address that the DHCP server can offer to a
 // DHCP client
 // part of DHCPDataSource interface implementation
@@ -551,7 +382,8 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, clusterName, workspacePath string, serverIP net.IP, defaultNameServers []string) (MasterDataSource, error) {
+	leaseRange int, clusterName, workspacePath string, serverIP net.IP,
+	defaultNameServers []string, version BlacksmithVersion) (MasterDataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -570,6 +402,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	fmt.Printf("Initial Values: CoreOSVersion=%s\n", iVals.CoreOSVersion)
 
 	instance := &EtcdDataSource{
+		version:              version,
 		keysAPI:              kapi,
 		client:               client,
 		clusterName:          clusterName,

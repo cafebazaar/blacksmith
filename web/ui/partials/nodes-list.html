@@ -2,24 +2,41 @@
   <span class="glyphicon glyphicon-align-justify"></span>  Nodes List
 </h3>
 <hr>
+<form>
+  <div class="form-group">
+    <div class="input-group">
+      <input type="search" class="form-control" placeholder="Search Node Names" ng-model="searchTerm">
+    </div>
+  </div>
+</form>
 <div class="alert alert-danger" role="alert" ng-if="errorMessage">{{ errorMessage }}</div>
 <table class="table table-hover">
   <thead>
   <tr>
-    <th>#</th>
-    <th>MAC Address</th>
-    <th>IP Address</th>
-    <th>First IP Assignment Time</th>
-  <th>Last IP Assignment Time</th>
+    <th><a href="#/nodes/" ng-click="sortType = 'name'; sortReverse = !sortReverse">
+        Node Name
+        <span ng-show="sortType == 'name'" ng-class="sortReverse ? 'caret' : 'caret caret-reversed'"></span>
+    </a></th>
+    <th><a href="#/nodes/" ng-click="sortType = 'ip'; sortReverse = !sortReverse">
+        IP Address
+        <span ng-show="sortType == 'ip'" ng-class="sortReverse ? 'caret' : 'caret caret-reversed'"></span>
+    </a></th>
+    <th><a href="#/nodes/" ng-click="sortType = 'firstAssigned'; sortReverse = !sortReverse">
+        First IP Assignment Time
+        <span ng-show="sortType == 'firstAssigned'" ng-class="sortReverse ? 'caret' : 'caret caret-reversed'"></span>
+    </a></th>
+    <th><a href="#/nodes/" ng-click="sortType = 'lastAssigned'; sortReverse = !sortReverse">
+        Last IP Assignment Time
+        <span ng-show="sortType == 'lastAssigned'" ng-class="sortReverse ? 'caret' : 'caret caret-reversed'"></span>
+    </a></th>
   </tr>
   </thead>
   <tbody>
-  <tr ng-repeat="node in nodes">
-    <td>{{ $index + 1 }}</td>
-    <td>{{ node.Nic }}</td>
-    <td>{{ node.IP }}</td>
-    <td>{{ node.FirstAssigned }}</td>
-  <td>{{ node.LastAssigned }}</td>
+  <tr ng-repeat="node in nodes | orderBy:sortType:sortReverse | filter:searchTerm">
+    <td>{{ node.name }}</td>
+    <td>{{ node.ip }}</td>
+    <td>{{ node.firstAssigned | date :'medium' }}</td>
+    <td>{{ node.lastAssigned  | date :'medium' }}</td>
   </tr>
   </tbody>
 </table>

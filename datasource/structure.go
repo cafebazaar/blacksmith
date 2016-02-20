@@ -2,7 +2,6 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 
 import (
 	"net"
-	"net/http"
 	"time"
 )
 
@@ -41,6 +40,8 @@ type Machine interface {
 
 // GeneralDataSource provides the interface for querying general information
 type GeneralDataSource interface {
+	Version() BlacksmithVersion
+
 	// CoreOSVerison returns the coreOs version that blacksmith supplies
 	CoreOSVersion() (string, error)
 
@@ -97,31 +98,6 @@ type DHCPDataSource interface {
 	DNSAddresses() ([]byte, error)
 }
 
-// RestServer defines the interface that a rest server has to implement to work
-// with Blacksmith
-type RestServer interface {
-	//Handler returns an http handler which can be used to serve http requests
-	Handler() http.Handler
-}
-
-// UIRestServer specifies the functionality that is expected from a rest server
-// which will act as the backend for Blacksmith web UI
-type UIRestServer interface {
-	//DeleteFile provides file deleting functionality
-	DeleteFile(w http.ResponseWriter, r *http.Request)
-
-	//Files provides the means for accessing uploaded files
-	Files(w http.ResponseWriter, r *http.Request)
-
-	//NodesList returns a view of the nodes recognized by blacksmith
-	//Also provides useful information about each one and allows you to modify
-	//certain settings
-	NodesList(w http.ResponseWriter, r *http.Request)
-
-	//Upload provides file uploading functionality
-	Upload(w http.ResponseWriter, r *http.Request)
-}
-
 // HADataSource specifies the methods that are used for high availablity purposes
 type HADataSource interface {
 	IsMaster() bool
@@ -133,6 +109,5 @@ type HADataSource interface {
 type MasterDataSource interface {
 	GeneralDataSource
 	DHCPDataSource
-	RestServer
 	HADataSource
 }

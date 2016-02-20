@@ -22,7 +22,7 @@ import (
 )
 
 //go:generate esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
-//go:generate esc -o datasource/ui_autogen.go -prefix=web -ignore=bower_components -pkg datasource web/ui
+//go:generate esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/ui
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
@@ -203,8 +203,14 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient, leaseStart,
-		leaseRange, *clusterNameFlag, *workspacePathFlag, serverIP, dnsIPStrings)
+	v := datasource.BlacksmithVersion{
+		Version:   version,
+		Commit:    commit,
+		BuildTime: buildTime,
+	}
+	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,
+		leaseStart, leaseRange, *clusterNameFlag, *workspacePathFlag,
+		serverIP, dnsIPStrings, v)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)

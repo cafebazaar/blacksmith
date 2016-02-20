@@ -9,6 +9,7 @@ blacksmith
 pxe/pxelinux_autogen.go
 web/ui_autogen.go
 web/ui/external
+web/ui/fonts
 
 # temporary
 datasource/ui_autogen.go

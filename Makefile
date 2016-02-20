@@ -26,15 +26,20 @@ pxe/pxelinux_autogen.go: pxe/pxelinux
 
 EXTERNAL_FILES := web/ui/bower_components/angular/angular.min.js web/ui/bower_components/angular-route/angular-route.min.js web/ui/bower_components/angular-resource/angular-resource.min.js web/ui/bower_components/angular-xeditable/dist/js/xeditable.min.js web/ui/bower_components/jquery/dist/jquery.min.js web/ui/bower_components/bootstrap/dist/js/bootstrap.min.js web/ui/bower_components/bootstrap/dist/css/bootstrap.css web/ui/bower_components/angular-xeditable/dist/css/xeditable.css
 web/ui/external: $(EXTERNAL_FILES)
-	mkdir web/ui/external
+	mkdir -p web/ui/external
 	cp -v $(EXTERNAL_FILES) web/ui/external
 
-web/ui_autogen.go: web/ui web/ui/external
+EXTERNAL_FILES_FONT := web/ui/bower_components/bootstrap/fonts/glyphicons-halflings-regular.woff2
+web/ui/fonts: $(EXTERNAL_FILES_FONT)
+	mkdir -p web/ui/fonts
+	cp -v $(EXTERNAL_FILES_FONT) web/ui/fonts
+
+web/ui_autogen.go: web/ui/* web/ui/partials/* web/ui/css/*  web/ui/img/* web/ui/js/* web/ui/external web/ui/fonts
 	go get -v github.com/mjibson/esc
 	GOOS=linux GOARCH=amd64 go generate
 
 clean:
-	rm -rf blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go web/ui/external
+	rm -rf blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go web/ui/external web/ui/fonts
 
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE) .

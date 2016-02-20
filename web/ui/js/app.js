@@ -1,4 +1,4 @@
-var blacksmithUIApp = angular.module('blacksmithUIApp', ["xeditable", 'ngRoute', 'blacksmithUIControllers', 'filesServices', 'nodesServices']);
+var blacksmithUIApp = angular.module('blacksmithUIApp', ["xeditable", 'ngRoute', 'blacksmithUIControllers', 'apiServices']);
 
 blacksmithUIApp.config(['$routeProvider',
   function($routeProvider) {
@@ -11,9 +11,9 @@ blacksmithUIApp.config(['$routeProvider',
         templateUrl: 'partials/files-list.html',
         controller: 'BlacksmithFilesCtrl'
       }).
-      when('/etcd/', {
-        templateUrl: 'partials/etcd.html',
-        controller: 'BlacksmithEtcdCtrl'
+      when('/about/', {
+        templateUrl: 'partials/about.html',
+        controller: 'BlacksmithAboutCtrl'
       }).
       otherwise({
         redirectTo: '/nodes/'

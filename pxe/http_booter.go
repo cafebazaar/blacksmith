@@ -6,13 +6,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
 
-	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/logging"
+	"github.com/cafebazaar/blacksmith/templating"
 )
 
 // pxelinux configuration that tells the PXE/UNDI stack to boot from
@@ -37,15 +38,17 @@ type HTTPBooter struct {
 	ldlinux             []byte
 	datasource          datasource.GeneralDataSource
 	bootParamsTemplates *template.Template
+	webPort             int
 }
 
 func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte,
-	ds datasource.GeneralDataSource, bootParamsTemplates *template.Template) (*HTTPBooter, error) {
+	ds datasource.GeneralDataSource, webPort int) (*HTTPBooter, error) {
 	booter := &HTTPBooter{
-		listenAddr:          listenAddr,
-		ldlinux:             ldlinux,
-		datasource:          ds,
-		bootParamsTemplates: bootParamsTemplates,
+		listenAddr: listenAddr,
+		ldlinux:    ldlinux,
+		datasource: ds,
+		webPort:    webPort,
+		//		bootParamsTemplates: bootParamsTemplates,
 	}
 	return booter, nil
 }
@@ -68,7 +71,7 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 
 	macStr := filepath.Base(r.URL.Path)
-	errStr := fmt.Sprintf("%s requested a pxelinux config from URL %q, which does not include a MAC address", r.RemoteAddr, r.URL)
+	errStr := fmt.Sprintf("%s requested a pxelinux config from URL %q, which does not include a correct MAC address", r.RemoteAddr, r.URL)
 	if !strings.HasPrefix(macStr, "01-") {
 		logging.Debug("HTTPBOOTER", errStr)
 		http.Error(w, "Missing MAC address in request", http.StatusBadRequest)
@@ -81,15 +84,16 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	machine, exist := b.datasource.GetMachine(mac)
+	if !exist {
+		logging.Debug("HTTPBOOTER", "Machine not found. mac=%s", mac)
+		http.Error(w, "Machine not found", http.StatusNotFound)
+		return
+	}
+
 	if _, _, err := net.SplitHostPort(r.Host); err != nil {
 		r.Host = fmt.Sprintf("%s:%d", r.Host, b.listenAddr.Port)
 	}
-
-	// TODO: Ask dataSource about the mac
-	// We have a machine sitting in pxelinux, but the Booter says
-	// we shouldn't be netbooting. So, give it a config that tells
-	// pxelinux to shut down PXE booting and continue with the
-	// next local boot method.
 
 	coreOSVersion, _ := b.datasource.CoreOSVersion()
 
@@ -103,13 +107,15 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// generate bootparams config
-	params, err := cloudconfig.MacBootParamsGenerator(b.datasource, mac.String(),
-		b.bootParamsTemplates)
-	// params, err := b.bootParamsRepo.GenerateConfig(&cloudconfig.ConfigContext{
-	// MacAddr: strings.Replace(mac.String(), ":", "", -1),
-	// IP:      "",
-	// })
+	params, err := templating.ExecuteTemplateFolder(
+		path.Join(b.datasource.WorkspacePath(), "config", "bootparams"), machine)
+	if err != nil {
+		logging.Log("HTTPBOOTER", `Error while executing the template: %q`, err)
+		http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err),
+			http.StatusInternalServerError)
+		return
+	}
+
 	if err != nil {
 		logging.Log("HTTPBOOTER", "error in bootparam template - %s", err.Error())
 		http.Error(w, "error in bootparam template", 500)
@@ -117,12 +123,11 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	params = strings.Replace(params, "\n", " ", -1)
 
-	// FIXME: 8001 is hardcoded
 	Cmdline := fmt.Sprintf(
-		"cloud-config-url=http://%s:8001/cloud/%s "+
-			"coreos.config.url=http://%s:8001/ignition/%s %s",
-		host, strings.Replace(mac.String(), ":", "", -1),
-		host, strings.Replace(mac.String(), ":", "", -1), params)
+		"cloud-config-url=http://%s:%d/cc/%s "+
+			"coreos.config.url=http://%s:%d/ig/%s %s",
+		host, b.webPort, mac.String(),
+		host, b.webPort, mac.String(), params)
 	bootMessage := strings.Replace(bootMessageTemplate, "$MAC", macStr, -1)
 	cfg := fmt.Sprintf(`
 SAY %s
@@ -181,23 +186,21 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	logging.Log("HTTPBOOTER", "Sent %s to %s (%d bytes)", id, r.RemoteAddr, written)
 }
 
-func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.GeneralDataSource,
-	bootParamsTemplates *template.Template) (*http.ServeMux, error) {
+func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.GeneralDataSource, webPort int) (*http.ServeMux, error) {
 	ldlinux, err := FSByte(false, "/pxelinux/ldlinux.c32")
 	if err != nil {
 		return nil, err
 	}
-	booter, err := NewHTTPBooter(listenAddr, ldlinux, ds, bootParamsTemplates)
+	booter, err := NewHTTPBooter(listenAddr, ldlinux, ds, webPort)
 	if err != nil {
 		return nil, err
 	}
 	return booter.Mux(), nil
 }
 
-func ServeHTTPBooter(listenAddr net.TCPAddr, ds datasource.GeneralDataSource,
-	bootParamsTemplates *template.Template) error {
+func ServeHTTPBooter(listenAddr net.TCPAddr, ds datasource.GeneralDataSource, webPort int) error {
 	logging.Log("HTTPBOOTER", "Listening on %s", listenAddr.String())
-	mux, err := HTTPBooterMux(listenAddr, ds, bootParamsTemplates)
+	mux, err := HTTPBooterMux(listenAddr, ds, webPort)
 	if err != nil {
 		return err
 	}

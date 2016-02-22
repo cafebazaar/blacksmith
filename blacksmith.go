@@ -7,12 +7,10 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/cafebazaar/blacksmith/cloudconfig"
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/dhcp"
 	"github.com/cafebazaar/blacksmith/logging"
@@ -26,10 +24,11 @@ import (
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
+		/config/bootparams/main
+		/config/cloudconfig/main
+		/config/ignition/main
 		/images/{core-os-version}/coreos_production_pxe_image.cpio.gz
 		/images/{core-os-version}/coreos_production_pxe.vmlinuz
-		/config/cloudconfig/main.yaml
-		/config/ignition/main.yaml
 		/initial.yaml
 `
 	debugTag = "MAIN"
@@ -149,7 +148,6 @@ func main() {
 	// other services are exposed just through the given interface
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}
 	var tftpAddr = net.UDPAddr{IP: serverIP, Port: 69}
-	var cloudConfigHTTPAddr = net.TCPAddr{IP: serverIP, Port: 8001}
 	var pxeAddr = net.UDPAddr{IP: serverIP, Port: 4011}
 	// 67 -> dhcp
 
@@ -216,13 +214,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	templates, err := cloudconfig.FromPath(
-		etcdDataSource, path.Join(*workspacePathFlag, "config/bootparams"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nError while initiating templates system: %s\n", err)
-		os.Exit(1)
-	}
-
 	go func() {
 		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
 	}()
@@ -249,14 +240,9 @@ func main() {
 
 	logging.Debug(debugTag, "Now we're the master instance. Starting the services...")
 
-	// serving cloudconfig
-	go func() {
-		log.Fatalln(cloudconfig.ServeCloudConfig(cloudConfigHTTPAddr, *workspacePathFlag, etcdDataSource))
-	}()
-
 	// serving http booter
 	go func() {
-		err := pxe.ServeHTTPBooter(httpBooterAddr, etcdDataSource, templates)
+		err := pxe.ServeHTTPBooter(httpBooterAddr, etcdDataSource, webAddr.Port)
 		log.Fatalf("\nError while serving http booter: %s\n", err)
 	}()
 

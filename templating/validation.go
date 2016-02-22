@@ -1,11 +1,12 @@
-package cloudconfig
+package templating
 
 import (
 	"bytes"
+
 	"github.com/coreos/coreos-cloudinit/config/validate"
 )
 
-func validateCloudConfig(config string) string {
+func ValidateCloudConfig(config string) string {
 	var errors bytes.Buffer
 	errors.WriteString("\n")
 	validationReport, _ := validate.Validate([]byte(config))

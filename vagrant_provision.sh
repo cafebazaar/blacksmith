@@ -78,4 +78,4 @@ docker run -d -p 2379:2379 -p 2380:2380 --restart=always --name etcd quay.io/cor
 docker inspect skydns || docker run -d -p 53:53 --restart=always --name skydns -e ETCD_MACHINES=$ETCD_ENDPOINTS skynetservices/skydns
 sudo -u vagrant /vagrant/vagrant_make.sh || [ "$4" -ne "1" ]
 
-exec /vagrant/install-as-docker.sh $3 $ETCD_ENDPOINTS eth1
+exec /vagrant/install-as-docker.sh $3 $ETCD_ENDPOINTS eth1 -debug

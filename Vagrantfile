@@ -8,7 +8,7 @@ end
 num_servers = (ENV['NUM_SERVERS'] || 3).to_i
 num_clients = (ENV['NUM_CLIENTS'] || 3).to_i
 workspace_path = (ENV['WORKSPACE'] || "/vagrant/workspaces/current")
-overwrite_dockers = (ENV['OVERWRITE_DOCKERS'] || "1")
+overwrite_dockers = (ENV['OVERWRITE_DOCKERS'] || "0")
 
 Vagrant.configure("2") do |config|
 

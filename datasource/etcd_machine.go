@@ -4,16 +4,21 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	etcd "github.com/coreos/etcd/client"
+	"golang.org/x/net/context"
 )
 
 // EtcdMachine implements datasource.Machine interface using etcd as it's
 // datasource
 type EtcdMachine struct {
-	mac  net.HardwareAddr
-	etcd GeneralDataSource
+	mac     net.HardwareAddr
+	etcd    GeneralDataSource
+	keysAPI etcd.KeysAPI
 }
 
 // Mac Returns this machine's hardware address
@@ -36,7 +41,7 @@ func (m *EtcdMachine) IP() (net.IP, error) {
 
 // Name returns this machine's hostname
 func (m *EtcdMachine) Name() string {
-	return nameFromMac(m.Mac().String()) + "." + m.etcd.ClusterName()
+	return nameFromMac(m.Mac().String())
 }
 
 func unixNanoStringToTime(unixNano string) (time.Time, error) {
@@ -77,6 +82,27 @@ func (m *EtcdMachine) LastSeen() (time.Time, error) {
 		return timeError(err)
 	}
 	return unixNanoStringToTime(unixNanoString)
+}
+
+// ListFlags returns the list of all the flgas of a machine from Etcd
+// etcd and machine prefix will be added to the path
+// part of Machine interface implementation
+func (m *EtcdMachine) ListFlags() (map[string]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := m.keysAPI.Get(ctx, path.Join(m.etcd.ClusterName(), "machines", m.Name()), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	flags := make(map[string]string)
+	for i := range response.Node.Nodes {
+		_, k := path.Split(response.Node.Nodes[i].Key)
+		flags[k] = response.Node.Nodes[i].Value
+	}
+
+	return flags, nil
 }
 
 // GetFlag Gets a machine's flag from Etcd

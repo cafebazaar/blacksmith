@@ -1,13 +1,77 @@
 var blacksmithUIControllers = angular.module('blacksmithUIControllers', []);
 
-blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Node', function ($scope, Node) {
+blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Nodes', 'Node', 'Flag', function ($scope, Nodes, Node, Flag) {
   $scope.sortType     = 'name';
   $scope.sortReverse  = false;
   $scope.searchTerm   = '';
-  Node.query().$promise.then(
-    function( value ){ $scope.nodes = value },
-    function( error ){ $scope.errorMessage = error.data; $scope.nodes = [] }
-  );
+  $scope.nodeDetails  = {};
+  $scope.nodeName     = '';
+  $scope.nodeMac      = '';
+  $scope.errorMessage = false;
+  $scope.getNodes = function () {
+    Nodes.query().$promise.then(
+      function( value ){ $scope.nodes = value; },
+      function( error ){ $scope.errorMessage = error.data; $scope.nodes = []; $scope.nodeDetails = {} }
+    );
+  };
+  $scope.getNodes();
+
+  $scope.getNode = function(nic, name) {
+    $scope.nodeMac = nic;
+    $scope.nodeName = name;
+    $scope.errorMessage = false;
+    Node.query({nic: nic}).$promise.then(
+      function( value ){
+        $scope.nodeDetails = value;
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
+        $scope.nodeDetails = {};
+        $('#nodeModal').modal('hide');
+      }
+    );
+  };
+
+  $scope.addFlag = function() {
+    var name = prompt("Enter flag name", "");
+    var value = prompt("Enter flag value", "");
+    if(!name || name == "") return;
+
+    Flag.set({mac: $scope.nodeMac, name: name, value: value}).$promise.then(
+      function( value ){
+        $scope.getNode($scope.nodeMac, $scope.nodeName);
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
+        $('#nodeModal').modal('hide');
+      }
+    );
+  };
+
+  $scope.setFlag = function(name, value) {
+    Flag.set({mac: $scope.nodeMac, name: name, value: value}).$promise.then(
+      function( value ){
+        $scope.getNode($scope.nodeMac, $scope.nodeName);
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
+        $('#nodeModal').modal('hide');
+      }
+    );
+  };
+
+  $scope.deleteFlag = function(name) {
+    Flag.delete({mac: $scope.nodeMac, name: name}).$promise.then(
+      function( value ){
+        $scope.getNode($scope.nodeMac, $scope.nodeName);
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
+        $('#nodeModal').modal('hide');
+      }
+    );
+  };
+
 }]);
 
 blacksmithUIControllers.controller('BlacksmithAboutCtrl', ['$scope', 'Version', function ($scope, Version) {

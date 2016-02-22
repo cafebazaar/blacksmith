@@ -124,8 +124,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	params = strings.Replace(params, "\n", " ", -1)
 
 	Cmdline := fmt.Sprintf(
-		"cloud-config-url=http://%s:%d/cc/%s "+
-			"coreos.config.url=http://%s:%d/ig/%s %s",
+		"cloud-config-url=http://%s:%d/t/cc/%s "+
+			"coreos.config.url=http://%s:%d/t/ig/%s %s",
 		host, b.webPort, mac.String(),
 		host, b.webPort, mac.String(), params)
 	bootMessage := strings.Replace(bootMessageTemplate, "$MAC", macStr, -1)

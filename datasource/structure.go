@@ -24,6 +24,9 @@ type Machine interface {
 	// LastSeen returns the last time the machine has been seen
 	LastSeen() (time.Time, error)
 
+	// ListFlags returns the list of all the flgas of a machine from Etcd
+	ListFlags() (map[string]string, error)
+
 	// GetFlag returns the value of the supplied key
 	GetFlag(key string) (string, error)
 

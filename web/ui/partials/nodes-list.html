@@ -73,7 +73,7 @@
     <td>{{ node.ip }}</td>
     <td>{{ node.firstAssigned | date :'medium' }}</td>
     <td>{{ node.lastAssigned  | date :'medium' }}</td>
-	<td><button class="btn btn-info" ng-click="getNode(node.nic, node.name)" data-toggle="modal" data-target="#nodeModal">View/Modify</button></td>
+	<td><button class="btn btn-info btn-xs" ng-click="getNode(node.nic, node.name)" data-toggle="modal" data-target="#nodeModal"> View/Modify </button></td>
   </tr>
   </tbody>
 </table>

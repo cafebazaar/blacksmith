@@ -17,7 +17,7 @@ import (
 // datasource
 type EtcdMachine struct {
 	mac     net.HardwareAddr
-	etcd    GeneralDataSource
+	etcd    DataSource
 	keysAPI etcd.KeysAPI
 }
 

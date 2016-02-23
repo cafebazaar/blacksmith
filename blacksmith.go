@@ -94,7 +94,7 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 	return nil, fmt.Errorf("interface %s has no usable unicast addresses", iface.Name)
 }
 
-func gracefulShutdown(etcdDataSource datasource.MasterDataSource) {
+func gracefulShutdown(etcdDataSource datasource.DataSource) {
 	err := etcdDataSource.RemoveInstance()
 	if err != nil {
 		log.Printf("\nError while removing the instance: %s\n", err)

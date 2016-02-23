@@ -16,16 +16,8 @@ import (
 	"github.com/cafebazaar/blacksmith/templating"
 )
 
-// pxelinux configuration that tells the PXE/UNDI stack to boot from
-// local disk.
-const bootFromDisk = `
-DEFAULT local
-LABEL local
-LOCALBOOT 0
-`
-
 const bootMessageTemplate = `
-		Blacksmith 0.2
+		Blacksmith ($VERSION)
 		+ MAC ADDR:	$MAC
 `
 
@@ -36,19 +28,21 @@ type nodeContext struct {
 type HTTPBooter struct {
 	listenAddr          net.TCPAddr
 	ldlinux             []byte
-	datasource          datasource.GeneralDataSource
+	datasource          datasource.DataSource
 	bootParamsTemplates *template.Template
 	webPort             int
+	bootMessageTemplate string
 }
 
 func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte,
-	ds datasource.GeneralDataSource, webPort int) (*HTTPBooter, error) {
+	ds datasource.DataSource, webPort int) (*HTTPBooter, error) {
+	bootMessageVersionedTemplate := strings.Replace(bootMessageTemplate, "$VERSION", ds.Version().Version, -1)
 	booter := &HTTPBooter{
-		listenAddr: listenAddr,
-		ldlinux:    ldlinux,
-		datasource: ds,
-		webPort:    webPort,
-		//		bootParamsTemplates: bootParamsTemplates,
+		listenAddr:          listenAddr,
+		ldlinux:             ldlinux,
+		datasource:          ds,
+		webPort:             webPort,
+		bootMessageTemplate: bootMessageVersionedTemplate,
 	}
 	return booter, nil
 }
@@ -128,7 +122,7 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 			"coreos.config.url=http://%s:%d/t/ig/%s %s",
 		host, b.webPort, mac.String(),
 		host, b.webPort, mac.String(), params)
-	bootMessage := strings.Replace(bootMessageTemplate, "$MAC", macStr, -1)
+	bootMessage := strings.Replace(b.bootMessageTemplate, "$MAC", macStr, -1)
 	cfg := fmt.Sprintf(`
 SAY %s
 DEFAULT linux
@@ -186,7 +180,7 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	logging.Log("HTTPBOOTER", "Sent %s to %s (%d bytes)", id, r.RemoteAddr, written)
 }
 
-func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.GeneralDataSource, webPort int) (*http.ServeMux, error) {
+func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int) (*http.ServeMux, error) {
 	ldlinux, err := FSByte(false, "/pxelinux/ldlinux.c32")
 	if err != nil {
 		return nil, err
@@ -198,7 +192,7 @@ func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.GeneralDataSource, webP
 	return booter.Mux(), nil
 }
 
-func ServeHTTPBooter(listenAddr net.TCPAddr, ds datasource.GeneralDataSource, webPort int) error {
+func ServeHTTPBooter(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int) error {
 	logging.Log("HTTPBOOTER", "Listening on %s", listenAddr.String())
 	mux, err := HTTPBooterMux(listenAddr, ds, webPort)
 	if err != nil {

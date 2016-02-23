@@ -13,7 +13,7 @@ import (
 )
 
 type webServer struct {
-	ds datasource.GeneralDataSource
+	ds datasource.DataSource
 }
 
 // Handler uses a multiplexing router to route http requests
@@ -44,7 +44,7 @@ func (ws *webServer) Handler() http.Handler {
 }
 
 //ServeWeb serves api of Blacksmith and a ui connected to that api
-func ServeWeb(ds datasource.GeneralDataSource, listenAddr net.TCPAddr) error {
+func ServeWeb(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 	r := &webServer{ds: ds}
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r.Handler())
 	s := &http.Server{

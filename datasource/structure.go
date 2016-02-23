@@ -42,7 +42,7 @@ type Machine interface {
 }
 
 // GeneralDataSource provides the interface for querying general information
-type GeneralDataSource interface {
+type DataSource interface {
 	Version() BlacksmithVersion
 
 	// CoreOSVerison returns the coreOs version that blacksmith supplies
@@ -79,10 +79,7 @@ type GeneralDataSource interface {
 
 	// ClusterName returns the name of the ClusterName
 	ClusterName() string
-}
 
-// DHCPDataSource is the functionality that a DHCP datasource has to provide
-type DHCPDataSource interface {
 	// LeaseStart specifies dhcp pool starting ip
 	LeaseStart() net.IP
 	// LeaseRange specifies number of IPs the dhcp server can assign
@@ -99,18 +96,7 @@ type DHCPDataSource interface {
 	// a byte slice is returned to be used as option 6 (rfc2132) in a dhcp Request
 	// reply packet
 	DNSAddresses() ([]byte, error)
-}
 
-// HADataSource specifies the methods that are used for high availablity purposes
-type HADataSource interface {
 	IsMaster() bool
 	RemoveInstance() error
-}
-
-// MasterDataSource embedds GeneralDataSource, DHCPDataSource, RestServer,
-// and HADataSource
-type MasterDataSource interface {
-	GeneralDataSource
-	DHCPDataSource
-	HADataSource
 }

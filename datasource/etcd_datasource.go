@@ -383,7 +383,7 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	leaseRange int, clusterName, workspacePath string, serverIP net.IP,
-	defaultNameServers []string, version BlacksmithVersion) (MasterDataSource, error) {
+	defaultNameServers []string, version BlacksmithVersion) (DataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {

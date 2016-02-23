@@ -2,6 +2,7 @@ package dhcp // import "github.com/cafebazaar/blacksmith/dhcp"
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"net"
 	"strings"
@@ -32,7 +33,7 @@ type DHCPSetting struct {
 	SubnetMask net.IP
 }
 
-func ServeDHCP(settings *DHCPSetting, datasource datasource.DHCPDataSource) error {
+func ServeDHCP(settings *DHCPSetting, datasource datasource.DataSource) error {
 	handler, err := newDHCPHandler(settings, datasource)
 	if err != nil {
 		logging.Debug("DHCP", "Error in connecting etcd - %s", err.Error())
@@ -58,32 +59,37 @@ func ServeDHCP(settings *DHCPSetting, datasource datasource.DHCPDataSource) erro
 
 type DHCPHandler struct {
 	settings    *DHCPSetting
-	datasource  datasource.DHCPDataSource
+	datasource  datasource.DataSource
 	dhcpOptions dhcp4.Options
+	bootMessage string
 }
 
-func newDHCPHandler(settings *DHCPSetting, datasource datasource.DHCPDataSource) (*DHCPHandler, error) {
+func newDHCPHandler(settings *DHCPSetting, datasource datasource.DataSource) (*DHCPHandler, error) {
 	h := &DHCPHandler{
-		settings: settings,
+		settings:    settings,
+		datasource:  datasource,
+		bootMessage: fmt.Sprintf("Blacksmith (%s)", datasource.Version().Version),
 	}
-	h.datasource = datasource
 	return h, nil
 }
 
 func (h *DHCPHandler) fillPXE() []byte {
 	// PXE vendor options
 	var pxe bytes.Buffer
+	var l byte
 	// Discovery Control - disable broadcast and multicast boot server discovery
 	pxe.Write([]byte{6, 1, 3})
 	// PXE boot server
 	pxe.Write([]byte{8, 7, 0x80, 0x00, 1})
 	pxe.Write(h.settings.ServerIP.To4())
 	// PXE boot menu - one entry, pointing to the above PXE boot server
-	pxe.Write([]byte{9, 12, 0x80, 0x00, 9})
-	pxe.WriteString("aghjo-0.1")
+	l = byte(3 + len(h.bootMessage))
+	pxe.Write([]byte{9, l, 0x80, 0x00, 9})
+	pxe.WriteString(h.bootMessage)
 	// PXE menu prompt+timeout
-	pxe.Write([]byte{10, 10, 0x2})
-	pxe.WriteString("aghjo-0.1")
+	l = byte(1 + len(h.bootMessage))
+	pxe.Write([]byte{10, l, 0x2})
+	pxe.WriteString(h.bootMessage)
 	// End vendor options
 	pxe.WriteByte(255)
 	return pxe.Bytes()

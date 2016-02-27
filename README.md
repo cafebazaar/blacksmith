@@ -18,8 +18,11 @@ infrastructure.
 Warning: **UNDER DEVELOPMENT**. To be notified about the project getting more stable,
 please subscribe to [this issue](https://github.com/cafebazaar/blacksmith/issues/5).
 
+![Screenshot of Nodes List page - Blacksmith][screenshot]
+
 [cloud-config]: https://github.com/coreos/coreos-cloudinit
 [ignition]: https://github.com/coreos/ignition
+[screenshot]: https://github.com/cafebazaar/blacksmith/raw/master/docs/NodesList.png "Nodes List - Blacksmith"
 
 ## Workspace and Templating
 

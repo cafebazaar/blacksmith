@@ -7,7 +7,7 @@
 [Travis]: https://travis-ci.org/cafebazaar/blacksmith
 [Travis Widget]: https://travis-ci.org/cafebazaar/blacksmith.svg?branch=master
 
-Blacksmith is a collection of DHCP, PXE, TFTP, and HTTP server,
+Blacksmith is a collection of DHCP, PXE, TFTP, and HTTP servers,
 created with the purpose of booting CoreOS on bare-metal machines,
 configuring them by serving generated [cloud-config] and [ignition] files, and
 maintaining the cluster over the time.

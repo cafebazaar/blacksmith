@@ -1,5 +1,6 @@
 .vagrant
 *~
+.DS_Store
 
 # Local customizations
 vagrant_provision_after_docker_installation.local
@@ -11,11 +12,9 @@ web/ui_autogen.go
 web/ui/external
 web/ui/fonts
 
-# temporary
-datasource/ui_autogen.go
-
 # local
 example/example
 deploy.sh
 remote_deploy.sh
 workspaces
+

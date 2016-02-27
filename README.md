@@ -10,7 +10,7 @@
 Blacksmith is a collection of DHCP, PXE, TFTP, and HTTP server,
 created with the purpose of booting CoreOS on bare-metal machines,
 configuring them by serving generated [cloud-config] and [ignition] files, and
-maintaining the over the time.
+maintaining the cluster over the time.
 Blacksmith uses etcd to store the states, and to elect a leader. So You can run
 multiple instances of Blacksmith to provide a high available CoreOS over bare-metal
 infrastructure.
@@ -20,6 +20,16 @@ please subscribe to [this issue](https://github.com/cafebazaar/blacksmith/issues
 
 [cloud-config]: https://github.com/coreos/coreos-cloudinit
 [ignition]: https://github.com/coreos/ignition
+
+## Workspace and Templating
+
+The cloud-config and ignition files, and the bootparams string which is passed
+to the kernel at boot time, are provided by executing templates for each machine.
+These templates, along with CoreOS images and other binary files forms the
+runtime environment of your cluster. In Blacksmith, we call this folder *Workspace*.
+For more information on the structure of a workspace, check the [workspace doc].
+
+[workspace doc]: docs/Workspace.md
 
 ## Running in Docker
 
@@ -44,8 +54,8 @@ configure them through etcd.
 
 [SkyDNS]: https://github.com/skynetservices/skydns
 
-## Under the Hood
-Check [this](docs/UnderTheHood.md).
+## Documentation
+Check [this](docs/README.md).
 
 ## Development
 

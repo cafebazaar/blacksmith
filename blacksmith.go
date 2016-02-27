@@ -261,7 +261,6 @@ func main() {
 	// serving dhcp
 	go func() {
 		err := dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			Suffix:     *clusterNameFlag,
 			IFName:     dhcpIF.Name,
 			ServerIP:   serverIP,
 			RouterAddr: leaseRouter,

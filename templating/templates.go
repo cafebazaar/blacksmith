@@ -45,15 +45,6 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 		"V": func(key string) string {
 			return ""
 		},
-		"S": func(key string, value string) string {
-			return ""
-		},
-		"VD": func(key string) string {
-			return ""
-		},
-		"D": func(key string) string {
-			return ""
-		},
 		"b64": func(text string) string {
 			return ""
 		},
@@ -74,7 +65,7 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 	return t, nil
 }
 
-func executeTemplate(rootTemplte *template.Template, templateName string, machine datasource.Machine) (string, error) {
+func executeTemplate(rootTemplte *template.Template, templateName string, machine datasource.Machine, hostAddr string) (string, error) {
 	template := rootTemplte.Lookup(templateName)
 
 	if template == nil {
@@ -94,39 +85,11 @@ func executeTemplate(rootTemplte *template.Template, templateName string, machin
 			}
 			return flag
 		},
-		"S": func(key string, value string) string {
-			err := machine.SetFlag(key, value)
-			if err != nil {
-				logging.Log(templatesDebugTag,
-					"Error while setting flag key=%s value=%s for machine=%s: %s",
-					key, value, machine.Name(), err)
-			}
-			return ""
-		},
-		"VD": func(key string) string {
-			flag, err := machine.GetAndDeleteFlag(key)
-			if err != nil { // TODO excepts Not-Found
-				logging.Log(templatesDebugTag,
-					"Error while get+deleting flag key=%s for machine=%s: %s",
-					key, machine.Name(), err)
-				return ""
-			}
-			return flag
-		},
-		"D": func(key string) string {
-			err := machine.DeleteFlag(key)
-			if err != nil {
-				logging.Log(templatesDebugTag,
-					"Error while deleting flag key=%s for machine=%s: %s",
-					key, machine.Name(), err)
-			}
-			return ""
-		},
 		"b64": func(text string) string {
 			return base64.StdEncoding.EncodeToString([]byte(text))
 		},
 		"b64template": func(templateName string) string {
-			text, err := executeTemplate(rootTemplte, templateName, machine)
+			text, err := executeTemplate(rootTemplte, templateName, machine, hostAddr)
 			if err != nil {
 				logging.Log(templatesDebugTag,
 					"Error while b64template for templateName=%s machine=%s: %s",
@@ -136,7 +99,21 @@ func executeTemplate(rootTemplte *template.Template, templateName string, machin
 			return base64.StdEncoding.EncodeToString([]byte(text))
 		},
 	})
-	err := template.ExecuteTemplate(buf, templateName, nil)
+	ip, _ := machine.IP()
+	data := struct {
+		Mac      string
+		IP       string
+		Hostname string
+		Domain   string
+		HostAddr string
+	}{
+		machine.Mac().String(),
+		ip.String(),
+		machine.Name(),
+		machine.Domain(),
+		hostAddr,
+	}
+	err := template.ExecuteTemplate(buf, templateName, &data)
 	if err != nil {
 		return "", err
 	}
@@ -145,12 +122,12 @@ func executeTemplate(rootTemplte *template.Template, templateName string, machin
 	return str, nil
 }
 
-func ExecuteTemplateFolder(tmplFolder string, machine datasource.Machine) (string, error) {
+func ExecuteTemplateFolder(tmplFolder string, machine datasource.Machine, hostAddr string) (string, error) {
 	template, err := templateFromPath(tmplFolder)
 	if err != nil {
 		return "", fmt.Errorf("Error while reading the template with path=%s: %s",
 			tmplFolder, err)
 	}
 
-	return executeTemplate(template, "main", machine)
+	return executeTemplate(template, "main", machine, hostAddr)
 }

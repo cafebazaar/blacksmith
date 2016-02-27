@@ -17,6 +17,9 @@ type Machine interface {
 	// Name returns the hostname of the machine
 	Name() string
 
+	// Domain returns the domain name of the machine
+	Domain() string
+
 	// FirstSeen returns the time upon which the machine has
 	// been seen
 	FirstSeen() (time.Time, error)

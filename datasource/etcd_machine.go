@@ -44,6 +44,11 @@ func (m *EtcdMachine) Name() string {
 	return nameFromMac(m.Mac().String())
 }
 
+// Domain returns this machine's domain which is equal to the cluster name
+func (m *EtcdMachine) Domain() string {
+	return m.etcd.ClusterName()
+}
+
 func unixNanoStringToTime(unixNano string) (time.Time, error) {
 	unixNanoi64, err := strconv.ParseInt(unixNano, 10, 64)
 	if err != nil {

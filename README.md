@@ -1,4 +1,4 @@
-# Blacksmith, Bare-Metal Booting for CoreOS and Kubernetes
+# Blacksmith, Bare-Metal CoreOS Cluster Manager
 
 [![GoDoc Widget]][GoDoc] [![Travis Widget]][Travis]
 

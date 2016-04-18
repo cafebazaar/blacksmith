@@ -24,5 +24,5 @@ TODO: #27
 
 ## Examples
 
-* [Using flags](https://github.com/cafebazaar/blacksmith-workspace-kubernetes/blob/temporary/config/cloudconfig/main)
-* [Using api to update flags](https://github.com/cafebazaar/blacksmith-workspace-kubernetes/blob/temporary/config/cloudconfig/partitioning.sh#L11)
+* [Using flags](https://github.com/cafebazaar/blacksmith-kubernetes/blob/master/blacksmith/config/cloudconfig/main)
+* [Using api to update flags](https://github.com/cafebazaar/blacksmith-kubernetes/blob/master/blacksmith/config/cloudconfig/initialize.sh#L13)

@@ -25,10 +25,10 @@ Vagrant.configure("2") do |config|
 
       pxeserver.vm.network :private_network,
           :libvirt__network_name => "pxenetwork",
-          :libvirt__netmask => "255.255.255.0",
+          :libvirt__netmask => "255.255.240.0",
           :libvirt__dhcp_enabled => false,
           :mac => "52:54:00:ff:00:0#{n+1}",
-          :ip => "10.10.10.1#{n+1}"
+          :ip => "192.168.64.2#{n+1}"
       pxeserver.vm.hostname = "pxeserver#{n+1}"
     end
   end
@@ -38,10 +38,10 @@ Vagrant.configure("2") do |config|
 
       pxeclient.vm.network :private_network,
           :libvirt__network_name => "pxenetwork",
-          :libvirt__netmask => "255.255.255.0",
+          :libvirt__netmask => "255.255.240.0",
           :libvirt__dhcp_enabled => false,
           :mac => "52:54:00:ff:00:1#{n+1}",
-          :ip => "10.10.10.10#{n+1}"
+          :ip => "192.168.64.10#{n+1}"
 
       pxeclient.vm.provider :libvirt do |pxeclient_vm|
         pxeclient_vm.memory = 2048

@@ -11,7 +11,7 @@ Blacksmith is a collection of DHCP, PXE, TFTP, and HTTP servers,
 created with the purpose of booting CoreOS on bare-metal machines,
 configuring them by serving generated [cloud-config] and [ignition] files, and
 maintaining the cluster over the time.
-Blacksmith uses etcd to store the states, and to elect a leader. So You can run
+Blacksmith uses etcd to store the states, and to elect a leader. So you can run
 multiple instances of Blacksmith to provide a high available CoreOS over bare-metal
 infrastructure.
 
@@ -67,14 +67,17 @@ You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test enviro
 ```bash
 make blacksmith
 
-### Clone and prepare workspace
+### Clone and prepare a workspace
 mkdir workspaces
 cd workspaces
-git clone https://github.com/cafebazaar/blacksmith-workspace-kubernetes.git
-cd blacksmith-workspace-kubernetes
-make update
+git clone https://github.com/cafebazaar/blacksmith-kubernetes.git
+cd blacksmith-kubernetes/binaries
+./download-all.sh
 cd ..
-ln -s blacksmith-workspace-kubernetes/workspace current
+# put your key into ssh-keys.yaml
+./build.sh
+cd ..
+ln -s blacksmith-kubernetes/workspace current
 
 # Start 3 machines, which will be provisioned to serve a 3-node etcd cluster,
 # 3 working instances of SkyDNS, and a 3-node Blacksmith cluster

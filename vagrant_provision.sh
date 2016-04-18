@@ -58,16 +58,16 @@ for i in `seq 1 $1`; do
     ETCD_CLUSTER="${ETCD_CLUSTER},"
     ETCD_ENDPOINTS="${ETCD_ENDPOINTS},"
   fi
-  ETCD_CLUSTER="${ETCD_CLUSTER}etcd${i}=http://10.10.10.1${i}:2380"
-  ETCD_ENDPOINTS="${ETCD_ENDPOINTS}http://10.10.10.1${i}:2379"
+  ETCD_CLUSTER="${ETCD_CLUSTER}etcd${i}=http://192.168.64.2${i}:2380"
+  ETCD_ENDPOINTS="${ETCD_ENDPOINTS}http://192.168.64.2${i}:2379"
 done
 
 [ "$4" -eq "1" ] && docker kill etcd || echo "OK!"
 [ "$4" -eq "1" ] && docker rm etcd || echo "OK!"
 docker run -d -p 2379:2379 -p 2380:2380 --restart=always --name etcd quay.io/coreos/etcd:v2.2.4 \
- -name etcd${2}   -advertise-client-urls http://10.10.10.1${2}:2379 \
+ -name etcd${2}   -advertise-client-urls http://192.168.64.2${2}:2379 \
  -listen-client-urls http://0.0.0.0:2379 \
- -initial-advertise-peer-urls http://10.10.10.1${2}:2380 \
+ -initial-advertise-peer-urls http://192.168.64.2${2}:2380 \
  -listen-peer-urls http://0.0.0.0:2380 \
  -initial-cluster-token etcd-cluster \
  -initial-cluster $ETCD_CLUSTER \

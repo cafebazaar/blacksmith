@@ -10,7 +10,7 @@ import (
 
 func ServeTFTP(listenAddr net.UDPAddr) error {
 	pxelinuxDir := FS(false)
-	tftp.Log = func(msg string, args ...interface{}) { logging.Log("TFTP", msg, args...) }
+	tftp.Logf = func(msg string, args ...interface{}) { logging.Log("TFTP", msg, args...) }
 	tftp.Debug = func(msg string, args ...interface{}) { logging.Debug("TFTP", msg, args...) }
 
 	handler := func(string, net.Addr) (io.ReadCloser, error) {

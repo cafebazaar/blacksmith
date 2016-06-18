@@ -127,7 +127,7 @@ func main() {
 	if *listenIFFlag != "" {
 		dhcpIF, err = net.InterfaceByName(*listenIFFlag)
 		if err != nil {
-			fmt.Fprint(os.Stderr, "\nError while trying to get the interface")
+			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s)\n", *listenIFFlag)
 			os.Exit(1)
 		}
 	} else {
@@ -137,7 +137,7 @@ func main() {
 
 	serverIP, err := interfaceIP(dhcpIF)
 	if err != nil {
-		fmt.Fprint(os.Stderr, "\nError while trying to get the ip from the interface")
+		fmt.Fprintf(os.Stderr, "\nError while trying to get the ip from the interface (%s)\n", dhcpIF)
 		os.Exit(1)
 	}
 
@@ -165,7 +165,7 @@ func main() {
 	for _, ipString := range dnsIPStrings {
 		ip := net.ParseIP(ipString)
 		if ip == nil {
-			fmt.Fprint(os.Stderr, "\nInvalid dns ip: %s\n", ipString)
+			fmt.Fprintf(os.Stderr, "\nInvalid dns ip: %s\n", ipString)
 			os.Exit(1)
 		}
 	}

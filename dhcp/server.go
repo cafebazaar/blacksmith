@@ -104,11 +104,14 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 
 	dhcpOptions := dhcp4.Options{
 		dhcp4.OptionSubnetMask:       h.settings.SubnetMask.To4(),
-		dhcp4.OptionRouter:           h.settings.RouterAddr.To4(),
 		dhcp4.OptionDomainNameServer: dns,
 	}
 
-	var macAddress string = strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
+	if h.settings.RouterAddr != nil {
+		dhcpOptions[dhcp4.OptionRouter] = h.settings.RouterAddr.To4()
+	}
+
+	macAddress := strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
 	switch msgType {
 	case dhcp4.Discover:
 		ip, err := h.datasource.Assign(p.CHAddr().String())

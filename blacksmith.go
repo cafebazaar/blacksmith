@@ -183,8 +183,7 @@ func main() {
 		os.Exit(1)
 	}
 	if leaseRouter == nil {
-		fmt.Fprint(os.Stderr, "\nPlease specify the IP address of network router\n")
-		os.Exit(1)
+		fmt.Fprint(os.Stderr, "\nNo network router is defined.\n")
 	}
 
 	fmt.Printf("Interface IP:    %s\n", serverIP.String())

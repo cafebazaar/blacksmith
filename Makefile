@@ -1,7 +1,7 @@
 VERSION ?= $(shell git describe --tags)
 COMMIT := $(shell git rev-parse HEAD)
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
-DOCKER_IMAGE ?= "cafebazaar/blacksmith"
+DOCKER_IMAGE ?= cafebazaar/blacksmith
 
 .PHONY: help clean docker push test
 help:
@@ -42,7 +42,8 @@ clean:
 	rm -rf blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go web/ui/external web/ui/fonts
 
 docker: blacksmith
-	docker build -t $(DOCKER_IMAGE) .
+	docker build -t $(DOCKER_IMAGE):$(VERSION) .
 
 push: docker
+	docker push $(DOCKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_IMAGE)

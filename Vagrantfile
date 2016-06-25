@@ -14,7 +14,7 @@ Vagrant.configure("2") do |config|
 
   num_servers.times do |n|
     config.vm.define "pxeserver#{n+1}" do |pxeserver|
-      pxeserver.vm.box = "naelyn/ubuntu-trusty64-libvirt"
+      pxeserver.vm.box = "s3than/trusty64"
 
       pxeserver.vm.provider :libvirt do |pxeserver_vm|
         pxeserver_vm.memory = 2048

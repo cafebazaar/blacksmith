@@ -43,6 +43,7 @@ clean:
 
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE):$(VERSION) .
+	docker tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE)
 
 push: docker
 	docker push $(DOCKER_IMAGE):$(VERSION)

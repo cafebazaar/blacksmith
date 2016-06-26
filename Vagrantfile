@@ -31,6 +31,7 @@ Vagrant.configure("2") do |config|
           :ip => "192.168.64.2#{n+1}"
       pxeserver.vm.hostname = "pxeserver#{n+1}"
     end
+    config.vm.synced_folder ".", "/vagrant", type: 'nfs'
   end
 
   num_clients.times do |n|

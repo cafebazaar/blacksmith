@@ -38,6 +38,7 @@ var (
 	versionFlag       = flag.Bool("version", false, "Print version info and exit")
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
+	listenWebFlag     = flag.String("web-range", "0.0.0.0", "IP range to listen on for web requests on :8000")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
 	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
@@ -141,9 +142,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	webIP := net.ParseIP(*listenWebFlag)
+
 	// component ports
-	// web api is exposed to 0.0.0.0
-	var webAddr = net.TCPAddr{IP: net.IPv4zero, Port: 8000}
+	// web api is exposed to requests from `webIP', 0.0.0.0 by default
+	webAddr := net.TCPAddr{IP: webIP, Port: 8000}
 
 	// other services are exposed just through the given interface
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}

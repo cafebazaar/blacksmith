@@ -116,4 +116,6 @@ type DataSource interface {
 	RemoveInstance() error
 
 	EtcdMembers() (string, error)
+
+	GetAllInstances() []string
 }

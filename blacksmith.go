@@ -168,8 +168,6 @@ func main() {
 
 	}
 
-	logging.Debug(debugTag, "Will Serve web on:"+webAddr.String())
-
 	// component ports
 	// web api is exposed to requests from `webIP', 0.0.0.0 by default
 

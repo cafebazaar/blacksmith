@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -32,13 +33,15 @@ const (
 		/initial.yaml
 `
 	debugTag = "MAIN"
+
+	httpListenFlagDefaultTCPAddress = "interface-ip:8000"
 )
 
 var (
 	versionFlag       = flag.Bool("version", false, "Print version info and exit")
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
-	listenWebFlag     = flag.String("web-range", "0.0.0.0", "IP range to listen on for web requests on :8000")
+	httpListenFlag    = flag.String("http-listen", httpListenFlagDefaultTCPAddress, "IP range to listen on for web requests on :8000")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
 	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
@@ -142,11 +145,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	webIP := net.ParseIP(*listenWebFlag)
+	webAddr := net.TCPAddr{IP: serverIP, Port: 8000}
+
+	if *httpListenFlag != httpListenFlagDefaultTCPAddress {
+		splitAddress := strings.Split(*httpListenFlag, ":")
+		if len(splitAddress) > 2 {
+			fmt.Printf("Incorrect tcp address provided: %s", httpListenFlag)
+			os.Exit(1)
+		}
+		if len(splitAddress) == 1 {
+			splitAddress = append(splitAddress, "8000")
+		}
+
+		webAddr.IP = net.ParseIP(splitAddress[0])
+		port, err := strconv.ParseInt(splitAddress[1], 10, 64)
+
+		if err != nil {
+			fmt.Printf("Incorrect tcp address provided: %s", httpListenFlag)
+			os.Exit(1)
+		}
+		webAddr.Port = int(port)
+
+	}
+
+	logging.Debug(debugTag, "Will Serve web on:"+webAddr.String())
 
 	// component ports
 	// web api is exposed to requests from `webIP', 0.0.0.0 by default
-	webAddr := net.TCPAddr{IP: webIP, Port: 8000}
 
 	// other services are exposed just through the given interface
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}

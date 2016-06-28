@@ -160,3 +160,19 @@ func (ds *EtcdDataSource) GetAllInstances() ([]string, error) {
 	}
 	return result, nil
 }
+
+// Get all other alive instances
+func (ds *EtcdDataSource) GetAllOtherInstances() ([]string, error) {
+	resp, err := ds.GetAllInstances()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+	for _, node := range resp {
+		if node != ds.serverIP.String() {
+			result = append(result, node)
+		}
+	}
+	return result, nil
+}

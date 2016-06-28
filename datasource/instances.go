@@ -139,7 +139,7 @@ func (ii *InstanceInfo) String() string {
 	return string(marshaled)
 
 // Get all alive instances
-func (ds *EtcdDataSource) GetAllInstances() []string {
+func (ds *EtcdDataSource) GetAllInstances() ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 
@@ -151,11 +151,12 @@ func (ds *EtcdDataSource) GetAllInstances() []string {
 	resp, err := ds.keysAPI.Get(ctx, ds.prefixify(instancesEtcdDir), &masterGetOptions)
 	if err != nil {
 		logging.Log(debugTag, "error while getting the dir list from etcd: %s", err)
+		return nil, err
 	}
 
 	var result = make([]string, len(resp.Node.Nodes))
 	for i, node := range resp.Node.Nodes {
 		result[i] = node.Value
 	}
-	return result
+	return result, nil
 }

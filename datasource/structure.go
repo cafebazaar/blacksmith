@@ -126,5 +126,5 @@ type DataSource interface {
 
 	EtcdMembers() (string, error)
 
-	GetAllInstances() []string
+	GetAllInstances() ([]string, error)
 }

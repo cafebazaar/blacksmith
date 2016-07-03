@@ -117,6 +117,18 @@ type DataSource interface {
 
 	EtcdMembers() (string, error)
 
+	// Get all instances
 	GetAllInstances() ([]string, error)
 	GetAllOtherInstances() ([]string, error)
+
+	// Create a new file node in Etcd
+	NewFile(name string, path string)
+	WatchFileChanges()
+}
+
+type File struct  {
+	Name		string		`json:"name"`
+	FromInstance	string		`json:"fromInstance"`
+	Location	string		`json:"location"`
+	UploadedAt	int64		`json:"uploadedAt"` // unix timestamp
 }

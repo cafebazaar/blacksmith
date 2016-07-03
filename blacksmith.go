@@ -246,6 +246,9 @@ func main() {
 		}
 	}()
 
+	// watching files on etcd
+	go etcdDataSource.WatchFileChanges()
+
 	// waiting til we're officially the master instance
 	for !etcdDataSource.IsMaster() {
 		logging.Debug(debugTag, "Not master, waiting to be promoted...")

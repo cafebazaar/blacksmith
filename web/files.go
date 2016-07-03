@@ -9,9 +9,6 @@ import (
 	"path/filepath"
 	"time"
 	"github.com/cafebazaar/blacksmith/logging"
-	"mime/multipart"
-	"bytes"
-	"net"
 )
 
 const DebugTag string = "WEB"
@@ -67,7 +64,7 @@ func (ws *webServer) Upload(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	dst, err := os.Create(filepath.Join(ws.ds.WorkspacePath(), "files", header.Filename))
+	dst, err := os.Create(filepath.Join(ws.ds.WorkspacePath(), "files", urandomString(6) + "-" + header.Filename))
 	defer dst.Close()
 	if err != nil {
 		http.Error(w, err.Error(), 500)
@@ -83,47 +80,7 @@ func (ws *webServer) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	otherNodes, err := ws.ds.GetAllOtherInstances()
-	if err != nil {
-		return
-	}
-
-	// check if we're getting request from another instance or end-user
-	for _, node := range otherNodes {
-		host, _, _ := net.SplitHostPort(r.RemoteAddr)
-		if node == host {
-			return
-		}
-	}
-
-	bodyBuf := &bytes.Buffer{}
-	bodyWriter := multipart.NewWriter(bodyBuf)
-
-	for _, node := range otherNodes {
-		fileWriter, err := bodyWriter.CreateFormFile("file", header.Filename)
-		if err != nil {
-			logging.Debug(DebugTag, "couldn't create FormFile due to: %s", err)
-		}
-
-		file, err := os.Open(dst.Name())
-		if err != nil {
-			logging.Debug(DebugTag, "couldn't open %s due to: %s", dst.Name(), err)
-		}
-		defer file.Close()
-
-		written, err = io.Copy(fileWriter, io.LimitReader(file, MaxFileSize))
-		if err != nil {
-			logging.Debug(DebugTag, "coudn't copy data from %s to buffer due to: %s", dst.Name(), err)
-		}
-		bodyWriter.Close()
-		resp, err := http.Post("http://" + node + ":8000/upload/", bodyWriter.FormDataContentType(), bodyBuf)
-		resp_body, err := ioutil.ReadAll(resp.Body)
-		logging.Debug("WEB", "response from %s: %s", node, resp_body)
-		if err != nil {
-			logging.Log("WEB", "couldn't upload file to node#%s due to: %s", node, err)
-		}
-		bodyBuf.Reset()
-	}
+	ws.ds.NewFile(header.Filename, dst.Name())
 }
 
 // DeleteFile allows the deletion of a file through http Request

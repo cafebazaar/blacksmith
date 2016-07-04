@@ -16,21 +16,27 @@ const (
 )
 
 
-// Registers a new file
-func (ds *EtcdDataSource) NewFile(name string, path string) {
+// Registers a new file meta data on etcd
+func (ds *EtcdDataSource) NewFile(name string, fileHandler *os.File) {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	options := etcd.CreateInOrderOptions{
 		TTL: 0, // permanent
 	}
+	fileInfo, err := fileHandler.Stat()
+	if err != nil {
+		logging.Debug(debugTag, "couldn't get file stat due to: %s", err)
+	}
 	file := &File{
 		Name: name,
-		Location: path,
+		Location: fileHandler.Name(),
+		Size: fileInfo.Size(),
+		LastModificationDate: fileInfo.ModTime().Unix(),
 		UploadedAt: time.Now().Unix(),
 		FromInstance: ds.serverIP.String(),
 	}
 	jsoned, _ := json.Marshal(file)
-	_, err := ds.keysAPI.CreateInOrder(ctx, ds.prefixify(filesEtcdDir), string(jsoned), &options)
+	_, err = ds.keysAPI.CreateInOrder(ctx, ds.prefixify(filesEtcdDir), string(jsoned), &options)
 	if err != nil {
 		logging.Debug(debugTag, "Couldn't create new file node on etcd due to: %s", err)
 	}

@@ -129,13 +129,16 @@ type DataSource interface {
 	GetAllOtherInstances() ([]string, error)
 
 	// Create a new file node in Etcd
-	NewFile(name string, path string)
+	NewFile(name string, file *os.File)
 	WatchFileChanges()
 }
 
 type File struct  {
-	Name		string		`json:"name"`
-	FromInstance	string		`json:"fromInstance"`
-	Location	string		`json:"location"`
-	UploadedAt	int64		`json:"uploadedAt"` // unix timestamp
+	Id			string		`json:"id,omitempty"`
+	Name			string		`json:"name"`
+	FromInstance		string		`json:"fromInstance"`
+	Location		string		`json:"location"`
+	UploadedAt		int64		`json:"uploadedAt"` // unix timestamp
+	Size			int64           `json:"size"`
+	LastModificationDate 	int64	 	`json:"lastModifiedDate"`
 }

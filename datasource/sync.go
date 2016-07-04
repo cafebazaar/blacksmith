@@ -57,12 +57,12 @@ func (ds *EtcdDataSource) WatchFileChanges()  {
 			logging.Debug(debugTag, "couldn't retrieve data from etcd when watching files due to: %s", err)
 		}
 
-		logging.Debug(debugTag, "watcher response: %s", resp)
 		if resp.Action == "create" {
 			file := &File{}
 			json.Unmarshal([]byte(resp.Node.Value), file)
-			if file.FromInstance == ds.serverIP.String() {continue}
-
+			if file.FromInstance == ds.serverIP.String() {
+				continue
+			}
 			dst, err := os.Create(file.Location)
 			if err != nil {
 				logging.Debug(debugTag, "cloudn't create file due to: %s", err)
@@ -74,8 +74,55 @@ func (ds *EtcdDataSource) WatchFileChanges()  {
 
 			_, err = io.Copy(dst, data.Body)
 
+		} else if resp.Action == "delete" {
+			file := &File{}
+			json.Unmarshal([]byte(resp.PrevNode.Value), file)
+			logging.Debug(debugTag, "file: %s", file)
+			err := os.Remove(file.Location)
+			if err != nil {
+				logging.Debug(debugTag, "couldn't delete the file due to: %s", err)
+			}
 		} else {
 			logging.Debug(debugTag, "This Action has not been handled! %s", resp)
 		}
 	}
+}
+
+// retrieve all the files meta data from etcd and retrun it as an array of file instances
+func (ds *EtcdDataSource) GetAllFiles() []*File {
+	resp, _ := ds.GetNodes(ds.prefixify(filesEtcdDir))
+
+	var files []*File
+
+	for _, node := range resp {
+		if node.TTL > 0 {continue}
+		file := &File{}
+		json.Unmarshal([]byte(node.Value), file)
+		file.Id = node.Key
+		files = append(files, file)
+	}
+	return files
+}
+
+// retrieve file meta data from etcd and return it as a file instance
+func (ds *EtcdDataSource) GetFile(key string) *File {
+	file := &File{}
+	val, _ := ds.GetAbsolute(key)
+	file.Id = key
+	json.Unmarshal([]byte(val), file)
+	return file
+}
+
+// retrieve the file meta data on etcd and set a TTL on the key
+func (ds *EtcdDataSource) GetAndDeleteFile(key string) *File {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	resp, err := ds.keysAPI.Delete(ctx, key, nil)
+	if err != nil {
+		logging.Debug(debugTag, "couldn't delete file on etcd due to: %s", err)
+	}
+	file := &File{}
+	file.Id = key
+	json.Unmarshal([]byte(resp.PrevNode.Value), file)
+	return file
 }

@@ -158,7 +158,7 @@ blacksmithUIControllers.controller('BlacksmithFilesCtrl', ['$scope', 'UploadedFi
           $scope.files.splice(index, 1);
         }
       } else {
-        $http.delete('/files?name=' + file.name ).then(
+        $http.delete('/files?id=' + file.id ).then(
 		      function( value ){
 		           var index = $scope.files.indexOf(file);
 		           if (index > -1) {

@@ -3,42 +3,19 @@ package web
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 	"github.com/cafebazaar/blacksmith/logging"
 )
 
 const DebugTag string = "WEB"
 
-type uploadedFile struct {
-	Name                 string    `json:"name"`
-	Size                 int64     `json:"size"`
-	LastModificationDate time.Time `json:"lastModifiedDate"`
-}
 
-// Files allows utilization of the uploaded/shared files through http requests
+// uploaded files metadata
 func (ws *webServer) Files(w http.ResponseWriter, r *http.Request) {
-	files, err := ioutil.ReadDir(filepath.Join(ws.ds.WorkspacePath(), "files"))
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-	}
-
-	var filesList []uploadedFile
-	for _, f := range files {
-		if f.Name()[0] == '.' {
-			continue
-		}
-		var uploadedFile uploadedFile
-		uploadedFile.Size = f.Size()
-		uploadedFile.LastModificationDate = f.ModTime()
-		uploadedFile.Name = f.Name()
-		filesList = append(filesList, uploadedFile)
-	}
-
-	jsoned, _ := json.Marshal(filesList)
+	files := ws.ds.GetAllFiles()
+	jsoned, _:= json.Marshal(files)
 	io.WriteString(w, string(jsoned))
 }
 
@@ -80,18 +57,21 @@ func (ws *webServer) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ws.ds.NewFile(header.Filename, dst.Name())
+	ws.ds.NewFile(header.Filename, dst)
 }
 
 // DeleteFile allows the deletion of a file through http Request
 func (ws *webServer) DeleteFile(w http.ResponseWriter, r *http.Request) {
-	name := r.FormValue("name")
+	id := r.FormValue("id")
 
-	if name != "" {
-		err := os.Remove(filepath.Join(ws.ds.WorkspacePath(), "files", name))
+	if id != "" {
+		ws.ds.GetAndDeleteFile(id)
 
-		if err != nil {
-			http.Error(w, err.Error(), 404)
+	} else {
+		http.Error(w, "No file name specified.", 400)
+	}
+
+}
 
 			return
 		}

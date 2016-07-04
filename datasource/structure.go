@@ -3,6 +3,7 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 import (
 	"net"
 	"time"
+	"os"
 	"github.com/coreos/etcd/client"
 )
 
@@ -90,6 +91,8 @@ type DataSource interface {
 
 	// Get returns value associated with key
 	Get(key string) (string, error)
+	GetAbsolute(absoluteKey string) (string, error)
+
 	// Get children nodes of a node with key
 	GetNodes(key string) (client.Nodes, error)
 
@@ -136,6 +139,9 @@ type DataSource interface {
 	// Create a new file node in Etcd
 	NewFile(name string, file *os.File)
 	WatchFileChanges()
+	GetAllFiles() []*File
+	GetFile(key string) *File
+	DeleteFile(key string) *File
 }
 
 type File struct  {

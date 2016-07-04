@@ -1,7 +1,7 @@
 package datasource
 
 import (
-	"github.com/coreos/etcd/cmd/vendor/golang.org/x/net/context"
+	"golang.org/x/net/context"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/cafebazaar/blacksmith/logging"
 	"time"

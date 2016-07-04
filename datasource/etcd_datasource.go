@@ -238,8 +238,11 @@ func (ds *EtcdDataSource) GetAbsolute(absoluteKey string)(string, error){
 	return response.Node.Value, nil
 }
 
-func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// ListClusterVariables returns the list of all cluster variables from Etcd
+// etcd and cluster-variables will be added to the path
+// part of Machine interface implementation
+func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
 	defer cancel()
 
 	response, err := ds.keysAPI.Get(ctx, dir, nil)
@@ -259,9 +262,32 @@ func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, er
 	return flags, nil
 }
 
-// ListClusterVariables returns the list of all the cluster variables from etcd
-func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
-	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdCluserVarsDirName))
+// Get an etcd key and returns it's chlidren nodes
+func (ds *EtcdDataSource) GetNodes(key string) (etcd.Nodes, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
+	defer cancel()
+
+	options := etcd.GetOptions{
+		Recursive: true,
+		Quorum:    true,
+		Sort:      true,
+	}
+	resp, err := ds.keysAPI.Get(ctx, key, &options)
+	if err != nil {
+		logging.Debug(debugTag, "couldn't get files from etcd due to: %s", err)
+		return nil, err
+	}
+	return resp.Node.Nodes, nil
+
+}
+
+// Set sets and etcd key to a value
+// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) Set(key string, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := ds.keysAPI.Set(ctx, ds.prefixify(key), value, nil)
+	return err
 }
 
 // ListConfigurations returns the list of all the configuration variables from etcd

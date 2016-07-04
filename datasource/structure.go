@@ -3,6 +3,7 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 import (
 	"net"
 	"time"
+	"github.com/coreos/etcd/client"
 )
 
 // Machine provides the interface for querying/altering Machine entries
@@ -83,8 +84,14 @@ type DataSource interface {
 	// DeleteClusterVariable deletes a cluster variable
 	DeleteClusterVariable(key string) error
 
-	//ListConfigurations returns the list of all the configuration variables
-	ListConfigurations() (map[string]string, error)
+	// ListClusterVariables list all cluster variables stored in etcd
+	ListClusterVariables() (map[string]string, error)
+
+	// Get returns value associated with key
+	Get(key string) (string, error)
+	
+	// Get children nodes of a node with key
+	GetNodes(key string) (client.Nodes, error)
 
 	// GetConfiguration returns a configuration variables with the given name
 	GetConfiguration(key string) (string, error)

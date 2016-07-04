@@ -218,6 +218,24 @@ func (ds *EtcdDataSource) DeleteClusterVariable(key string) error {
 // DeleteConfiguration deletes a configuration variable
 func (ds *EtcdDataSource) DeleteConfiguration(key string) error {
 	return ds.delete(ds.prefixifyForConfiguration(key))
+
+}
+
+// Get parses the etcd key and returns it's value
+// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) Get(key string) (string, error) {
+	return ds.GetAbsolute(ds.prefixify(key))
+}
+
+func (ds *EtcdDataSource) GetAbsolute(absoluteKey string)(string, error){
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, absoluteKey, nil)
+	if err != nil {
+		return "", err
+	}
+	return response.Node.Value, nil
 }
 
 func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, error) {

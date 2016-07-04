@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"github.com/cafebazaar/blacksmith/logging"
 )
 
-const DebugTag string = "WEB"
 
+const (
+	debugTag string = "WEB"
+)
 
 // uploaded files metadata
 func (ws *webServer) Files(w http.ResponseWriter, r *http.Request) {
@@ -67,14 +68,6 @@ func (ws *webServer) DeleteFile(w http.ResponseWriter, r *http.Request) {
 	if id != "" {
 		ws.ds.DeleteFile(id)
 
-	} else {
-		http.Error(w, "No file name specified.", 400)
-	}
-
-}
-
-			return
-		}
 	} else {
 		http.Error(w, "No file name specified.", 400)
 	}

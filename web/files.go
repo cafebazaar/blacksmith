@@ -65,7 +65,7 @@ func (ws *webServer) DeleteFile(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 
 	if id != "" {
-		ws.ds.GetAndDeleteFile(id)
+		ws.ds.DeleteFile(id)
 
 	} else {
 		http.Error(w, "No file name specified.", 400)

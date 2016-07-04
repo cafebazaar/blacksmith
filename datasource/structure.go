@@ -100,10 +100,8 @@ type DataSource interface {
 	Set(key, value string) error
 
 	// Delete erases a key from the datasource
-	Delete(key string) error
-
-	// Gets a key, returns it's value and deletes it
-	GetAndDelete(key string) (string, error)
+	Delete(key string) (*client.Node, error)
+	DeleteAbsolute(absoluteKey string) (*client.Node, error)
 
 	// ClusterName returns the name of the ClusterName
 	ClusterName() string

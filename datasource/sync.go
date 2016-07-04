@@ -114,15 +114,13 @@ func (ds *EtcdDataSource) GetFile(key string) *File {
 }
 
 // retrieve the file meta data on etcd and set a TTL on the key
-func (ds *EtcdDataSource) GetAndDeleteFile(key string) *File {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	resp, err := ds.keysAPI.Delete(ctx, key, nil)
+func (ds *EtcdDataSource) DeleteFile(key string) *File {
+	resp, err := ds.DeleteAbsolute(key)
 	if err != nil {
 		logging.Debug(debugTag, "couldn't delete file on etcd due to: %s", err)
 	}
 	file := &File{}
 	file.Id = key
-	json.Unmarshal([]byte(resp.PrevNode.Value), file)
+	json.Unmarshal([]byte(resp.Value), file)
 	return file
 }

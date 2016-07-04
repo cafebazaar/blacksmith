@@ -271,27 +271,18 @@ func (ds *EtcdDataSource) Set(key string, value string) error {
 	return err
 }
 
-// GetAndDelete gets the value of an etcd key and returns it, and deletes the record
-// afterwards
+// Delete erases the key from etcd and return the node
 // part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) GetAndDelete(key string) (string, error) {
-	value, err := ds.Get(key)
-	if err != nil {
-		return "", err
-	}
-	if err = ds.Delete(key); err != nil {
-		return "", err
-	}
-	return value, nil
+func (ds *EtcdDataSource) Delete(key string) (*etcd.Node, error) {
+	return ds.DeleteAbsolute(ds.prefixify(key))
 }
 
-// Delete erases the key from etcd
-// part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Delete(key string) error {
+// Delete a node on etcd with a key and return the node
+func (ds *EtcdDataSource) DeleteAbsolute(absoluteKey string) (*etcd.Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_, err := ds.keysAPI.Delete(ctx, ds.prefixify(key), nil)
-	return err
+	resp, err := ds.keysAPI.Delete(ctx, absoluteKey, nil)
+	return resp.PrevNode, err
 }
 
 // ClusterName returns the name of the cluster

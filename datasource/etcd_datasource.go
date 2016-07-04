@@ -226,7 +226,7 @@ func (ds *EtcdDataSource) GetAbsolute(absoluteKey string)(string, error){
 // etcd and cluster-variables will be added to the path
 // part of Machine interface implementation
 func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
 	defer cancel()
 
 	response, err := ds.keysAPI.Get(ctx, path.Join(ds.clusterName, "cluster-variables"), nil)
@@ -241,6 +241,25 @@ func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
 	}
 
 	return flags, nil
+}
+
+// Get an etcd key and returns it's chlidren nodes
+func (ds *EtcdDataSource) GetNodes(key string) (etcd.Nodes, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
+	defer cancel()
+
+	options := etcd.GetOptions{
+		Recursive: true,
+		Quorum:    true,
+		Sort:      true,
+	}
+	resp, err := ds.keysAPI.Get(ctx, key, &options)
+	if err != nil {
+		logging.Debug(debugTag, "couldn't get files from etcd due to: %s", err)
+		return nil, err
+	}
+	return resp.Node.Nodes, nil
+
 }
 
 // Set sets and etcd key to a value

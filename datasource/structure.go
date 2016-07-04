@@ -3,6 +3,7 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 import (
 	"net"
 	"time"
+	"github.com/coreos/etcd/client"
 )
 
 // Machine provides the interface for querying/altering Machine entries
@@ -89,6 +90,8 @@ type DataSource interface {
 
 	// Get returns value associated with key
 	Get(key string) (string, error)
+	// Get children nodes of a node with key
+	GetNodes(key string) (client.Nodes, error)
 
 	// Set sets key equal to value.
 	Set(key, value string) error

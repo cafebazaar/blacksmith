@@ -137,7 +137,8 @@ func (m *EtcdMachine) selfSet(key, value string) error {
 }
 
 func (m *EtcdMachine) selfDelete(key string) error {
-	return m.etcd.delete(m.prefixify(key))
+	_, err:= m.etcd.Delete(m.prefixify(key))
+	return err
 }
 
 func nameFromMac(mac string) string {

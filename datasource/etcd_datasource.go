@@ -296,10 +296,24 @@ func (ds *EtcdDataSource) ListConfigurations() (map[string]string, error) {
 }
 
 func (ds *EtcdDataSource) set(keyPath string, value string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
 	defer cancel()
 	_, err := ds.keysAPI.Set(ctx, keyPath, value, nil)
 	return err
+}
+
+// Delete erases the key from etcd and return the node
+// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) Delete(key string) (*etcd.Node, error) {
+	return ds.DeleteAbsolute(ds.prefixify(key))
+}
+
+// Delete a node on etcd with a key and return the node
+func (ds *EtcdDataSource) DeleteAbsolute(absoluteKey string) (*etcd.Node, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	resp, err := ds.keysAPI.Delete(ctx, absoluteKey, nil)
+	return resp.PrevNode, err
 }
 
 // SetClusterVariable sets a cluster variable inside etcd

@@ -105,6 +105,10 @@ type DataSource interface {
 	// DeleteConfiguration deletes a configuration variable
 	DeleteConfiguration(key string) error
 
+	// Delete erases a key from the datasource
+	Delete(key string) (*client.Node, error)
+	DeleteAbsolute(absoluteKey string) (*client.Node, error)
+
 	// ClusterName returns the name of the ClusterName
 	ClusterName() string
 

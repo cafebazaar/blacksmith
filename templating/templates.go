@@ -9,6 +9,8 @@ import (
 	"strings"
 	"text/template"
 
+	etcd "github.com/coreos/etcd/client"
+
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/logging"
 )
@@ -65,11 +67,13 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 	return t, nil
 }
 
-func executeTemplate(rootTemplte *template.Template, templateName string, machine datasource.Machine, hostAddr string) (string, error) {
+func executeTemplate(rootTemplte *template.Template, templateName string,
+	ds datasource.DataSource, machine datasource.Machine,
+	hostAddr string) (string, error) {
 	template := rootTemplte.Lookup(templateName)
 
 	if template == nil {
-		return "", fmt.Errorf("template with name=%s wasn't found for root=%s",
+		return "", fmt.Errorf("template with name=%s wasn't found for root=%v",
 			templateName, rootTemplte)
 	}
 
@@ -77,11 +81,26 @@ func executeTemplate(rootTemplte *template.Template, templateName string, machin
 	template.Funcs(map[string]interface{}{
 		"V": func(key string) string {
 			flag, err := machine.GetFlag(key)
-			if err != nil { // TODO excepts Not-Found
-				logging.Log(templatesDebugTag,
-					"Error while getting flag key=%s for machine=%s: %s",
-					key, machine.Name(), err)
-				return ""
+			if err != nil {
+				etcdError, converted := err.(etcd.Error)
+				if !converted || etcdError.Code != etcd.ErrorCodeKeyNotFound {
+					logging.Log(templatesDebugTag,
+						"Error while getting flag key=%s for machine=%s: %s",
+						key, machine.Name(), err)
+					return ""
+				}
+				// Key was not found for the machine
+				flag, err := ds.Get(key)
+				if err != nil {
+					etcdError, converted := err.(etcd.Error)
+					if !converted || etcdError.Code != etcd.ErrorCodeKeyNotFound {
+						logging.Log(templatesDebugTag,
+							"Error while getting general flag key=%s for machine=%s: %s",
+							key, machine.Name(), err)
+					}
+					return ""
+				}
+				return flag
 			}
 			return flag
 		},
@@ -89,7 +108,7 @@ func executeTemplate(rootTemplte *template.Template, templateName string, machin
 			return base64.StdEncoding.EncodeToString([]byte(text))
 		},
 		"b64template": func(templateName string) string {
-			text, err := executeTemplate(rootTemplte, templateName, machine, hostAddr)
+			text, err := executeTemplate(rootTemplte, templateName, ds, machine, hostAddr)
 			if err != nil {
 				logging.Log(templatesDebugTag,
 					"Error while b64template for templateName=%s machine=%s: %s",
@@ -122,12 +141,15 @@ func executeTemplate(rootTemplte *template.Template, templateName string, machin
 	return str, nil
 }
 
-func ExecuteTemplateFolder(tmplFolder string, machine datasource.Machine, hostAddr string) (string, error) {
+// ExecuteTemplateFolder returns a string compiled from using the files in the
+// specified directory, starting from `main` file inside the directory.
+func ExecuteTemplateFolder(tmplFolder string,
+	ds datasource.DataSource, machine datasource.Machine, hostAddr string) (string, error) {
 	template, err := templateFromPath(tmplFolder)
 	if err != nil {
 		return "", fmt.Errorf("Error while reading the template with path=%s: %s",
 			tmplFolder, err)
 	}
 
-	return executeTemplate(template, "main", machine, hostAddr)
+	return executeTemplate(template, "main", ds, machine, hostAddr)
 }

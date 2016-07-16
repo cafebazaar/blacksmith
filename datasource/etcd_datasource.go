@@ -107,11 +107,11 @@ func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
 	return nil, false
 }
 
-// CreateMachine Creates a machine, returns the handle, and writes directories and flags to etcd
+// createMachine Creates a machine, returns the handle, and writes directories and flags to etcd
 // Second return value determines whether or not Machine creation has been
 // successful
 // part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) CreateMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
+func (ds *EtcdDataSource) createMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
 	machines, err := ds.Machines()
 
 	if err != nil {
@@ -334,7 +334,7 @@ func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
 		ip := dhcp4.IPAdd(ds.LeaseStart(), i)
 		if _, exists := assignedIPs[ip.String()]; !exists {
 			macAddress, _ := net.ParseMAC(nic)
-			ds.CreateMachine(macAddress, ip)
+			ds.createMachine(macAddress, ip)
 			return ip, nil
 		}
 	}
@@ -375,7 +375,7 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 		return nil, errors.New("Missmatch in lease pool")
 	}
 	macAddress, _ := net.ParseMAC(nic)
-	ds.CreateMachine(macAddress, currentIP)
+	ds.createMachine(macAddress, currentIP)
 	return currentIP, nil
 }
 

@@ -44,7 +44,7 @@ type Machine interface {
 	DeleteFlag(key string) error
 }
 
-// GeneralDataSource provides the interface for querying general information
+// DataSource provides the interface for querying general information
 type DataSource interface {
 	Version() BlacksmithVersion
 
@@ -54,11 +54,6 @@ type DataSource interface {
 	// GetMachine returns The Machine object with the specified Hardware
 	// address. Returns a flag to specify whether or not the entry exists
 	GetMachine(net.HardwareAddr) (Machine, bool)
-
-	// CreateMachine creates a machine with the specified hardware address and IP
-	// the second return value will be set to true in case of successful machine
-	// creation and to false in case of duplicate hardware address or IP
-	CreateMachine(net.HardwareAddr, net.IP) (Machine, bool)
 
 	// WorkspacePath returns the path to the workspace which is used after the
 	// machines are booted up

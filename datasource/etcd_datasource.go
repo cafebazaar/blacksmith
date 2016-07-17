@@ -181,6 +181,33 @@ func (ds *EtcdDataSource) prefixify(key string) string {
 	return path.Join(ds.clusterName, key)
 }
 
+// Add prefix for cluster variable keys 
+func (ds *EtcdDataSource) prefixifyForClusterVariables(key string) string {
+	return path.Join(ds.clusterName, "cluster_variables", key)
+}
+
+// GetClusterVariable parses the etcd keys of cluster variables and returns their value
+// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) GetClusterVariable(key string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, ds.prefixifyForClusterVariables(key), nil)
+	if err != nil {
+		return "", err
+	}
+	return response.Node.Value, nil
+}
+
+// Set sets cluster variables in etcd
+// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := ds.keysAPI.Set(ctx, ds.prefixifyForClusterVariables(key), value, nil)
+	return err
+}
+
 // Get parses the etcd key and returns it's value
 // part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Get(key string) (string, error) {
@@ -192,6 +219,27 @@ func (ds *EtcdDataSource) Get(key string) (string, error) {
 		return "", err
 	}
 	return response.Node.Value, nil
+}
+
+// ListClusterVariables returns the list of all cluster variables from Etcd
+// etcd and cluster_variables will be added to the path
+// part of Machine interface implementation
+func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, path.Join(ds.clusterName, "cluster_variables"), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	flags := make(map[string]string)
+	for i := range response.Node.Nodes {
+		_, k := path.Split(response.Node.Nodes[i].Key)
+		flags[k] = response.Node.Nodes[i].Value
+	}
+
+	return flags, nil
 }
 
 // Set sets and etcd key to a value

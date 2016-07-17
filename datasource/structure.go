@@ -63,6 +63,15 @@ type DataSource interface {
 	// datasource storage
 	Machines() ([]Machine, error)
 
+	// Get returns value associated with cluster variable key
+	GetClusterVariable(key string) (string, error)
+
+	// Set sets cluster variable equal to value.
+	SetClusterVariable(key, value string) error
+    
+    // ListClusterVariables list all cluster variables stored in etcd
+    ListClusterVariables()(map[string]string, error)
+    
 	// Get returns value associated with key
 	Get(key string) (string, error)
 

@@ -77,6 +77,22 @@ func (ws *webServer) NodesList(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(nodesJSON))
 }
 
+// ClusterVariables returns all the cluster general variables 
+func (ws *webServer) ClusterVariables(w http.ResponseWriter, r *http.Request) {
+	flags, err := ws.ds.ListClusterVariables()
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	flagsJSON, err := json.Marshal(flags)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+	io.WriteString(w, string(flagsJSON))
+}
+
 // NodeFlags returns all the flags set for the node
 func (ws *webServer) NodeFlags(w http.ResponseWriter, r *http.Request) {
 	_, macStr := path.Split(r.URL.Path)

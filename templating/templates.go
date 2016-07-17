@@ -90,7 +90,7 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 					return ""
 				}
 				// Key was not found for the machine
-				flag, err := ds.Get(key)
+				flag, err := ds.GetClusterVariable(key)
 				if err != nil {
 					etcdError, converted := err.(etcd.Error)
 					if !converted || etcdError.Code != etcd.ErrorCodeKeyNotFound {

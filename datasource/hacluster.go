@@ -25,12 +25,13 @@ func (ds *EtcdDataSource) registerOnEtcd() error {
 	masterOrderOption := etcd.CreateInOrderOptions{
 		TTL: MasterTtlTime,
 	}
-	resp, err := ds.keysAPI.CreateInOrder(ctx, ds.prefixify(instancesEtcdDir), ds.serverIP.String(), &masterOrderOption)
+	resp, err := ds.keysAPI.CreateInOrder(ctx, ds.prefixify(instancesEtcdDir),
+		ds.selfInfo.String(), &masterOrderOption)
 	if err != nil {
 		return err
 	}
 
-	ds.instancesEtcdDir = resp.Node.Key
+	ds.instanceEtcdKey = resp.Node.Key
 	return nil
 }
 
@@ -41,14 +42,14 @@ func (ds *EtcdDataSource) etcdHeartbeat() error {
 		PrevExist: etcd.PrevExist,
 		TTL:       MasterTtlTime,
 	}
-	_, err := ds.keysAPI.Set(ctx, ds.instancesEtcdDir, ds.serverIP.String(), &masterSetOption)
+	_, err := ds.keysAPI.Set(ctx, ds.instanceEtcdKey, ds.selfInfo.String(), &masterSetOption)
 	return err
 }
 
 // IsMaster checks for being master, and makes a heartbeat
 func (ds *EtcdDataSource) IsMaster() bool {
 	var err error
-	if ds.instancesEtcdDir == invalidEtcdKey {
+	if ds.instanceEtcdKey == invalidEtcdKey {
 		err = ds.registerOnEtcd()
 		if err != nil {
 			logging.Log(debugTag, "error while registerOnEtcd: %s", err)
@@ -57,7 +58,7 @@ func (ds *EtcdDataSource) IsMaster() bool {
 	} else {
 		err = ds.etcdHeartbeat()
 		if err != nil {
-			ds.instancesEtcdDir = invalidEtcdKey
+			ds.instanceEtcdKey = invalidEtcdKey
 			logging.Log(debugTag, "error while updateOnEtcd: %s", err)
 			return false
 		}
@@ -79,7 +80,7 @@ func (ds *EtcdDataSource) IsMaster() bool {
 		logging.Log(debugTag, "empty list while getting the dir list from etcd")
 		return false
 	}
-	if resp.Node.Nodes[0].Key == ds.instancesEtcdDir {
+	if resp.Node.Nodes[0].Key == ds.instanceEtcdKey {
 		return true
 	}
 	return false
@@ -90,6 +91,6 @@ func (ds *EtcdDataSource) IsMaster() bool {
 func (ds *EtcdDataSource) RemoveInstance() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
-	_, err := ds.keysAPI.Delete(ctx, ds.instancesEtcdDir, nil)
+	_, err := ds.keysAPI.Delete(ctx, ds.instanceEtcdKey, nil)
 	return err
 }

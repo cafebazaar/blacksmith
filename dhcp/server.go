@@ -67,7 +67,7 @@ func newDHCPHandler(settings *DHCPSetting, datasource datasource.DataSource) (*D
 	h := &DHCPHandler{
 		settings:    settings,
 		datasource:  datasource,
-		bootMessage: fmt.Sprintf("Blacksmith (%s)", datasource.Version().Version),
+		bootMessage: fmt.Sprintf("Blacksmith (%s)", datasource.SelfInfo().Version),
 	}
 	return h, nil
 }

@@ -15,7 +15,7 @@ import (
 
 // Version returns json encoded version details
 func (ws *webServer) Version(w http.ResponseWriter, r *http.Request) {
-	versionJSON, err := json.Marshal(ws.ds.Version())
+	versionJSON, err := json.Marshal(ws.ds.SelfInfo())
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), 500)
 		return
@@ -53,8 +53,12 @@ func nodeToDetails(node datasource.Machine) (*nodeDetails, error) {
 // entries
 func (ws *webServer) NodesList(w http.ResponseWriter, r *http.Request) {
 	machines, err := ws.ds.Machines()
-	if err != nil || machines == nil {
+	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+	if len(machines) == 0 {
+		io.WriteString(w, "[]")
 		return
 	}
 	nodes := make([]*nodeDetails, 0, len(machines))

@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -24,17 +25,27 @@ const (
 	coreosVersionKey = "coreos-version"
 )
 
-type BlacksmithVersion struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildTime string `json:"buildTime"`
+func (ii *InstanceInfo) String() string {
+	marshaled, err := json.Marshal(ii)
+	if err != nil {
+		logging.Log(debugTag, "Failed to marshal instanceInfo: %s", err)
+		return ""
+	}
+	return string(marshaled)
 }
+
+// func InstanceInfoFromString(iiStr string) (*InstanceInfo, error) {
+// 	var ii *InstanceInfo
+// 	if err := json.Unmarshal([]byte(iiStr), ii); err != nil {
+// 		return nil, err
+// 	}
+// 	return ii, nil
+// }
 
 // EtcdDataSource implements MasterDataSource interface using etcd as it's
 // datasource
 // Implements MasterDataSource interface
 type EtcdDataSource struct {
-	version              BlacksmithVersion
 	keysAPI              etcd.KeysAPI
 	client               etcd.Client
 	leaseStart           net.IP
@@ -44,20 +55,19 @@ type EtcdDataSource struct {
 	initialCoreOSVersion string
 	dhcpAssignLock       *sync.Mutex
 	dhcpDataLock         *sync.Mutex
-	instancesEtcdDir     string // HA
-	serverIP             net.IP
-}
-
-// Version is returns the version details of the current blacksmith instance
-// part of the GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Version() BlacksmithVersion {
-	return ds.version
+	instanceEtcdKey      string // HA
+	selfInfo             InstanceInfo
 }
 
 // WorkspacePath returns the path to the workspace
 // part of the GeneralDataSource interface implementation
 func (ds *EtcdDataSource) WorkspacePath() string {
 	return ds.workspacePath
+}
+
+// SelfInfo return InstanceInfo of this instance of blacksmith
+func (ds *EtcdDataSource) SelfInfo() InstanceInfo {
+	return ds.selfInfo
 }
 
 // Machines returns an array of the recognized machines in etcd datasource
@@ -70,7 +80,7 @@ func (ds *EtcdDataSource) Machines() ([]Machine, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]Machine, 0)
+	var ret []Machine
 	for _, ent := range response.Node.Nodes {
 		pathToMachineDir := ent.Key
 		machineName := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
@@ -382,8 +392,8 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, clusterName, workspacePath string, serverIP net.IP,
-	defaultNameServers []string, version BlacksmithVersion) (DataSource, error) {
+	leaseRange int, clusterName, workspacePath string, defaultNameServers []string,
+	selfInfo InstanceInfo) (DataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -402,7 +412,6 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	fmt.Printf("Initial Values: CoreOSVersion=%s\n", iVals.CoreOSVersion)
 
 	instance := &EtcdDataSource{
-		version:              version,
 		keysAPI:              kapi,
 		client:               client,
 		clusterName:          clusterName,
@@ -412,14 +421,14 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		initialCoreOSVersion: iVals.CoreOSVersion,
 		dhcpAssignLock:       &sync.Mutex{},
 		dhcpDataLock:         &sync.Mutex{},
-		instancesEtcdDir:     invalidEtcdKey,
-		serverIP:             serverIP,
+		instanceEtcdKey:      invalidEtcdKey,
+		selfInfo:             selfInfo,
 	}
 
 	_, err = instance.CoreOSVersion()
 	if err != nil {
-		etcdError, found := err.(etcd.Error)
-		if found && etcdError.Code == etcd.ErrorCodeKeyNotFound {
+		etcdError, converted := err.(etcd.Error)
+		if converted && etcdError.Code == etcd.ErrorCodeKeyNotFound {
 			// Initializing
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()

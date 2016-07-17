@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/cafebazaar/blacksmith/datasource"
+	"github.com/cafebazaar/blacksmith/logging"
 )
 
 type webServer struct {
@@ -51,6 +52,8 @@ func ServeWeb(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 		Addr:    listenAddr.String(),
 		Handler: loggedRouter,
 	}
+
+	logging.Log("WEB", "Listening on %s", listenAddr.String())
 
 	return s.ListenAndServe()
 }

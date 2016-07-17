@@ -464,5 +464,10 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	defer cancel4()
 	instance.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)
 
+	_, status := instance.createMachine(selfInfo.Nic, selfInfo.IP)
+	if !status {
+		logging.Debug(debugTag, "couldn't create machine instance inside etcd for itself")
+	}
+
 	return instance, nil
 }

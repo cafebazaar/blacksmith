@@ -224,6 +224,7 @@ func main() {
 
 	selfInfo := datasource.InstanceInfo{
 		IP:               serverIP,
+		Nic:              dhcpIF.HardwareAddr,
 		WebPort:          webAddr.Port,
 		Version:          version,
 		Commit:           commit,

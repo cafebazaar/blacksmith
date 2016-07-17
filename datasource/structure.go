@@ -46,12 +46,13 @@ type Machine interface {
 
 // InstanceInfo describes an active instance of blacksmith running on some machine
 type InstanceInfo struct {
-	IP               net.IP `json:"ip"`
-	WebPort          int    `json:"webPort"`
-	Version          string `json:"version"`
-	Commit           string `json:"commit"`
-	BuildTime        string `json:"buildTime"`
-	ServiceStartTime int64  `json:"serviceStartTime"`
+	IP               net.IP 		`json:"ip"`
+	Nic              net.HardwareAddr	`json:"nic"`
+	WebPort          int    		`json:"webPort"`
+	Version          string 		`json:"version"`
+	Commit           string 		`json:"commit"`
+	BuildTime        string 		`json:"buildTime"`
+	ServiceStartTime int64  		`json:"serviceStartTime"`
 }
 
 // DataSource provides the interface for querying general information

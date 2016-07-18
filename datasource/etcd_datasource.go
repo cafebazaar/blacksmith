@@ -379,6 +379,34 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 	return currentIP, nil
 }
 
+//EtcdMembers get etcd members
+func (ds *EtcdDataSource) EtcdMembers() (string, error) {
+	membersAPI := etcd.NewMembersAPI(ds.client)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	members, err := membersAPI.List(ctx)
+
+	var membersString string
+
+	if err != nil {
+		return "", fmt.Errorf("Error while checking etcd members: %s", err)
+	}
+
+	for _, member := range members {
+		lastIndex := len(member.PeerURLs) - 1
+
+		for i, peer := range member.PeerURLs {
+			membersString += member.Name + "=" + peer
+			if i != lastIndex {
+				membersString += ","
+			}
+		}
+	}
+
+	return membersString, err
+}
+
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,

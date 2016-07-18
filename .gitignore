@@ -1,6 +1,7 @@
 .vagrant
 *~
 .DS_Store
+.vscode
 
 # Local customizations
 vagrant_provision_after_docker_installation.local
@@ -17,4 +18,3 @@ example/example
 deploy.sh
 remote_deploy.sh
 workspaces
-

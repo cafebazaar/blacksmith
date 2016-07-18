@@ -97,4 +97,6 @@ type DataSource interface {
 
 	IsMaster() bool
 	RemoveInstance() error
+
+	EtcdMembers() (string, error)
 }

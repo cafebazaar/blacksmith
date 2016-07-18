@@ -119,18 +119,23 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		},
 	})
 	ip, _ := machine.IP()
+
+	etcdMembers, _ := ds.EtcdMembers()
+
 	data := struct {
-		Mac      string
-		IP       string
-		Hostname string
-		Domain   string
-		HostAddr string
+		Mac           string
+		IP            string
+		Hostname      string
+		Domain        string
+		HostAddr      string
+		EtcdEndpoints string
 	}{
 		machine.Mac().String(),
 		ip.String(),
 		machine.Name(),
 		machine.Domain(),
 		hostAddr,
+		etcdMembers,
 	}
 	err := template.ExecuteTemplate(buf, templateName, &data)
 	if err != nil {

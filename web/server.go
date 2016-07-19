@@ -33,6 +33,10 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/api/flag/").HandlerFunc(ws.SetFlag).Methods("PUT")
 	mux.PathPrefix("/api/flag/").HandlerFunc(ws.DelFlag).Methods("DELETE")
 
+    mux.PathPrefix("/api/variables").HandlerFunc(ws.ClusterVariablesList).Methods("GET")
+	mux.PathPrefix("/api/variables").HandlerFunc(ws.SetVariable).Methods("PUT")
+	mux.PathPrefix("/api/variables").HandlerFunc(ws.DelVariable).Methods("DELETE")
+
 	mux.HandleFunc("/upload/", ws.Upload)
 	mux.HandleFunc("/files", ws.Files).Methods("GET")
 	mux.HandleFunc("/files", ws.DeleteFile).Methods("DELETE")

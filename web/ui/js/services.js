@@ -25,6 +25,16 @@ apiServices.factory('Flag', ['$resource',
         delete: {method:'DELETE', params:{name: '@name', mac: '@mac'}, isArray:false}
       });
   }]);
+  
+  apiServices.factory('Variable', ['$resource',
+    function($resource){
+      return $resource('/api/variables/:key', {key: '@key'}, {  
+        query: {method:'GET', params:{}, isArray:false},
+        set: {method:'PUT', params:{key: '@key', value: '@value'}, isArray:false},
+        delete: {method:'DELETE', params:{key: '@key'}, isArray:false}
+      });
+  }]);
+  
 apiServices.factory('Version', ['$resource',
     function($resource){
       return $resource('/api/version', {}, {

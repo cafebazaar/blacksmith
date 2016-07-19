@@ -82,7 +82,7 @@ func (ws *webServer) NodesList(w http.ResponseWriter, r *http.Request) {
 }
 
 // ClusterVariables returns all the cluster general variables 
-func (ws *webServer) ClusterVariables(w http.ResponseWriter, r *http.Request) {
+func (ws *webServer) ClusterVariablesList(w http.ResponseWriter, r *http.Request) {
 	flags, err := ws.ds.ListClusterVariables()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
@@ -193,6 +193,34 @@ func (ws *webServer) DelFlag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
+		http.Error(w, `{"error": "Error while delleting value"}`, http.StatusInternalServerError)
+		return
+	}
+
+	io.WriteString(w, `"OK"`)
+}
+
+func (ws *webServer) SetVariable(w http.ResponseWriter, r *http.Request) {
+	_, name := path.Split(r.URL.Path)
+	value := r.FormValue("value")
+
+    var err error
+    err = ws.ds.SetClusterVariable(name, value)
+	
+	if err != nil {
+		http.Error(w, `{"error": "Error while setting value"}`, http.StatusInternalServerError)
+		return
+	}
+
+	io.WriteString(w, `"OK"`)
+}
+
+func (ws *webServer) DelVariable(w http.ResponseWriter, r *http.Request) {
+	_, name := path.Split(r.URL.Path)
+
+    err := ws.ds.DeleteClusterVariable(name);
+    
+ 	if err != nil {
 		http.Error(w, `{"error": "Error while delleting value"}`, http.StatusInternalServerError)
 		return
 	}

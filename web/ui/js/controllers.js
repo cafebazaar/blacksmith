@@ -74,6 +74,62 @@ blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Nodes', 'N
 
 }]);
 
+
+
+blacksmithUIControllers.controller('BlacksmithVariablesCtrl', ['$scope', 'Variable', function ($scope, Variable) {
+  $scope.sortType     = 'key';
+  $scope.sortReverse  = false;
+  $scope.searchTerm   = '';
+  $scope.errorMessage = false;
+
+  $scope.getVariables = function () {
+    Variable.query().$promise.then(
+      function( value ){ $scope.variables = value; },
+      function( error ){ $scope.errorMessage = error.data; $scope.variables = []; }
+    );
+  };
+  $scope.getVariables();
+  
+  $scope.addVariable = function() {
+    var key = prompt("Enter variable key", "");
+    var value = prompt("Enter variable value", "");
+    if(!key || key == "") return;
+
+    Variable.set({key: key, value: value}).$promise.then(
+      function( value ){
+        $scope.getVariables();
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
+      }
+    );
+  };
+
+  $scope.setVariable = function(key, value) {
+    Variable.set({key: key, value: value}).$promise.then(
+      function( value ){
+        $scope.getVariables();
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
+      }
+    );
+  };
+
+  $scope.deleteVariable = function(key) {
+    Variable.delete({key: key}).$promise.then(
+      function( value ){
+        $scope.getVariables();
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
+      }
+    );
+  };
+
+}]);
+
+
 blacksmithUIControllers.controller('BlacksmithAboutCtrl', ['$scope', 'Version', function ($scope, Version) {
   Version.query().$promise.then(
     function( value ){

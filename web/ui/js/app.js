@@ -11,6 +11,10 @@ blacksmithUIApp.config(['$routeProvider',
         templateUrl: 'partials/files-list.html',
         controller: 'BlacksmithFilesCtrl'
       }).
+      when('/variables/', {
+        templateUrl: 'partials/variables-list.html',
+        controller: 'BlacksmithVariablesCtrl'
+      }).
       when('/about/', {
         templateUrl: 'partials/about.html',
         controller: 'BlacksmithAboutCtrl'
@@ -19,6 +23,23 @@ blacksmithUIApp.config(['$routeProvider',
         redirectTo: '/nodes/'
       });
   }]);
+
+blacksmithUIApp
+.filter('custom', function() {
+  return function(input, search) {
+    if (!input) return input;
+    if (!search) return input;
+    var expected = ('' + search).toLowerCase();
+    var result = {};
+    angular.forEach(input, function(value, key) {
+      var actual = ('' + key).toLowerCase();
+      if (actual.indexOf(expected) !== -1) {
+        result[key] = value;
+      }
+    });
+    return result;
+  }
+});
 
 blacksmithUIApp.directive('dragAndDrop', function() {
     return {

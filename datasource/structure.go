@@ -44,9 +44,21 @@ type Machine interface {
 	DeleteFlag(key string) error
 }
 
+// InstanceInfo describes an active instance of blacksmith running on some machine
+type InstanceInfo struct {
+	IP               net.IP 		`json:"ip"`
+	Nic              net.HardwareAddr	`json:"nic"`
+	WebPort          int    		`json:"webPort"`
+	Version          string 		`json:"version"`
+	Commit           string 		`json:"commit"`
+	BuildTime        string 		`json:"buildTime"`
+	ServiceStartTime int64  		`json:"serviceStartTime"`
+}
+
 // DataSource provides the interface for querying general information
 type DataSource interface {
-	Version() BlacksmithVersion
+	// SelfInfo return InstanceInfo of this instance of blacksmith
+	SelfInfo() InstanceInfo
 
 	// CoreOSVerison returns the coreOs version that blacksmith supplies
 	CoreOSVersion() (string, error)
@@ -63,6 +75,15 @@ type DataSource interface {
 	// datasource storage
 	Machines() ([]Machine, error)
 
+	// Get returns value associated with cluster variable key
+	GetClusterVariable(key string) (string, error)
+
+	// Set sets cluster variable equal to value.
+	SetClusterVariable(key, value string) error
+    
+    // ListClusterVariables list all cluster variables stored in etcd
+    ListClusterVariables()(map[string]string, error)
+    
 	// Get returns value associated with key
 	Get(key string) (string, error)
 
@@ -95,7 +116,11 @@ type DataSource interface {
 	// reply packet
 	DNSAddresses() ([]byte, error)
 
+	// IsMaster checks for being master, and makes a heartbeat
 	IsMaster() bool
+
+	// RemoveInstance removes the instance key from the list of instances, used to
+	// gracefully shutdown the instance
 	RemoveInstance() error
 
 	EtcdMembers() (string, error)

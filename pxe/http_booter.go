@@ -36,7 +36,7 @@ type HTTPBooter struct {
 
 func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte,
 	ds datasource.DataSource, webPort int) (*HTTPBooter, error) {
-	bootMessageVersionedTemplate := strings.Replace(bootMessageTemplate, "$VERSION", ds.Version().Version, -1)
+	bootMessageVersionedTemplate := strings.Replace(bootMessageTemplate, "$VERSION", ds.SelfInfo().Version, -1)
 	booter := &HTTPBooter{
 		listenAddr:          listenAddr,
 		ldlinux:             ldlinux,

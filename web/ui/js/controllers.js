@@ -76,7 +76,12 @@ blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Nodes', 'N
 
 blacksmithUIControllers.controller('BlacksmithAboutCtrl', ['$scope', 'Version', function ($scope, Version) {
   Version.query().$promise.then(
-    function( value ){ $scope.info = value },
+    function( value ){
+      $scope.info = value
+      $scope.uptime = function() {
+        return secondsToStr((new Date().getTime())/1000 - $scope.info.serviceStartTime);
+      }
+    },
     function( error ){ $scope.errorMessage = error.data; $scope.info = {} }
   );
 }]);

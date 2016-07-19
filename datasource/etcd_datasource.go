@@ -2,6 +2,7 @@ package datasource
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -25,17 +26,27 @@ const (
 	coreosVersionKey = "coreos-version"
 )
 
-type BlacksmithVersion struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildTime string `json:"buildTime"`
+func (ii *InstanceInfo) String() string {
+	marshaled, err := json.Marshal(ii)
+	if err != nil {
+		logging.Log(debugTag, "Failed to marshal instanceInfo: %s", err)
+		return ""
+	}
+	return string(marshaled)
 }
+
+// func InstanceInfoFromString(iiStr string) (*InstanceInfo, error) {
+// 	var ii *InstanceInfo
+// 	if err := json.Unmarshal([]byte(iiStr), ii); err != nil {
+// 		return nil, err
+// 	}
+// 	return ii, nil
+// }
 
 // EtcdDataSource implements MasterDataSource interface using etcd as it's
 // datasource
 // Implements MasterDataSource interface
 type EtcdDataSource struct {
-	version              BlacksmithVersion
 	keysAPI              etcd.KeysAPI
 	client               etcd.Client
 	leaseStart           net.IP
@@ -45,20 +56,19 @@ type EtcdDataSource struct {
 	initialCoreOSVersion string
 	dhcpAssignLock       *sync.Mutex
 	dhcpDataLock         *sync.Mutex
-	instancesEtcdDir     string // HA
-	serverIP             net.IP
-}
-
-// Version is returns the version details of the current blacksmith instance
-// part of the GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Version() BlacksmithVersion {
-	return ds.version
+	instanceEtcdKey      string // HA
+	selfInfo             InstanceInfo
 }
 
 // WorkspacePath returns the path to the workspace
 // part of the GeneralDataSource interface implementation
 func (ds *EtcdDataSource) WorkspacePath() string {
 	return ds.workspacePath
+}
+
+// SelfInfo return InstanceInfo of this instance of blacksmith
+func (ds *EtcdDataSource) SelfInfo() InstanceInfo {
+	return ds.selfInfo
 }
 
 // Machines returns an array of the recognized machines in etcd datasource
@@ -71,7 +81,7 @@ func (ds *EtcdDataSource) Machines() ([]Machine, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]Machine, 0)
+	var ret []Machine
 	for _, ent := range response.Node.Nodes {
 		pathToMachineDir := ent.Key
 		machineName := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
@@ -182,6 +192,33 @@ func (ds *EtcdDataSource) prefixify(key string) string {
 	return path.Join(ds.clusterName, key)
 }
 
+// Add prefix for cluster variable keys
+func (ds *EtcdDataSource) prefixifyForClusterVariables(key string) string {
+	return path.Join(ds.clusterName, "cluster_variables", key)
+}
+
+// GetClusterVariable parses the etcd keys of cluster variables and returns their value
+// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) GetClusterVariable(key string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, ds.prefixifyForClusterVariables(key), nil)
+	if err != nil {
+		return "", err
+	}
+	return response.Node.Value, nil
+}
+
+// Set sets cluster variables in etcd
+// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := ds.keysAPI.Set(ctx, ds.prefixifyForClusterVariables(key), value, nil)
+	return err
+}
+
 // Get parses the etcd key and returns it's value
 // part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Get(key string) (string, error) {
@@ -193,6 +230,27 @@ func (ds *EtcdDataSource) Get(key string) (string, error) {
 		return "", err
 	}
 	return response.Node.Value, nil
+}
+
+// ListClusterVariables returns the list of all cluster variables from Etcd
+// etcd and cluster_variables will be added to the path
+// part of Machine interface implementation
+func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, path.Join(ds.clusterName, "cluster_variables"), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	flags := make(map[string]string)
+	for i := range response.Node.Nodes {
+		_, k := path.Split(response.Node.Nodes[i].Key)
+		flags[k] = response.Node.Nodes[i].Value
+	}
+
+	return flags, nil
 }
 
 // Set sets and etcd key to a value
@@ -414,8 +472,8 @@ func (ds *EtcdDataSource) EtcdMembers() (string, error) {
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, clusterName, workspacePath string, serverIP net.IP,
-	defaultNameServers []string, version BlacksmithVersion) (DataSource, error) {
+	leaseRange int, clusterName, workspacePath string, defaultNameServers []string,
+	selfInfo InstanceInfo) (DataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -434,7 +492,6 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	fmt.Printf("Initial Values: CoreOSVersion=%s\n", iVals.CoreOSVersion)
 
 	instance := &EtcdDataSource{
-		version:              version,
 		keysAPI:              kapi,
 		client:               client,
 		clusterName:          clusterName,
@@ -444,14 +501,14 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		initialCoreOSVersion: iVals.CoreOSVersion,
 		dhcpAssignLock:       &sync.Mutex{},
 		dhcpDataLock:         &sync.Mutex{},
-		instancesEtcdDir:     invalidEtcdKey,
-		serverIP:             serverIP,
+		instanceEtcdKey:      invalidEtcdKey,
+		selfInfo:             selfInfo,
 	}
 
 	_, err = instance.CoreOSVersion()
 	if err != nil {
-		etcdError, found := err.(etcd.Error)
-		if found && etcdError.Code == etcd.ErrorCodeKeyNotFound {
+		etcdError, converted := err.(etcd.Error)
+		if converted && etcdError.Code == etcd.ErrorCodeKeyNotFound {
 			// Initializing
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
@@ -486,6 +543,11 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	ctx4, cancel4 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel4()
 	instance.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)
+
+	_, status := instance.createMachine(selfInfo.Nic, selfInfo.IP)
+	if !status {
+		logging.Debug(debugTag, "couldn't create machine instance inside etcd for itself")
+	}
 
 	return instance, nil
 }

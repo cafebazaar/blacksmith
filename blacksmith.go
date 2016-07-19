@@ -41,7 +41,7 @@ var (
 	versionFlag       = flag.Bool("version", false, "Print version info and exit")
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
-	httpListenFlag    = flag.String("http-listen", httpListenFlagDefaultTCPAddress, "IP range to listen on for web requests on :8000")
+	httpListenFlag    = flag.String("http-listen", httpListenFlagDefaultTCPAddress, "IP range to listen on for web requests")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
 	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
@@ -101,7 +101,7 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 func gracefulShutdown(etcdDataSource datasource.DataSource) {
 	err := etcdDataSource.RemoveInstance()
 	if err != nil {
-		log.Printf("\nError while removing the instance: %s\n", err)
+		fmt.Fprintf(os.Stderr, "\nError while removing the instance: %s\n", err)
 	} else {
 		fmt.Fprint(os.Stderr, "\nBlacksmith is gracefully shutdown\n")
 	}
@@ -131,7 +131,7 @@ func main() {
 	if *listenIFFlag != "" {
 		dhcpIF, err = net.InterfaceByName(*listenIFFlag)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s)\n", *listenIFFlag)
+			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s): %s\n", *listenIFFlag, err)
 			os.Exit(1)
 		}
 	} else {
@@ -145,12 +145,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// web api can be configured to listen on a custom address
 	webAddr := net.TCPAddr{IP: serverIP, Port: 8000}
-
 	if *httpListenFlag != httpListenFlagDefaultTCPAddress {
 		splitAddress := strings.Split(*httpListenFlag, ":")
 		if len(splitAddress) > 2 {
-			fmt.Printf("Incorrect tcp address provided: %s", httpListenFlag)
+			fmt.Printf("Incorrect tcp address provided: %s\n", *httpListenFlag)
 			os.Exit(1)
 		}
 		if len(splitAddress) == 1 {
@@ -161,17 +161,13 @@ func main() {
 		port, err := strconv.ParseInt(splitAddress[1], 10, 64)
 
 		if err != nil {
-			fmt.Printf("Incorrect tcp address provided: %s", httpListenFlag)
+			fmt.Printf("Incorrect tcp address provided: %s\n", *httpListenFlag)
 			os.Exit(1)
 		}
 		webAddr.Port = int(port)
-
 	}
 
-	// component ports
-	// web api is exposed to requests from `webIP', 0.0.0.0 by default
-
-	// other services are exposed just through the given interface
+	// other services are exposed just through the given interface, on hard coded ports
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}
 	var tftpAddr = net.UDPAddr{IP: serverIP, Port: 69}
 	var pxeAddr = net.UDPAddr{IP: serverIP, Port: 4011}
@@ -226,14 +222,18 @@ func main() {
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
-	v := datasource.BlacksmithVersion{
-		Version:   version,
-		Commit:    commit,
-		BuildTime: buildTime,
+	selfInfo := datasource.InstanceInfo{
+		IP:               serverIP,
+		Nic:              dhcpIF.HardwareAddr,
+		WebPort:          webAddr.Port,
+		Version:          version,
+		Commit:           commit,
+		BuildTime:        buildTime,
+		ServiceStartTime: time.Now().UTC().Unix(),
 	}
 	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,
 		leaseStart, leaseRange, *clusterNameFlag, *workspacePathFlag,
-		serverIP, dnsIPStrings, v)
+		dnsIPStrings, selfInfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)

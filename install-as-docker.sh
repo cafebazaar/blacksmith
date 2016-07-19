@@ -72,7 +72,7 @@ if [ SCRIPT_DEBUG ]; then
 fi
 
 VOLUME_ARGS="-v ${WORKSPACE_DIR}:/workspace"
-ARGS="-etcd $ETCD_ENDPOINTS -if $INTERFACE -lease-start $LEASE_START -lease-range $LEASE_RANGE -lease-subnet $LEASE_SUBNET -router $ROUTER -dns $DNS $OTHER_ARGS"
+ARGS="-etcd $ETCD_ENDPOINTS -if $INTERFACE -lease-start $LEASE_START -lease-range $LEASE_RANGE -lease-subnet $LEASE_SUBNET -router $ROUTER -dns $DNS -http-listen 0.0.0.0:8000 $OTHER_ARGS"
 
 $DOCKER_EXEC kill -s HUP $DOCKER_NAME; $DOCKER_EXEC kill $DOCKER_NAME || echo "NOT FATAL"
 $DOCKER_EXEC rm          $DOCKER_NAME || echo "NOT FATAL"

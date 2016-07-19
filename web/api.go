@@ -15,7 +15,7 @@ import (
 
 // Version returns json encoded version details
 func (ws *webServer) Version(w http.ResponseWriter, r *http.Request) {
-	versionJSON, err := json.Marshal(ws.ds.Version())
+	versionJSON, err := json.Marshal(ws.ds.SelfInfo())
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), 500)
 		return
@@ -53,8 +53,12 @@ func nodeToDetails(node datasource.Machine) (*nodeDetails, error) {
 // entries
 func (ws *webServer) NodesList(w http.ResponseWriter, r *http.Request) {
 	machines, err := ws.ds.Machines()
-	if err != nil || machines == nil {
+	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+	if len(machines) == 0 {
+		io.WriteString(w, "[]")
 		return
 	}
 	nodes := make([]*nodeDetails, 0, len(machines))
@@ -75,6 +79,22 @@ func (ws *webServer) NodesList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(nodesJSON))
+}
+
+// ClusterVariables returns all the cluster general variables 
+func (ws *webServer) ClusterVariables(w http.ResponseWriter, r *http.Request) {
+	flags, err := ws.ds.ListClusterVariables()
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	flagsJSON, err := json.Marshal(flags)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+	io.WriteString(w, string(flagsJSON))
 }
 
 // NodeFlags returns all the flags set for the node

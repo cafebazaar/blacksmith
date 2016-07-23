@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -191,7 +192,7 @@ func (ds *EtcdDataSource) prefixify(key string) string {
 	return path.Join(ds.clusterName, key)
 }
 
-// Add prefix for cluster variable keys 
+// Add prefix for cluster variable keys
 func (ds *EtcdDataSource) prefixifyForClusterVariables(key string) string {
 	return path.Join(ds.clusterName, "cluster-variables", key)
 }
@@ -445,6 +446,37 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 	macAddress, _ := net.ParseMAC(nic)
 	ds.createMachine(macAddress, currentIP)
 	return currentIP, nil
+}
+
+//EtcdMembers get etcd members
+func (ds *EtcdDataSource) EtcdMembers() (string, error) {
+	membersAPI := etcd.NewMembersAPI(ds.client)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	members, err := membersAPI.List(ctx)
+
+	if err != nil {
+		return "", fmt.Errorf("Error while checking etcd members: %s", err)
+	}
+
+	var buffer bytes.Buffer
+
+	for _, member := range members {
+		lastIndex := len(member.PeerURLs) - 1
+
+		for i, peer := range member.PeerURLs {
+			buffer.WriteString(member.Name)
+			buffer.WriteString("=")
+			buffer.WriteString(peer)
+
+			if i != lastIndex {
+				buffer.WriteString(",")
+			}
+		}
+	}
+
+	return buffer.String(), err
 }
 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as

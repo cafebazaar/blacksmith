@@ -125,4 +125,6 @@ type DataSource interface {
 	// RemoveInstance removes the instance key from the list of instances, used to
 	// gracefully shutdown the instance
 	RemoveInstance() error
+
+	EtcdMembers() (string, error)
 }

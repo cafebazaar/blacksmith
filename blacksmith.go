@@ -109,6 +109,10 @@ func gracefulShutdown(etcdDataSource datasource.DataSource) {
 }
 
 func main() {
+	go func() {
+		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
+	}()
+
 	var err error
 	flag.Parse()
 
@@ -238,10 +242,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
 	}
-
-	go func() {
-		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
-	}()
 
 	// serving api
 	go func() {

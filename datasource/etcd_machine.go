@@ -5,12 +5,14 @@ import (
 	"errors"
 	"net"
 	"path"
-	"strconv"
 	"strings"
-	"time"
 
 	etcd "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
+	"github.com/cafebazaar/blacksmith/logging"
+	"encoding/json"
+	"time"
+	"strconv"
 )
 
 // EtcdMachine implements datasource.Machine interface using etcd as it's
@@ -21,11 +23,20 @@ type EtcdMachine struct {
 	keysAPI etcd.KeysAPI
 }
 
+// stats like IP, first seen and IPMI node being stored inside machine directory
+type EtcdMachineStats struct {
+	IP		net.IP        `json:"ip"`
+	Mac		string        `json:"mac"`
+	FirstSeen	int64         `json:"first_seen"`
+	IPMInode	string        `json:"IPMInode,omitempty"`
+}
+
 // Mac Returns this machine's hardware address
 func (m *EtcdMachine) Mac() net.HardwareAddr {
 	return m.mac
 }
 
+<<<<<<< 1556f60fb0b2798d90418c0fe3527f6b6239083c
 // IP Returns this machine's IP
 // queries etcd
 func (m *EtcdMachine) IP() (net.IP, error) {
@@ -37,6 +48,8 @@ func (m *EtcdMachine) IP() (net.IP, error) {
 	return IP, nil
 }
 
+=======
+>>>>>>> de/selecting a node as IPMI node for another node
 // Name returns this machine's hostname
 func (m *EtcdMachine) Name() string {
 	return nameFromMac(m.Mac().String())
@@ -47,41 +60,57 @@ func (m *EtcdMachine) Domain() string {
 	return m.etcd.ClusterName()
 }
 
-func unixNanoStringToTime(unixNano string) (time.Time, error) {
-	unixNanoi64, err := strconv.ParseInt(unixNano, 10, 64)
-	if err != nil {
-		return time.Now(), err
-	}
-	return time.Unix(0, unixNanoi64), nil
-
-}
-
-func timeError(err error) (time.Time, error) {
-	return time.Now(), err
+func timeError(err error) (int64, error) {
+	return time.Now().Unix(), err
 }
 
 // CheckIn updates the _last_seen entry of this machine in etcd
 func (m *EtcdMachine) CheckIn() {
-	m.selfSet("_last_seen", strconv.FormatInt(time.Now().UnixNano(), 10))
+	m.selfSet("_last_seen", strconv.FormatInt(time.Now().Unix(), 10))
 }
 
-// FirstSeen returns the time upon which that the machine has been first seen
-// queries etcd
-func (m *EtcdMachine) FirstSeen() (time.Time, error) {
-	unixNanoString, err := m.selfGet("_first_seen")
+// Get stats of machine like ip, mac, first seen and IPMI and returns it as EtcdMachineStats instance
+func (m *EtcdMachine) GetStats() (EtcdMachineStats, error) {
+	resp, err := m.selfGet("_stats")
 	if err != nil {
-		return timeError(err)
+		logging.Debug(debugTag, "couldn't retrive _stats from %s due to: %s", m.Name(), err)
+		return EtcdMachineStats{}, err
 	}
-	return unixNanoStringToTime(unixNanoString)
+	etcdMachineStats := &EtcdMachineStats{}
+	json.Unmarshal([]byte(resp), etcdMachineStats)
+	return *etcdMachineStats, nil
+}
+
+func (m *EtcdMachine) SetStats(stats EtcdMachineStats) error {
+        jsonedStats, err := json.Marshal(stats)
+        if err != nil {
+                logging.Debug(debugTag, "err marshal: %s", err)
+        }
+        err = m.etcd.Set(m.prefixify("_stats"), string(jsonedStats))
+        if err != nil {
+                logging.Debug(debugTag, "couldn't set stats due to: %s", err)
+                return err
+        }
+        return nil
+}
+func (m *EtcdMachine) SetIPMI(mac net.HardwareAddr) {
+        stats, err := m.GetStats()
+        if err != nil {
+                logging.Debug(debugTag, "couldn't get stats due to: %s", err)
+        }
+        stats.IPMInode = mac.String()
+        m.SetStats(stats)
 }
 
 // LastSeen returns the last time the machine has  been ???
-func (m *EtcdMachine) LastSeen() (time.Time, error) {
-	unixNanoString, err := m.selfGet("_last_seen")
+// part of Machine interface implementation
+func (m *EtcdMachine) LastSeen() (int64, error) {
+	unixString, err := m.selfGet("_last_seen")
 	if err != nil {
 		return timeError(err)
 	}
-	return unixNanoStringToTime(unixNanoString)
+	unixInt64, _ := strconv.ParseInt(unixString, 10, 64)
+	return unixInt64, nil
 }
 
 // ListFlags returns the list of all the flgas of a machine from Etcd

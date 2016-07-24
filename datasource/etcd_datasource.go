@@ -8,7 +8,6 @@ import (
 	"net"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -100,25 +99,24 @@ func (ds *EtcdDataSource) GetMachine(mac net.HardwareAddr) (Machine, bool) {
 }
 
 // createMachine Creates a machine, returns the handle, and writes directories and flags to etcd
-// Second return value determines whether or not Machine creation has been
-// successful
+// Second return value will be an error if creating machine wasn't successful otherwise it will be nil
 // part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) createMachine(mac net.HardwareAddr, ip net.IP) (Machine, bool) {
+func (ds *EtcdDataSource) createMachine(mac net.HardwareAddr, ip net.IP) (Machine, error) {
 	machines, err := ds.Machines()
 
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
 	for _, node := range machines {
 		if node.Mac().String() == mac.String() {
-			return nil, false
+			return nil, err
 		}
-		nodeip, err := node.IP()
+		stats, err:= node.GetStats()
 		if err != nil {
-			return nil, false
+			return nil, err
 		}
-		if nodeip.String() == ip.String() {
-			return nil, false
+		if stats.IP.String() == ip.String() {
+			return nil, err
 		}
 	}
 	machine := &EtcdMachine{mac, ds, ds.keysAPI}
@@ -127,18 +125,8 @@ func (ds *EtcdDataSource) createMachine(mac net.HardwareAddr, ip net.IP) (Machin
 	defer cancel()
 
 	ds.keysAPI.Set(ctx, ds.prefixify("machines/"+machine.Name()), "", &etcd.SetOptions{Dir: true})
-	ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel1()
-	ds.keysAPI.Set(ctx1, ds.prefixify("machines/"+machine.Name()+"/_IP"), ip.String(), &etcd.SetOptions{})
 
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel2()
-	ds.keysAPI.Set(ctx2, ds.prefixify("machines/"+machine.Name()+"/_mac"), machine.Mac().String(), &etcd.SetOptions{})
-
-	ctx3, cancel3 := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel3()
-	ds.keysAPI.Set(ctx3, ds.prefixify("machines/"+machine.Name()+"/_first_seen"),
-		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
+	ds.store(machine, ip)
 
 	ctx4, cancel4 := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel4()
@@ -146,7 +134,7 @@ func (ds *EtcdDataSource) createMachine(mac net.HardwareAddr, ip net.IP) (Machin
 
 	machine.CheckIn()
 	machine.SetFlag("state", "unknown")
-	return machine, true
+	return machine, nil
 }
 
 // CoreOSVersion gets the current value from etcd and returns it if the image folder exists
@@ -359,19 +347,14 @@ func (ds *EtcdDataSource) store(m Machine, ip net.IP) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	ds.keysAPI.Set(ctx, ds.prefixify("machines/"+m.Name()+"/_IP"),
-		ip.String(), &etcd.SetOptions{})
 
-	ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel1()
-	ds.keysAPI.Set(ctx1, ds.prefixify("machines/"+m.Name()+"/_last_seen"),
-		strconv.FormatInt(time.Now().UnixNano(), 10), &etcd.SetOptions{})
-
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel2()
-	ds.keysAPI.Set(ctx2, ds.prefixify("machines/"+m.Name()+"/_mac"),
-		m.Mac().String(), &etcd.SetOptions{})
-
+	stats := EtcdMachineStats{
+		IP:ip,
+		Mac:m.Mac().String(),
+		FirstSeen:time.Now().Unix(),
+	}
+	jsonedStats, _ := json.Marshal(stats)
+	ds.keysAPI.Set(ctx, ds.prefixify("machines/"+m.Name()+"/_stats"), string(jsonedStats), &etcd.SetOptions{})
 }
 
 // Assign assigns an ip to the node with the specified nic
@@ -388,12 +371,12 @@ func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
 	machines, _ := ds.Machines()
 	for _, node := range machines {
 		if node.Mac().String() == nic {
-			ip, _ := node.IP()
-			ds.store(node, ip)
-			return ip, nil
+			stats, _ := node.GetStats()
+			ds.store(node, stats.IP)
+			return stats.IP, nil
 		}
-		nodeIP, _ := node.IP()
-		assignedIPs[nodeIP.String()] = true
+		stats, _ := node.GetStats()
+		assignedIPs[stats.IP.String()] = true
 	}
 
 	//find an unused ip
@@ -425,12 +408,12 @@ func (ds *EtcdDataSource) Request(nic string, currentIP net.IP) (net.IP, error) 
 	macExists, ipExists := false, false
 
 	for _, node := range machines {
-		thisNodeIP, _ := node.IP()
-		ipMatch := thisNodeIP.String() == currentIP.String()
+		stats, _ := node.GetStats()
+		ipMatch := stats.IP.String() == currentIP.String()
 		macMatch := nic == node.Mac().String()
 
 		if ipMatch && macMatch {
-			ds.store(node, thisNodeIP)
+			ds.store(node, stats.IP)
 			return currentIP, nil
 		}
 
@@ -552,9 +535,9 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	defer cancel4()
 	instance.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)
 
-	_, status := instance.createMachine(selfInfo.Nic, selfInfo.IP)
-	if !status {
-		logging.Debug(debugTag, "couldn't create machine instance inside etcd for itself")
+	_, err = instance.createMachine(selfInfo.Nic, selfInfo.IP)
+	if err != nil {
+		logging.Debug(debugTag, "couldn't create machine instance inside etcd for itself due to: %s", err)
 	}
 
 	return instance, nil

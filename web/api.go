@@ -8,9 +8,10 @@ import (
 	"net"
 	"net/http"
 	"path"
-	"time"
 
 	"github.com/cafebazaar/blacksmith/datasource"
+        "io/ioutil"
+        "github.com/cafebazaar/blacksmith/logging"
 )
 
 // Version returns json encoded version details
@@ -27,26 +28,23 @@ type nodeDetails struct {
 	Name          string    `json:"name"`
 	Nic           string    `json:"nic"`
 	IP            net.IP    `json:"ip"`
-	FirstAssigned time.Time `json:"firstAssigned"`
-	LastAssigned  time.Time `json:"lastAssigned"`
+	IPMInode      string    `json:"IPMInode"`
+	FirstAssigned int64     `json:"firstAssigned"`
+	LastAssigned  int64     `json:"lastAssigned"`
 }
 
 func nodeToDetails(node datasource.Machine) (*nodeDetails, error) {
 	name := node.Name()
 	mac := node.Mac()
-	ip, err := node.IP()
+	stats, err := node.GetStats()
 	if err != nil {
-		return nil, errors.New("IP")
-	}
-	first, err := node.FirstSeen()
-	if err != nil {
-		return nil, errors.New("FIRST")
+		return nil, errors.New("stats")
 	}
 	last, err := node.LastSeen()
 	if err != nil {
 		return nil, errors.New("LAST")
 	}
-	return &nodeDetails{name, mac.String(), ip, first, last}, nil
+	return &nodeDetails{name, mac.String(), stats.IP, stats.IPMInode, stats.FirstSeen, last}, nil
 }
 
 // NodesList creates a list of the currently known nodes based on the etcd
@@ -125,6 +123,24 @@ func (ws *webServer) NodeFlags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(flagsJSON))
+}
+
+func (ws *webServer) NodeSetIPMI(w http.ResponseWriter, r *http.Request) {
+        defer r.Body.Close()
+        body, _ := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+
+        var data map[string]string
+        json.Unmarshal(body, &data)
+        nodeMac, err := net.ParseMAC(data["node"])
+        if err != nil {
+                return http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+        }
+        IPMInodeMac, err := net.ParseMAC(data["IPMInode"])
+        if err != nil {
+                return http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+        }
+        machine, _ := ws.ds.GetMachine(nodeMac)
+        machine.SetIPMI(IPMInodeMac)
 }
 
 func (ws *webServer) SetFlag(w http.ResponseWriter, r *http.Request) {

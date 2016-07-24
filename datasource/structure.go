@@ -2,7 +2,6 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 
 import (
 	"net"
-	"time"
 )
 
 // Machine provides the interface for querying/altering Machine entries
@@ -12,7 +11,7 @@ type Machine interface {
 	Mac() net.HardwareAddr
 
 	// IP reutrns the IP address associated with the machine
-	IP() (net.IP, error)
+	//IP() (net.IP, error)
 
 	// Name returns the hostname of the machine
 	Name() string
@@ -22,10 +21,19 @@ type Machine interface {
 
 	// FirstSeen returns the time upon which the machine has
 	// been seen
-	FirstSeen() (time.Time, error)
+	//FirstSeen() (time.Time, error)
 
 	// LastSeen returns the last time the machine has been seen
-	LastSeen() (time.Time, error)
+	LastSeen() (int64, error)
+
+	// GetStats returns an instance of EtcdMachineStats
+	GetStats() (EtcdMachineStats, error)
+
+        // set stats to etcd
+        SetStats(stats EtcdMachineStats) error
+
+        // set a new IPMI for the machine
+        SetIPMI(mac net.HardwareAddr)
 
 	// ListFlags returns the list of all the flgas of a machine from Etcd
 	ListFlags() (map[string]string, error)
@@ -81,11 +89,11 @@ type DataSource interface {
 	// SetClusterVariable sets cluster variable equal to value.
 	SetClusterVariable(key string, value string) error
     
-    // DeleteClusterVariable delete a cluster variable from etcd.
+        // DeleteClusterVariable delete a cluster variable from etcd.
 	DeleteClusterVariable(key string) error
     
-    // ListClusterVariables list all cluster variables stored in etcd
-    ListClusterVariables()(map[string]string, error)
+        // ListClusterVariables list all cluster variables stored in etcd
+        ListClusterVariables()(map[string]string, error)
     
 	// Get returns value associated with key
 	Get(key string) (string, error)

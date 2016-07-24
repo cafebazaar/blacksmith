@@ -118,7 +118,7 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 			return base64.StdEncoding.EncodeToString([]byte(text))
 		},
 	})
-	ip, _ := machine.IP()
+	stats, _ := machine.GetStats()
 	data := struct {
 		Mac      string
 		IP       string
@@ -127,7 +127,7 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		HostAddr string
 	}{
 		machine.Mac().String(),
-		ip.String(),
+		stats.IP.String(),
 		machine.Name(),
 		machine.Domain(),
 		hostAddr,

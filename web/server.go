@@ -29,6 +29,7 @@ func (ws *webServer) Handler() http.Handler {
 
 	mux.HandleFunc("/api/nodes", ws.NodesList)
 	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeFlags).Methods("GET")
+	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeSetIPMI).Methods("PUT")
 
 	mux.PathPrefix("/api/flag/").HandlerFunc(ws.SetFlag).Methods("PUT")
 	mux.PathPrefix("/api/flag/").HandlerFunc(ws.DelFlag).Methods("DELETE")

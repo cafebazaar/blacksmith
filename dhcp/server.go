@@ -96,7 +96,7 @@ func (h *DHCPHandler) fillPXE() []byte {
 
 //
 func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
-	dns, err := h.datasource.DNSAddresses()
+	dns, err := h.datasource.DNSAddressesForDHCP()
 	if err != nil {
 		logging.Log(debugTag, "Failed to read dns addresses")
 		return nil

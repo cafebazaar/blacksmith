@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/cafebazaar/blacksmith/logging"
@@ -93,4 +94,47 @@ func (ds *EtcdDataSource) RemoveInstance() error {
 	defer cancel()
 	_, err := ds.keysAPI.Delete(ctx, ds.instanceEtcdKey, nil)
 	return err
+}
+
+// DNSAddressesForDHCP returns the ip addresses of the present skydns servers
+// in the network, marshalled as specified in rfc2132 (option 6)
+func (ds *EtcdDataSource) DNSAddressesForDHCP() ([]byte, error) {
+	var ret []byte
+
+	// These values are set by hacluster.registerOnEtcd
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	response, err := ds.keysAPI.Get(ctx, ds.prefixify(instancesEtcdDir), &etcd.GetOptions{Recursive: false})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ent := range response.Node.Nodes {
+		instanceInfoStr := ent.Value
+
+		var instanceInfo InstanceInfo
+		if err := json.Unmarshal([]byte(instanceInfoStr), &instanceInfo); err != nil {
+			logging.Log(debugTag, "failed to unmarshal instance info: %s / instanceInfoStr=%q",
+				err, instanceInfoStr)
+			continue
+		}
+
+		ret = append(ret, (instanceInfo.IP.To4())...)
+	}
+
+	return ret, nil
+}
+
+// SelfInfo return InstanceInfo of this instance of blacksmith
+func (ds *EtcdDataSource) SelfInfo() InstanceInfo {
+	return ds.selfInfo
+}
+
+func (ii *InstanceInfo) String() string {
+	marshaled, err := json.Marshal(ii)
+	if err != nil {
+		logging.Log(debugTag, "Failed to marshal instanceInfo: %s", err)
+		return ""
+	}
+	return string(marshaled)
 }

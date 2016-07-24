@@ -46,13 +46,13 @@ type Machine interface {
 
 // InstanceInfo describes an active instance of blacksmith running on some machine
 type InstanceInfo struct {
-	IP               net.IP 		`json:"ip"`
-	Nic              net.HardwareAddr	`json:"nic"`
-	WebPort          int    		`json:"webPort"`
-	Version          string 		`json:"version"`
-	Commit           string 		`json:"commit"`
-	BuildTime        string 		`json:"buildTime"`
-	ServiceStartTime int64  		`json:"serviceStartTime"`
+	IP               net.IP           `json:"ip"`
+	Nic              net.HardwareAddr `json:"nic"`
+	WebPort          int              `json:"webPort"`
+	Version          string           `json:"version"`
+	Commit           string           `json:"commit"`
+	BuildTime        string           `json:"buildTime"`
+	ServiceStartTime int64            `json:"serviceStartTime"`
 }
 
 // DataSource provides the interface for querying general information
@@ -80,13 +80,13 @@ type DataSource interface {
 
 	// SetClusterVariable sets cluster variable equal to value.
 	SetClusterVariable(key string, value string) error
-    
-    // DeleteClusterVariable delete a cluster variable from etcd.
+
+	// DeleteClusterVariable delete a cluster variable from etcd.
 	DeleteClusterVariable(key string) error
-    
-    // ListClusterVariables list all cluster variables stored in etcd
-    ListClusterVariables()(map[string]string, error)
-    
+
+	// ListClusterVariables list all cluster variables stored in etcd
+	ListClusterVariables() (map[string]string, error)
+
 	// Get returns value associated with key
 	Get(key string) (string, error)
 
@@ -113,11 +113,9 @@ type DataSource interface {
 	// Request is how to client requests to use the Ip address
 	Request(nic string, currentIP net.IP) (net.IP, error)
 
-	// DNSAddresses returns addresses of the dns servers present in the network which
-	// can answer "what is the ip address of nodeX ?"
-	// a byte slice is returned to be used as option 6 (rfc2132) in a dhcp Request
-	// reply packet
-	DNSAddresses() ([]byte, error)
+	// DNSAddressesForDHCP returns the ip addresses of the present skydns servers
+	// in the network, marshalled as specified in rfc2132 (option 6)
+	DNSAddressesForDHCP() ([]byte, error)
 
 	// IsMaster checks for being master, and makes a heartbeat
 	IsMaster() bool

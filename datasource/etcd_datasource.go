@@ -2,7 +2,6 @@ package datasource
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -26,23 +25,6 @@ const (
 	coreosVersionKey = "coreos-version"
 )
 
-func (ii *InstanceInfo) String() string {
-	marshaled, err := json.Marshal(ii)
-	if err != nil {
-		logging.Log(debugTag, "Failed to marshal instanceInfo: %s", err)
-		return ""
-	}
-	return string(marshaled)
-}
-
-// func InstanceInfoFromString(iiStr string) (*InstanceInfo, error) {
-// 	var ii *InstanceInfo
-// 	if err := json.Unmarshal([]byte(iiStr), ii); err != nil {
-// 		return nil, err
-// 	}
-// 	return ii, nil
-// }
-
 // EtcdDataSource implements MasterDataSource interface using etcd as it's
 // datasource
 // Implements MasterDataSource interface
@@ -64,11 +46,6 @@ type EtcdDataSource struct {
 // part of the GeneralDataSource interface implementation
 func (ds *EtcdDataSource) WorkspacePath() string {
 	return ds.workspacePath
-}
-
-// SelfInfo return InstanceInfo of this instance of blacksmith
-func (ds *EtcdDataSource) SelfInfo() InstanceInfo {
-	return ds.selfInfo
 }
 
 // Machines returns an array of the recognized machines in etcd datasource
@@ -228,7 +205,6 @@ func (ds *EtcdDataSource) DeleteClusterVariable(key string) error {
 	return err
 }
 
-
 // Get parses the etcd key and returns it's value
 // part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Get(key string) (string, error) {
@@ -316,27 +292,6 @@ func (ds *EtcdDataSource) LeaseStart() net.IP {
 // part of DHCPDataSource interface implementation
 func (ds *EtcdDataSource) LeaseRange() int {
 	return ds.leaseRange
-}
-
-// DNSAddresses returns the ip addresses of the present skydns servers in the
-// network, marshalled as specified in rfc2132 (option 6)
-// part of DHCPDataSource ineterface implementation
-func (ds *EtcdDataSource) DNSAddresses() ([]byte, error) {
-	ret := make([]byte, 0)
-
-	// These values are set by hacluster.registerOnEtcd
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	response, err := ds.keysAPI.Get(ctx, ds.prefixify(instancesEtcdDir), &etcd.GetOptions{Recursive: false})
-	if err != nil {
-		return ret, err
-	}
-	for _, ent := range response.Node.Nodes {
-		ipString := ent.Value
-
-		ret = append(ret, (net.ParseIP(ipString).To4())...)
-	}
-	return ret, nil
 }
 
 func (ds *EtcdDataSource) lockDHCPAssign() {

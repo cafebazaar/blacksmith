@@ -40,7 +40,7 @@ const (
 var (
 	versionFlag       = flag.Bool("version", false, "Print version info and exit")
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
-	listenIFFlag      = flag.String("if", "0.0.0.0", "Interface name for DHCP and PXE to listen on")
+	listenIFFlag      = flag.String("if", "", "Interface name for DHCP and PXE to listen on")
 	httpListenFlag    = flag.String("http-listen", httpListenFlagDefaultTCPAddress, "IP range to listen on for web requests")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")

@@ -109,10 +109,6 @@ func gracefulShutdown(etcdDataSource datasource.DataSource) {
 }
 
 func main() {
-	go func() {
-		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
-	}()
-
 	var err error
 	flag.Parse()
 
@@ -123,6 +119,10 @@ func main() {
 	if *versionFlag {
 		os.Exit(0)
 	}
+
+	go func() {
+		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
+	}()
 
 	// etcd config
 	if etcdFlag == nil || clusterNameFlag == nil {
@@ -145,7 +145,7 @@ func main() {
 
 	serverIP, err := interfaceIP(dhcpIF)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nError while trying to get the ip from the interface (%s)\n", dhcpIF)
+		fmt.Fprintf(os.Stderr, "\nError while trying to get the ip from the interface (%v)\n", dhcpIF)
 		os.Exit(1)
 	}
 

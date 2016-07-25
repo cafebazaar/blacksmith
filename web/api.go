@@ -11,7 +11,6 @@ import (
 
 	"github.com/cafebazaar/blacksmith/datasource"
         "io/ioutil"
-        "github.com/cafebazaar/blacksmith/logging"
 )
 
 // Version returns json encoded version details
@@ -133,11 +132,13 @@ func (ws *webServer) NodeSetIPMI(w http.ResponseWriter, r *http.Request) {
         json.Unmarshal(body, &data)
         nodeMac, err := net.ParseMAC(data["node"])
         if err != nil {
-                return http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+                http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+                return
         }
         IPMInodeMac, err := net.ParseMAC(data["IPMInode"])
         if err != nil {
-                return http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+                http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+                return
         }
         machine, _ := ws.ds.GetMachine(nodeMac)
         machine.SetIPMI(IPMInodeMac)

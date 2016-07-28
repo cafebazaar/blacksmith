@@ -47,10 +47,8 @@ var (
 	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 	dnsAddressesFlag  = flag.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")
 
-	leaseStartFlag  = flag.String("lease-start", "", "Begining of lease starting IP")
-	leaseRangeFlag  = flag.Int("lease-range", 0, "Lease range")
-	leaseSubnetFlag = flag.String("lease-subnet", "", "Subnet of specified lease")
-	leaseRouterFlag = flag.String("router", "", "Default router that assigned to DHCP clients")
+	leaseStartFlag = flag.String("lease-start", "", "Begining of lease starting IP")
+	leaseRangeFlag = flag.Int("lease-range", 0, "Lease range")
 
 	version   string
 	commit    string
@@ -180,8 +178,6 @@ func main() {
 	// dhcp setting
 	leaseStart := net.ParseIP(*leaseStartFlag)
 	leaseRange := *leaseRangeFlag
-	leaseSubnet := net.ParseIP(*leaseSubnetFlag)
-	leaseRouter := net.ParseIP(*leaseRouterFlag)
 
 	dnsIPStrings := strings.Split(*dnsAddressesFlag, ",")
 	if len(dnsIPStrings) == 0 {
@@ -203,13 +199,6 @@ func main() {
 	if leaseRange <= 1 {
 		fmt.Fprint(os.Stderr, "\nLease range should be greater that 1\n")
 		os.Exit(1)
-	}
-	if leaseSubnet == nil {
-		fmt.Fprint(os.Stderr, "\nPlease specify the lease subnet\n")
-		os.Exit(1)
-	}
-	if leaseRouter == nil {
-		fmt.Fprint(os.Stderr, "\nNo network router is defined.\n")
 	}
 
 	fmt.Printf("Interface IP:    %s\n", serverIP.String())
@@ -285,12 +274,7 @@ func main() {
 
 	// serving dhcp
 	go func() {
-		err := dhcp.ServeDHCP(&dhcp.DHCPSetting{
-			IFName:     dhcpIF.Name,
-			ServerIP:   serverIP,
-			RouterAddr: leaseRouter,
-			SubnetMask: leaseSubnet,
-		}, etcdDataSource)
+		err := dhcp.StartDHCP(dhcpIF.Name, serverIP, etcdDataSource)
 		log.Fatalf("\nError while serving dhcp: %s\n", err)
 	}()
 

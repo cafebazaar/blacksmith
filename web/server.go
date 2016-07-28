@@ -28,14 +28,22 @@ func (ws *webServer) Handler() http.Handler {
 	mux.HandleFunc("/api/version", ws.Version)
 
 	mux.HandleFunc("/api/nodes", ws.NodesList)
-	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeFlags).Methods("GET")
 
+	// Machine variables; used in templates
+	// TODO: refactor the names (/api/flag/ -> /api/node/)
+	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeFlags).Methods("GET")
 	mux.PathPrefix("/api/flag/").HandlerFunc(ws.SetFlag).Methods("PUT")
 	mux.PathPrefix("/api/flag/").HandlerFunc(ws.DelFlag).Methods("DELETE")
 
-    mux.PathPrefix("/api/variables").HandlerFunc(ws.ClusterVariablesList).Methods("GET")
+	// Cluster variables; used in templates
+	mux.PathPrefix("/api/variables").HandlerFunc(ws.ClusterVariablesList).Methods("GET")
 	mux.PathPrefix("/api/variables").HandlerFunc(ws.SetVariable).Methods("PUT")
 	mux.PathPrefix("/api/variables").HandlerFunc(ws.DelVariable).Methods("DELETE")
+
+	// Configuration variables; used inside blacksmith
+	mux.PathPrefix("/api/configuration").HandlerFunc(ws.ConfigurationList).Methods("GET")
+	mux.PathPrefix("/api/configuration").HandlerFunc(ws.SetConfiguration).Methods("PUT")
+	mux.PathPrefix("/api/configuration").HandlerFunc(ws.DelConfiguration).Methods("DELETE")
 
 	mux.HandleFunc("/upload/", ws.Upload)
 	mux.HandleFunc("/files", ws.Files).Methods("GET")

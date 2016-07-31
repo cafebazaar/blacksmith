@@ -29,6 +29,8 @@ func (ws *webServer) Handler() http.Handler {
 
 	mux.HandleFunc("/api/nodes", ws.NodesList)
 
+	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeSetIPMI).Methods("PUT")
+
 	// Machine variables; used in templates
 	// TODO: refactor the names (/api/flag/ -> /api/node/)
 	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeFlags).Methods("GET")

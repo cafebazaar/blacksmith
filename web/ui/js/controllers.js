@@ -7,6 +7,7 @@ blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Nodes', 'N
   $scope.nodeDetails  = {};
   $scope.nodeName     = '';
   $scope.nodeMac      = '';
+  $scope.IPMInode     = '';
   $scope.errorMessage = false;
   $scope.getNodes = function () {
     Nodes.query().$promise.then(
@@ -16,9 +17,10 @@ blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Nodes', 'N
   };
   $scope.getNodes();
 
-  $scope.getNode = function(nic, name) {
+  $scope.getNode = function(nic, name, IPMInode) {
     $scope.nodeMac = nic;
     $scope.nodeName = name;
+    $scope.IPMInode = IPMInode;
     $scope.errorMessage = false;
     Node.query({nic: nic}).$promise.then(
       function( value ){
@@ -45,6 +47,17 @@ blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Nodes', 'N
         $scope.errorMessage = error.data;
         $('#nodeModal').modal('hide');
       }
+    );
+  };
+
+  $scope.setIPMI = function (nic, IPMInode) {
+    Node.setIPMI({nic: nic, node: nic, IPMInode: IPMInode}).$promise.then(
+        function (value) {},
+        function (error) {
+          $scope.errorMessage = error.data;
+          $('#nodeModal').modal('hide');
+        }
+
     );
   };
 

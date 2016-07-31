@@ -26,6 +26,14 @@
       <a role="button" class="btn" target="_blank" href="/t/bp/{{nodeMac}}">Bootparams</a>
     </div>
     <hr>
+    <div>
+      <label>Select IPMI</label>
+      <select ng-model="IPMInode" name="ipmi-selection">
+        <option value=""></option>
+        <option ng-repeat="node in nodes" value="{{ node.nic }}">{{ node.name }} ({{ node.ip }})</option>
+      </select>
+      <button type="button" class="btn btn-default btn-xs" ng-click="setIPMI(nodeMac, IPMInode)" title="Set">Set</button><br>
+    </div>
     <button type="button" class="btn btn-default btn-xs" ng-click="addFlag()" title="Add New Flag">Add New Flag</button>
     <table class="property-table">
       <tr ng-repeat="(k, v) in nodeDetails">
@@ -71,9 +79,9 @@
   <tr ng-repeat="node in nodes | orderBy:sortType:sortReverse | filter:searchTerm">
     <td>{{ node.name }}</td>
     <td>{{ node.ip }}</td>
-    <td>{{ node.firstAssigned | date :'medium' }}</td>
-    <td>{{ node.lastAssigned  | date :'medium' }}</td>
-	<td><button class="btn btn-info btn-xs" ng-click="getNode(node.nic, node.name)" data-toggle="modal" data-target="#nodeModal"> View/Modify </button></td>
+    <td>{{ node.firstAssigned * 1000 | date :'medium' }}</td>
+    <td>{{ node.lastAssigned  * 1000 | date :'medium' }}</td>
+    <td><button class="btn btn-info btn-xs" ng-click="getNode(node.nic, node.name, node.IPMInode)" data-toggle="modal" data-target="#nodeModal"> View/Modify </button></td>
   </tr>
   </tbody>
 </table>

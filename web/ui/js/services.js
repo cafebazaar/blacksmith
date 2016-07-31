@@ -15,7 +15,8 @@ apiServices.factory('Nodes', ['$resource',
 apiServices.factory('Node', ['$resource',
     function($resource){
       return $resource('/api/node/:nic', {nic: '@nic'}, {
-        query: {method:'GET', params:{nic: '@nic'}, isArray:false}
+        query: {method:'GET', params:{nic: '@nic'}, isArray:false},
+        setIPMI: {method: 'PUT', isArray:false}
       });
   }]);
 apiServices.factory('Flag', ['$resource',

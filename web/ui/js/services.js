@@ -3,7 +3,7 @@ apiServices.factory('UploadedFiles', ['$resource',
   function($resource){
     return $resource('/files/', {}, {
       query: {method:'GET', params:{}, isArray:true},
-      delete: {method:'DELETE', params:{name: '@name'}, isArray:false}
+      delete: {method:'DELETE', params:{id: '@id'}, isArray:false}
     });
   }]);
 apiServices.factory('Nodes', ['$resource',

@@ -138,3 +138,42 @@ func (ii *InstanceInfo) String() string {
 	}
 	return string(marshaled)
 }
+
+// Get all alive instances
+func (ds *EtcdDataSource) GetAllInstances() ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
+	defer cancel()
+
+	masterGetOptions := etcd.GetOptions{
+		Recursive: true,
+		Quorum:    true,
+		Sort:      true,
+	}
+	resp, err := ds.keysAPI.Get(ctx, ds.prefixify(instancesEtcdDir), &masterGetOptions)
+	if err != nil {
+		logging.Log(debugTag, "error while getting the dir list from etcd: %s", err)
+		return nil, err
+	}
+
+	var result = make([]string, len(resp.Node.Nodes))
+	for i, node := range resp.Node.Nodes {
+		result[i] = node.Value
+	}
+	return result, nil
+}
+
+// Get all other alive instances
+func (ds *EtcdDataSource) GetAllOtherInstances() ([]string, error) {
+	resp, err := ds.GetAllInstances()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+	for _, node := range resp {
+		if node != ds.selfInfo.IP.String() {
+			result = append(result, node)
+		}
+	}
+	return result, nil
+}

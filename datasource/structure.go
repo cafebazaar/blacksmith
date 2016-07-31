@@ -3,6 +3,8 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 import (
 	"net"
 	"time"
+	"os"
+	"github.com/coreos/etcd/client"
 )
 
 // Machine provides the interface for querying/altering Machine entries
@@ -86,6 +88,13 @@ type DataSource interface {
 	//ListConfigurations returns the list of all the configuration variables
 	ListConfigurations() (map[string]string, error)
 
+	// Get returns value associated with key
+	Get(key string) (string, error)
+	GetAbsolute(absoluteKey string) (string, error)
+
+	// Get children nodes of a node with key
+	GetNodes(key string) (client.Nodes, error)
+
 	// GetConfiguration returns a configuration variables with the given name
 	GetConfiguration(key string) (string, error)
 
@@ -94,6 +103,10 @@ type DataSource interface {
 
 	// DeleteConfiguration deletes a configuration variable
 	DeleteConfiguration(key string) error
+
+	// Delete erases a key from the datasource
+	Delete(key string) (*client.Node, error)
+	DeleteAbsolute(absoluteKey string) (*client.Node, error)
 
 	// ClusterName returns the name of the ClusterName
 	ClusterName() string
@@ -116,4 +129,25 @@ type DataSource interface {
 	RemoveInstance() error
 
 	EtcdMembers() (string, error)
+
+	// Get all instances
+	GetAllInstances() ([]string, error)
+	GetAllOtherInstances() ([]string, error)
+
+	// Create a new file node in Etcd
+	NewFile(name string, file *os.File)
+	WatchFileChanges()
+	GetAllFiles() []*File
+	GetFile(key string) *File
+	DeleteFile(key string) *File
+}
+
+type File struct  {
+	Id			string		`json:"id,omitempty"`
+	Name			string		`json:"name"`
+	FromInstance		string		`json:"fromInstance"`
+	Location		string		`json:"location"`
+	UploadedAt		int64		`json:"uploadedAt"` // unix timestamp
+	Size			int64           `json:"size"`
+	LastModificationDate 	int64	 	`json:"lastModifiedDate"`
 }

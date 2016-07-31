@@ -137,6 +137,7 @@ func (ii *InstanceInfo) String() string {
 		return ""
 	}
 	return string(marshaled)
+}
 
 // Get all alive instances
 func (ds *EtcdDataSource) GetAllInstances() ([]string, error) {
@@ -170,7 +171,7 @@ func (ds *EtcdDataSource) GetAllOtherInstances() ([]string, error) {
 
 	var result []string
 	for _, node := range resp {
-		if node != ds.serverIP.String() {
+		if node != ds.selfInfo.IP.String() {
 			result = append(result, node)
 		}
 	}

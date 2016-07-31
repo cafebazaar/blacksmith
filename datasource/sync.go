@@ -33,7 +33,7 @@ func (ds *EtcdDataSource) NewFile(name string, fileHandler *os.File) {
 		Size: fileInfo.Size(),
 		LastModificationDate: fileInfo.ModTime().Unix(),
 		UploadedAt: time.Now().Unix(),
-		FromInstance: ds.serverIP.String(),
+		FromInstance: ds.selfInfo.IP.String(),
 	}
 	jsoned, _ := json.Marshal(file)
 	_, err = ds.keysAPI.CreateInOrder(ctx, ds.prefixify(filesEtcdDir), string(jsoned), &options)
@@ -60,7 +60,7 @@ func (ds *EtcdDataSource) WatchFileChanges()  {
 		if resp.Action == "create" {
 			file := &File{}
 			json.Unmarshal([]byte(resp.Node.Value), file)
-			if file.FromInstance == ds.serverIP.String() {
+			if file.FromInstance == ds.selfInfo.IP.String() {
 				continue
 			}
 			dst, err := os.Create(file.Location)

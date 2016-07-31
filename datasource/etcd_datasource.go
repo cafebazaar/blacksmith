@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/cafebazaar/blacksmith/logging"
+	"encoding/json"
 )
 
 const (

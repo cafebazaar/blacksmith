@@ -2,15 +2,8 @@ package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 
 import (
 	"net"
-<<<<<<< HEAD
-<<<<<<< 1556f60fb0b2798d90418c0fe3527f6b6239083c
-	"time"
 	"os"
 	"github.com/coreos/etcd/client"
-=======
->>>>>>> de/selecting a node as IPMI node for another node
-=======
->>>>>>> 94fe7c2f17fbd32893e4bb8153abec2978b06562
 )
 
 // Machine provides the interface for querying/altering Machine entries
@@ -99,9 +92,9 @@ type DataSource interface {
     
         // DeleteClusterVariable delete a cluster variable from etcd.
 	DeleteClusterVariable(key string) error
-    
-        // ListClusterVariables list all cluster variables stored in etcd
-        ListClusterVariables()(map[string]string, error)
+
+	//ListConfigurations returns the list of all the configuration variables
+	ListConfigurations() (map[string]string, error)
 
 	// Get returns value associated with key
 	Get(key string) (string, error)

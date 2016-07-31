@@ -140,7 +140,7 @@ func (m *EtcdMachine) DeleteFlag(key string) error {
 }
 
 func (m *EtcdMachine) prefixify(str string) string {
-	return "machines/" + m.Name() + "/" + str
+	return m.etcd.prefixify("machines/" + m.Name() + "/" + str)
 }
 
 func (m *EtcdMachine) selfGet(key string) (string, error) {

@@ -85,17 +85,15 @@ type DataSource interface {
 	// DeleteClusterVariable deletes a cluster variable
 	DeleteClusterVariable(key string) error
 
-	// ListClusterVariables list all cluster variables stored in etcd
-	ListClusterVariables() (map[string]string, error)
+	//ListConfigurations returns the list of all the configuration variables
+	ListConfigurations() (map[string]string, error)
 
 	// Get returns value associated with key
 	Get(key string) (string, error)
-	GetAbsolute(absoluteKey string) (string, error)\
+	GetAbsolute(absoluteKey string) (string, error)
 
 	// Get children nodes of a node with key
 	GetNodes(key string) (client.Nodes, error)
-
-	GetAbsolute(absoluteKey string) (string, error)
 
 	// GetConfiguration returns a configuration variables with the given name
 	GetConfiguration(key string) (string, error)

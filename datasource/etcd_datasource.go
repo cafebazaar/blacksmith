@@ -193,6 +193,13 @@ func (ds *EtcdDataSource) get(keyPath string) (string, error) {
 	return response.Node.Value, nil
 }
 
+func (ds *EtcdDataSource) set(keyPath string, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := ds.keysAPI.Set(ctx, keyPath, value, nil)
+	return err
+}
+
 // GetClusterVariable returns a cluster variables with the given name
 func (ds *EtcdDataSource) GetClusterVariable(key string) (string, error) {
 	return ds.get(ds.prefixifyForClusterVariables(key))
@@ -238,10 +245,7 @@ func (ds *EtcdDataSource) GetAbsolute(absoluteKey string)(string, error){
 	return response.Node.Value, nil
 }
 
-// ListClusterVariables returns the list of all cluster variables from Etcd
-// etcd and cluster-variables will be added to the path
-// part of Machine interface implementation
-func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
 	defer cancel()
 
@@ -260,6 +264,11 @@ func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
 	}
 
 	return flags, nil
+}
+
+// ListClusterVariables returns the list of all the cluster variables from etcd
+func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdCluserVarsDirName))
 }
 
 // Get an etcd key and returns it's chlidren nodes

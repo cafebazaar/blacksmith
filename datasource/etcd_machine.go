@@ -36,20 +36,6 @@ func (m *EtcdMachine) Mac() net.HardwareAddr {
 	return m.mac
 }
 
-<<<<<<< 1556f60fb0b2798d90418c0fe3527f6b6239083c
-// IP Returns this machine's IP
-// queries etcd
-func (m *EtcdMachine) IP() (net.IP, error) {
-	ipstring, err := m.selfGet("_IP")
-	if err != nil {
-		return nil, err
-	}
-	IP := net.ParseIP(ipstring)
-	return IP, nil
-}
-
-=======
->>>>>>> de/selecting a node as IPMI node for another node
 // Name returns this machine's hostname
 func (m *EtcdMachine) Name() string {
 	return nameFromMac(m.Mac().String())

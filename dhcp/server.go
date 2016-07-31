@@ -2,6 +2,7 @@ package dhcp // import "github.com/cafebazaar/blacksmith/dhcp"
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -25,28 +26,22 @@ func randLeaseDuration() time.Duration {
 	return time.Duration(n) * time.Hour
 }
 
-type DHCPSetting struct {
-	IFName     string
-	ServerIP   net.IP
-	RouterAddr net.IP
-	SubnetMask net.IP
-}
-
-func ServeDHCP(settings *DHCPSetting, datasource datasource.DataSource) error {
-	handler, err := newDHCPHandler(settings, datasource)
-	if err != nil {
-		logging.Debug("DHCP", "Error in connecting etcd - %s", err.Error())
-		return err
+// StartDHCP ListenAndServe for dhcp on port 67, binds on interface=ifName if it's
+// not empty
+func StartDHCP(ifName string, serverIP net.IP, datasource datasource.DataSource) error {
+	handler := &Handler{
+		ifName:      ifName,
+		serverIP:    serverIP,
+		datasource:  datasource,
+		bootMessage: fmt.Sprintf("Blacksmith (%s)", datasource.SelfInfo().Version),
 	}
-	logging.Log("DHCP", "Listening on %s:67 (interface: %s)",
-		settings.ServerIP.String(), settings.IFName)
-	if settings.IFName != "" {
-		err = dhcp4.ListenAndServeIf(settings.IFName, handler)
+
+	logging.Log("DHCP", "Listening on %s:67 (interface: %s)", serverIP.String(), ifName)
+	var err error
+	if ifName != "" {
+		err = dhcp4.ListenAndServeIf(ifName, handler)
 	} else {
 		err = dhcp4.ListenAndServe(handler)
-	}
-	if err != nil {
-		logging.Debug("DHCP", "Error in server - %s", err.Error())
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -54,25 +49,16 @@ func ServeDHCP(settings *DHCPSetting, datasource datasource.DataSource) error {
 	return err
 }
 
-// DHCP handler that passed to dhcp4 package
-
-type DHCPHandler struct {
-	settings    *DHCPSetting
+// Handler is passed to dhcp4 package to handle DHCP packets
+type Handler struct {
+	ifName      string
+	serverIP    net.IP
 	datasource  datasource.DataSource
 	dhcpOptions dhcp4.Options
 	bootMessage string
 }
 
-func newDHCPHandler(settings *DHCPSetting, datasource datasource.DataSource) (*DHCPHandler, error) {
-	h := &DHCPHandler{
-		settings:    settings,
-		datasource:  datasource,
-		bootMessage: fmt.Sprintf("Blacksmith (%s)", datasource.SelfInfo().Version),
-	}
-	return h, nil
-}
-
-func (h *DHCPHandler) fillPXE() []byte {
+func (h *Handler) fillPXE() []byte {
 	// PXE vendor options
 	var pxe bytes.Buffer
 	var l byte
@@ -80,7 +66,7 @@ func (h *DHCPHandler) fillPXE() []byte {
 	pxe.Write([]byte{6, 1, 3})
 	// PXE boot server
 	pxe.Write([]byte{8, 7, 0x80, 0x00, 1})
-	pxe.Write(h.settings.ServerIP.To4())
+	pxe.Write(h.serverIP.To4())
 	// PXE boot menu - one entry, pointing to the above PXE boot server
 	l = byte(3 + len(h.bootMessage))
 	pxe.Write([]byte{9, l, 0x80, 0x00, 9})
@@ -94,21 +80,42 @@ func (h *DHCPHandler) fillPXE() []byte {
 	return pxe.Bytes()
 }
 
-//
-func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
+// ServeDHCP replies a dhcp request
+func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
 	dns, err := h.datasource.DNSAddressesForDHCP()
 	if err != nil {
 		logging.Log(debugTag, "Failed to read dns addresses")
 		return nil
 	}
 
+	netConfStr, err := h.datasource.GetConfiguration(NetConfigurationKey)
+	if err != nil {
+		logging.Log(debugTag, "Failed to get network configuration")
+		return nil
+	}
+
+	var netConf networkConfiguration
+	if err := json.Unmarshal([]byte(netConfStr), &netConf); err != nil {
+		logging.Log(debugTag, "failed to unmarshal network configuration: %s / network configuration=%q",
+			err, netConfStr)
+		return nil
+	}
+
 	dhcpOptions := dhcp4.Options{
-		dhcp4.OptionSubnetMask:       h.settings.SubnetMask.To4(),
+		dhcp4.OptionSubnetMask:       netConf.Netmask.To4(),
 		dhcp4.OptionDomainNameServer: dns,
 	}
 
-	if h.settings.RouterAddr != nil {
-		dhcpOptions[dhcp4.OptionRouter] = h.settings.RouterAddr.To4()
+	if netConf.Router != nil {
+		dhcpOptions[dhcp4.OptionRouter] = netConf.Router.To4()
+	}
+	if len(netConf.ClasslessRouteOption) != 0 {
+		var res []byte
+		for _, part := range netConf.ClasslessRouteOption {
+			res = append(res, part.toBytes()...)
+		}
+		dhcpOptions[dhcp4.OptionClasslessRouteFormat] = res
+
 	}
 
 	macAddress := strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
@@ -123,7 +130,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 
 		guidVal, isPxe := options[97]
 		if isPxe { // this is a pxe request
-			logging.Log("DHCP", "dhcp discover with PXE - CHADDR %s - IP %s - our ip %s", p.CHAddr().String(), ip.String(), h.settings.ServerIP.String())
+			logging.Log("DHCP", "dhcp discover with PXE - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
 			guid := guidVal[1:]
 			replyOptions = append(replyOptions,
 				dhcp4.Option{
@@ -142,10 +149,10 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		} else {
 			logging.Log("DHCP", "dhcp discover - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
 		}
-		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.settings.ServerIP, ip, randLeaseDuration(), replyOptions)
+		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.serverIP, ip, randLeaseDuration(), replyOptions)
 		return packet
 	case dhcp4.Request:
-		if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(h.settings.ServerIP) {
+		if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(h.serverIP) {
 			return nil // this message is not ours
 		}
 		requestedIP := net.IP(options[dhcp4.OptionRequestedIPAddress])
@@ -160,7 +167,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		if err != nil {
 			logging.Debug("DHCP", "dhcp request - CHADDR %s - Requested IP %s - NO MATCH", p.CHAddr().String(), requestedIP.String())
 
-			return dhcp4.ReplyPacket(p, dhcp4.NAK, h.settings.ServerIP, nil, 0, nil)
+			return dhcp4.ReplyPacket(p, dhcp4.NAK, h.serverIP, nil, 0, nil)
 		}
 
 		replyOptions := dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
@@ -173,7 +180,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 
 		guidVal, isPxe := options[97]
 		if isPxe { // this is a pxe request
-			logging.Log("DHCP", "dhcp request with PXE - CHADDR %s - Requested IP %s - our ip %s - ACCEPTED", p.CHAddr().String(), requestedIP.String(), h.settings.ServerIP.String())
+			logging.Log("DHCP", "dhcp request with PXE - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 			guid := guidVal[1:]
 			replyOptions = append(replyOptions,
 				dhcp4.Option{
@@ -192,7 +199,7 @@ func (h *DHCPHandler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, optio
 		} else {
 			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 		}
-		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.settings.ServerIP, requestedIP, randLeaseDuration(), replyOptions)
+		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.serverIP, requestedIP, randLeaseDuration(), replyOptions)
 		return packet
 	case dhcp4.Release, dhcp4.Decline:
 

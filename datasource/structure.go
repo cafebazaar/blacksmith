@@ -36,10 +36,6 @@ type Machine interface {
 	// SetFlag sets the value of the specified key
 	SetFlag(key string, value string) error
 
-	// GetAndDeleteFlag gets the value associated with the key
-	// and erases it afterwards
-	GetAndDeleteFlag(key string) (string, error)
-
 	// DeleteFlag erases the entry specified by key
 	DeleteFlag(key string) error
 }
@@ -75,37 +71,32 @@ type DataSource interface {
 	// datasource storage
 	Machines() ([]Machine, error)
 
-	// GetClusterVariable returns value associated with cluster variable key
-	GetClusterVariable(key string) (string, error)
-
-	// SetClusterVariable sets cluster variable equal to value.
-	SetClusterVariable(key string, value string) error
-
-	// DeleteClusterVariable delete a cluster variable from etcd.
-	DeleteClusterVariable(key string) error
-
-	// ListClusterVariables list all cluster variables stored in etcd
+	// ListClusterVariables returns the list of all the cluster variables
 	ListClusterVariables() (map[string]string, error)
 
-	// Get returns value associated with key
-	Get(key string) (string, error)
+	// GetClusterVariable returns a cluster variables with the given name
+	GetClusterVariable(key string) (string, error)
 
-	// Set sets key equal to value.
-	Set(key, value string) error
+	// SetClusterVariable sets a cluster variable
+	SetClusterVariable(key string, value string) error
 
-	// Delete erases a key from the datasource
-	Delete(key string) error
+	// DeleteClusterVariable deletes a cluster variable
+	DeleteClusterVariable(key string) error
 
-	// Gets a key, returns it's value and deletes it
-	GetAndDelete(key string) (string, error)
+	//ListConfigurations returns the list of all the configuration variables
+	ListConfigurations() (map[string]string, error)
+
+	// GetConfiguration returns a configuration variables with the given name
+	GetConfiguration(key string) (string, error)
+
+	// SetConfiguration sets a configuration variable
+	SetConfiguration(key, value string) error
+
+	// DeleteConfiguration deletes a configuration variable
+	DeleteConfiguration(key string) error
 
 	// ClusterName returns the name of the ClusterName
 	ClusterName() string
-
-	// LeaseStart specifies dhcp pool starting ip
-	LeaseStart() net.IP
-	// LeaseRange specifies number of IPs the dhcp server can assign
-	LeaseRange() int
 
 	// Assign finds an IP for the specified nic
 	Assign(nic string) (net.IP, error)

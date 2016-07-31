@@ -71,8 +71,8 @@ if [ SCRIPT_DEBUG ]; then
   echo
 fi
 
-VOLUME_ARGS="-v ${WORKSPACE_DIR}:/workspace"
-ARGS="-etcd $ETCD_ENDPOINTS -if $INTERFACE -lease-start $LEASE_START -lease-range $LEASE_RANGE -lease-subnet $LEASE_SUBNET -router $ROUTER -dns $DNS -http-listen 0.0.0.0:8000 $OTHER_ARGS"
+VOLUME_ARGS="-v ${WORKSPACE_DIR}:/workspace:Z"
+ARGS="-etcd $ETCD_ENDPOINTS -if $INTERFACE -lease-start $LEASE_START -lease-range $LEASE_RANGE -dns $DNS -http-listen 0.0.0.0:8000 $OTHER_ARGS"
 
 $DOCKER_EXEC kill -s HUP $DOCKER_NAME; $DOCKER_EXEC kill $DOCKER_NAME || echo "NOT FATAL"
 $DOCKER_EXEC rm          $DOCKER_NAME || echo "NOT FATAL"
@@ -84,6 +84,9 @@ sleep 3
 if [ "$(docker inspect $DOCKER_NAME | grep "\"Restarting\": false")" ]; then
 	print_logs
   echo Seems OK.
+
+  curl -X PUT http://127.0.0.1:8000/api/configuration/net-conf -d "value={\"netmask\":\"$LEASE_SUBNET\", \"router\": \"$ROUTER\"}"
+
   echo
 else
 	echo "Something went wrong for docker container $DOCKER_NAME"

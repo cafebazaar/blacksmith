@@ -23,6 +23,10 @@ import (
 
 const (
 	coreosVersionKey = "coreos-version"
+
+	etcdMachinesDirName      = "machines"
+	etcdCluserVarsDirName    = "cluster-variables"
+	etcdConfigurationDirName = "configuration"
 )
 
 // EtcdDataSource implements MasterDataSource interface using etcd as it's
@@ -149,7 +153,7 @@ func (ds *EtcdDataSource) createMachine(mac net.HardwareAddr, ip net.IP) (Machin
 // if not, the inital CoreOS version will be returned, with the raised error
 // part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) CoreOSVersion() (string, error) {
-	coreOSVersion, err := ds.Get(coreosVersionKey)
+	coreOSVersion, err := ds.get(coreosVersionKey)
 	if err != nil {
 		return ds.initialCoreOSVersion, err
 	}
@@ -171,104 +175,97 @@ func (ds *EtcdDataSource) prefixify(key string) string {
 
 // Add prefix for cluster variable keys
 func (ds *EtcdDataSource) prefixifyForClusterVariables(key string) string {
-	return path.Join(ds.clusterName, "cluster-variables", key)
+	return path.Join(ds.clusterName, etcdCluserVarsDirName, key)
 }
 
-// GetClusterVariable parses the etcd keys of cluster variables and returns their value
-// part of GeneralDataSource interface implementation
+func (ds *EtcdDataSource) prefixifyForConfiguration(key string) string {
+	return path.Join(ds.clusterName, etcdConfigurationDirName, key)
+}
+
+func (ds *EtcdDataSource) get(keyPath string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	response, err := ds.keysAPI.Get(ctx, keyPath, nil)
+	if err != nil {
+		return "", err
+	}
+	return response.Node.Value, nil
+}
+
+// GetClusterVariable returns a cluster variables with the given name
 func (ds *EtcdDataSource) GetClusterVariable(key string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	response, err := ds.keysAPI.Get(ctx, ds.prefixifyForClusterVariables(key), nil)
-	if err != nil {
-		return "", err
-	}
-	return response.Node.Value, nil
+	return ds.get(ds.prefixifyForClusterVariables(key))
 }
 
-// SetClusterVariable sets cluster variables in etcd
-// part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
+// GetConfiguration returns a configuration variables with the given name
+func (ds *EtcdDataSource) GetConfiguration(key string) (string, error) {
+	return ds.get(ds.prefixifyForClusterVariables(key))
+}
+
+func (ds *EtcdDataSource) delete(keyPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_, err := ds.keysAPI.Set(ctx, ds.prefixifyForClusterVariables(key), value, nil)
+	_, err := ds.keysAPI.Delete(ctx, keyPath, nil)
 	return err
 }
 
-// DeleteClusterVariable delete a cluster vari  ables from etcd
-// part of GeneralDataSource interface implementation
+// DeleteClusterVariable deletes a cluster variable
 func (ds *EtcdDataSource) DeleteClusterVariable(key string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := ds.keysAPI.Delete(ctx, ds.prefixifyForClusterVariables(key), nil)
-	return err
+	return ds.delete(ds.prefixifyForClusterVariables(key))
 }
 
-// Get parses the etcd key and returns it's value
-// part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Get(key string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	response, err := ds.keysAPI.Get(ctx, ds.prefixify(key), nil)
-	if err != nil {
-		return "", err
-	}
-	return response.Node.Value, nil
+// DeleteConfiguration deletes a configuration variable
+func (ds *EtcdDataSource) DeleteConfiguration(key string) error {
+	return ds.delete(ds.prefixifyForConfiguration(key))
 }
 
-// ListClusterVariables returns the list of all cluster variables from Etcd
-// etcd and cluster-variables will be added to the path
-// part of Machine interface implementation
-func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	response, err := ds.keysAPI.Get(ctx, path.Join(ds.clusterName, "cluster-variables"), nil)
+	response, err := ds.keysAPI.Get(ctx, dir, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	flags := make(map[string]string)
-	for i := range response.Node.Nodes {
-		_, k := path.Split(response.Node.Nodes[i].Key)
-		flags[k] = response.Node.Nodes[i].Value
+	for _, n := range response.Node.Nodes {
+		if n.Dir {
+			continue
+		}
+		_, k := path.Split(n.Key)
+		flags[k] = n.Value
 	}
 
 	return flags, nil
 }
 
-// Set sets and etcd key to a value
-// part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Set(key string, value string) error {
+// ListClusterVariables returns the list of all the cluster variables from etcd
+func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdCluserVarsDirName))
+}
+
+// ListConfigurations returns the list of all the configuration variables from etcd
+func (ds *EtcdDataSource) ListConfigurations() (map[string]string, error) {
+	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdConfigurationDirName))
+}
+
+func (ds *EtcdDataSource) set(keyPath string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_, err := ds.keysAPI.Set(ctx, ds.prefixify(key), value, nil)
+	_, err := ds.keysAPI.Set(ctx, keyPath, value, nil)
 	return err
 }
 
-// GetAndDelete gets the value of an etcd key and returns it, and deletes the record
-// afterwards
-// part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) GetAndDelete(key string) (string, error) {
-	value, err := ds.Get(key)
-	if err != nil {
-		return "", err
-	}
-	if err = ds.Delete(key); err != nil {
-		return "", err
-	}
-	return value, nil
+// SetClusterVariable sets a cluster variable inside etcd
+func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
+	return ds.set(ds.prefixifyForClusterVariables(key), value)
 }
 
-// Delete erases the key from etcd
-// part of GeneralDataSource interface implementation
-func (ds *EtcdDataSource) Delete(key string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := ds.keysAPI.Delete(ctx, ds.prefixify(key), nil)
-	return err
+// SetConfiguration sets a configuration variable inside etcd
+func (ds *EtcdDataSource) SetConfiguration(key string, value string) error {
+	return ds.set(ds.prefixifyForConfiguration(key), value)
 }
 
 // ClusterName returns the name of the cluster
@@ -278,20 +275,6 @@ func (ds *EtcdDataSource) ClusterName() string {
 
 type initialValues struct {
 	CoreOSVersion string `yaml:"coreos-version"`
-}
-
-// LeaseStart returns the first IP address that the DHCP server can offer to a
-// DHCP client
-// part of DHCPDataSource interface implementation
-func (ds *EtcdDataSource) LeaseStart() net.IP {
-	return ds.leaseStart
-}
-
-// LeaseRange returns the IP range from which IP addresses are assignable to
-// clients by the DHCP server
-// part of DHCPDataSource interface implementation
-func (ds *EtcdDataSource) LeaseRange() int {
-	return ds.leaseRange
 }
 
 func (ds *EtcdDataSource) lockDHCPAssign() {
@@ -354,8 +337,8 @@ func (ds *EtcdDataSource) Assign(nic string) (net.IP, error) {
 	}
 
 	//find an unused ip
-	for i := 0; i < ds.LeaseRange(); i++ {
-		ip := dhcp4.IPAdd(ds.LeaseStart(), i)
+	for i := 0; i < ds.leaseRange; i++ {
+		ip := dhcp4.IPAdd(ds.leaseStart, i)
 		if _, exists := assignedIPs[ip.String()]; !exists {
 			macAddress, _ := net.ParseMAC(nic)
 			ds.createMachine(macAddress, ip)

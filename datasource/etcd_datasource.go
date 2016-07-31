@@ -295,13 +295,6 @@ func (ds *EtcdDataSource) ListConfigurations() (map[string]string, error) {
 	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdConfigurationDirName))
 }
 
-func (ds *EtcdDataSource) set(keyPath string, value string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
-	defer cancel()
-	_, err := ds.keysAPI.Set(ctx, keyPath, value, nil)
-	return err
-}
-
 // Delete erases the key from etcd and return the node
 // part of GeneralDataSource interface implementation
 func (ds *EtcdDataSource) Delete(key string) (*etcd.Node, error) {

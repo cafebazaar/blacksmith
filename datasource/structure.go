@@ -90,12 +90,17 @@ type DataSource interface {
 
 	// Get returns value associated with key
 	Get(key string) (string, error)
+	GetAbsolute(absoluteKey string) (string, error)
+
+	// Get children nodes of a node with key
+	GetNodes(key string) (client.Nodes, error)
 
 	GetAbsolute(absoluteKey string) (string, error)
 	
 	// Get children nodes of a node with key
 	GetNodes(key string) (client.Nodes, error)
 
+<<<<<<< HEAD
 	// GetConfiguration returns a configuration variables with the given name
 	GetConfiguration(key string) (string, error)
 
@@ -105,6 +110,8 @@ type DataSource interface {
 	// DeleteConfiguration deletes a configuration variable
 	DeleteConfiguration(key string) error
 
+=======
+>>>>>>> bd6aed7de1bf57e49c96f4200c952ade05055348
 	// Delete erases a key from the datasource
 	Delete(key string) (*client.Node, error)
 	DeleteAbsolute(absoluteKey string) (*client.Node, error)

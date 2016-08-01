@@ -3,4 +3,4 @@ language: go
 go:
   - tip
 
-script: make test;
+script: ./test.sh

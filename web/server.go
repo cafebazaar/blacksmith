@@ -27,15 +27,14 @@ func (ws *webServer) Handler() http.Handler {
 
 	mux.HandleFunc("/api/version", ws.Version)
 
-	mux.HandleFunc("/api/nodes", ws.NodesList)
+	mux.HandleFunc("/api/machines", ws.MachinesList)
 
-	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeSetIPMI).Methods("PUT")
+	// mux.PathPrefix("/api/machine/").HandlerFunc(ws.NodeSetIPMI).Methods("PUT")
 
 	// Machine variables; used in templates
-	// TODO: refactor the names (/api/flag/ -> /api/node/)
-	mux.PathPrefix("/api/node/").HandlerFunc(ws.NodeFlags).Methods("GET")
-	mux.PathPrefix("/api/flag/").HandlerFunc(ws.SetFlag).Methods("PUT")
-	mux.PathPrefix("/api/flag/").HandlerFunc(ws.DelFlag).Methods("DELETE")
+	mux.PathPrefix("/api/machine/variables").HandlerFunc(ws.MachineVariables).Methods("GET")
+	mux.PathPrefix("/api/machine/variables").HandlerFunc(ws.SetMachineVariable).Methods("PUT")
+	mux.PathPrefix("/api/machine/variables").HandlerFunc(ws.DelMachineVariable).Methods("DELETE")
 
 	// Cluster variables; used in templates
 	mux.PathPrefix("/api/variables").HandlerFunc(ws.ClusterVariablesList).Methods("GET")

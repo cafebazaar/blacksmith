@@ -10,7 +10,6 @@ import (
 	"path"
 
 	"github.com/cafebazaar/blacksmith/datasource"
-        "io/ioutil"
 )
 
 // Version returns json encoded version details
@@ -23,32 +22,32 @@ func (ws *webServer) Version(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(versionJSON))
 }
 
-type nodeDetails struct {
-	Name          string    `json:"name"`
-	Nic           string    `json:"nic"`
-	IP            net.IP    `json:"ip"`
-	IPMInode      string    `json:"IPMInode"`
-	FirstAssigned int64     `json:"firstAssigned"`
-	LastAssigned  int64     `json:"lastAssigned"`
+type machineDetails struct {
+	Name string `json:"name"`
+	Nic  string `json:"nic"`
+	IP   net.IP `json:"ip"`
+	// IPMInode      string `json:"IPMInode"`
+	FirstAssigned int64 `json:"firstAssigned"`
+	LastAssigned  int64 `json:"lastAssigned"`
 }
 
-func nodeToDetails(node datasource.Machine) (*nodeDetails, error) {
-	name := node.Name()
-	mac := node.Mac()
-	stats, err := node.GetStats()
+func machineToDetails(machine datasource.Machine) (*machineDetails, error) {
+	name := machine.Name()
+	mac := machine.Mac()
+	stats, err := machine.GetStats()
 	if err != nil {
 		return nil, errors.New("stats")
 	}
-	last, err := node.LastSeen()
+	last, err := machine.LastSeen()
 	if err != nil {
 		return nil, errors.New("LAST")
 	}
-	return &nodeDetails{name, mac.String(), stats.IP, stats.IPMInode, stats.FirstSeen, last}, nil
+	return &machineDetails{name, mac.String(), stats.IP, stats.FirstSeen, last}, nil
 }
 
-// NodesList creates a list of the currently known nodes based on the etcd
+// MachinesList creates a list of the currently known machines based on the etcd
 // entries
-func (ws *webServer) NodesList(w http.ResponseWriter, r *http.Request) {
+func (ws *webServer) MachinesList(w http.ResponseWriter, r *http.Request) {
 	machines, err := ws.ds.Machines()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
@@ -58,24 +57,24 @@ func (ws *webServer) NodesList(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "[]")
 		return
 	}
-	nodes := make([]*nodeDetails, 0, len(machines))
-	for _, node := range machines {
-		l, err := nodeToDetails(node)
+	machinesArray := make([]*machineDetails, 0, len(machines))
+	for _, machine := range machines {
+		l, err := machineToDetails(machine)
 		if err != nil {
 			http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 			return
 		}
 		if l != nil {
-			nodes = append(nodes, l)
+			machinesArray = append(machinesArray, l)
 		}
 	}
 
-	nodesJSON, err := json.Marshal(nodes)
+	machinesJSON, err := json.Marshal(machines)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 		return
 	}
-	io.WriteString(w, string(nodesJSON))
+	io.WriteString(w, string(machinesJSON))
 }
 
 // ClusterVariables returns all the cluster general variables
@@ -94,8 +93,8 @@ func (ws *webServer) ClusterVariablesList(w http.ResponseWriter, r *http.Request
 	io.WriteString(w, string(flagsJSON))
 }
 
-// NodeFlags returns all the flags set for the node
-func (ws *webServer) NodeFlags(w http.ResponseWriter, r *http.Request) {
+// MachineVariable returns all the flags set for the machine
+func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 	_, macStr := path.Split(r.URL.Path)
 
 	mac, err := net.ParseMAC(macStr)
@@ -124,27 +123,27 @@ func (ws *webServer) NodeFlags(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(flagsJSON))
 }
 
-func (ws *webServer) NodeSetIPMI(w http.ResponseWriter, r *http.Request) {
-        defer r.Body.Close()
-        body, _ := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+// func (ws *webServer) NodeSetIPMI(w http.ResponseWriter, r *http.Request) {
+// 	defer r.Body.Close()
+// 	body, _ := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 
-        var data map[string]string
-        json.Unmarshal(body, &data)
-        nodeMac, err := net.ParseMAC(data["node"])
-        if err != nil {
-                http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
-                return
-        }
-        IPMInodeMac, err := net.ParseMAC(data["IPMInode"])
-        if err != nil {
-                http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
-                return
-        }
-        machine, _ := ws.ds.GetMachine(nodeMac)
-        machine.SetIPMI(IPMInodeMac)
-}
+// 	var data map[string]string
+// 	json.Unmarshal(body, &data)
+// 	nodeMac, err := net.ParseMAC(data["node"])
+// 	if err != nil {
+// 		http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+// 		return
+// 	}
+// 	IPMInodeMac, err := net.ParseMAC(data["IPMInode"])
+// 	if err != nil {
+// 		http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
+// 		return
+// 	}
+// 	machine, _ := ws.ds.GetMachine(nodeMac)
+// 	machine.SetIPMI(IPMInodeMac)
+// }
 
-func (ws *webServer) SetFlag(w http.ResponseWriter, r *http.Request) {
+func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) {
 	_, name := path.Split(r.URL.Path)
 	value := r.FormValue("value")
 
@@ -181,7 +180,7 @@ func (ws *webServer) SetFlag(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, `"OK"`)
 }
 
-func (ws *webServer) DelFlag(w http.ResponseWriter, r *http.Request) {
+func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) {
 	_, name := path.Split(r.URL.Path)
 
 	macStr := r.FormValue("mac")

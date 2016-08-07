@@ -41,14 +41,7 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/api/variables").HandlerFunc(ws.SetVariable).Methods("PUT")
 	mux.PathPrefix("/api/variables").HandlerFunc(ws.DelVariable).Methods("DELETE")
 
-	// Configuration variables; used inside blacksmith
-	mux.PathPrefix("/api/configuration").HandlerFunc(ws.ConfigurationList).Methods("GET")
-	mux.PathPrefix("/api/configuration").HandlerFunc(ws.SetConfiguration).Methods("PUT")
-	mux.PathPrefix("/api/configuration").HandlerFunc(ws.DelConfiguration).Methods("DELETE")
-
-	mux.HandleFunc("/upload/", ws.Upload)
-	mux.HandleFunc("/files", ws.Files).Methods("GET")
-	mux.HandleFunc("/files", ws.DeleteFile).Methods("DELETE")
+	// TODO: returning other files functionalities
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
 		http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "files")))))
 

@@ -23,32 +23,38 @@ func (ws *webServer) Version(w http.ResponseWriter, r *http.Request) {
 }
 
 type machineDetails struct {
-	Name string `json:"name"`
-	Nic  string `json:"nic"`
-	IP   net.IP `json:"ip"`
-	// IPMInode      string `json:"IPMInode"`
-	FirstAssigned int64 `json:"firstAssigned"`
-	LastAssigned  int64 `json:"lastAssigned"`
+	Name          string                 `json:"name"`
+	Nic           string                 `json:"nic"`
+	IP            net.IP                 `json:"ip"`
+	Type          datasource.MachineType `json:"type"`
+	FirstAssigned int64                  `json:"firstAssigned"`
+	LastAssigned  int64                  `json:"lastAssigned"`
 }
 
-func machineToDetails(machine datasource.Machine) (*machineDetails, error) {
-	name := machine.Name()
-	mac := machine.Mac()
-	stats, err := machine.GetStats()
+func machineToDetails(machineInterface datasource.MachineInterface) (*machineDetails, error) {
+
+	name := machineInterface.Hostname()
+	mac := machineInterface.Mac()
+
+	machine, err := machineInterface.Machine(true, nil)
+
 	if err != nil {
 		return nil, errors.New("stats")
 	}
-	last, err := machine.LastSeen()
+	last, err := machineInterface.LastSeen()
 	if err != nil {
 		return nil, errors.New("LAST")
 	}
-	return &machineDetails{name, mac.String(), stats.IP, stats.FirstSeen, last}, nil
+	return &machineDetails{
+		name, mac.String(),
+		machine.IP, machine.Type,
+		machine.FirstSeen, last}, nil
 }
 
 // MachinesList creates a list of the currently known machines based on the etcd
 // entries
 func (ws *webServer) MachinesList(w http.ResponseWriter, r *http.Request) {
-	machines, err := ws.ds.Machines()
+	machines, err := ws.ds.MachineInterfaces()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 		return
@@ -103,13 +109,9 @@ func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	machine, exists := ws.ds.GetMachine(mac)
-	if !exists {
-		http.Error(w, fmt.Sprintf(`{"error": "Machine not found"}`), http.StatusNotFound)
-		return
-	}
+	machineInterface := ws.ds.MachineInterface(mac)
 
-	flags, err := machine.ListFlags()
+	flags, err := machineInterface.ListVariables()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 		return
@@ -123,33 +125,12 @@ func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(flagsJSON))
 }
 
-// func (ws *webServer) NodeSetIPMI(w http.ResponseWriter, r *http.Request) {
-// 	defer r.Body.Close()
-// 	body, _ := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-
-// 	var data map[string]string
-// 	json.Unmarshal(body, &data)
-// 	nodeMac, err := net.ParseMAC(data["node"])
-// 	if err != nil {
-// 		http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	IPMInodeMac, err := net.ParseMAC(data["IPMInode"])
-// 	if err != nil {
-// 		http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
-// 		return
-// 	}
-// 	machine, _ := ws.ds.GetMachine(nodeMac)
-// 	machine.SetIPMI(IPMInodeMac)
-// }
-
 func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) {
 	_, name := path.Split(r.URL.Path)
 	value := r.FormValue("value")
 
 	macStr := r.FormValue("mac")
-	var machine datasource.Machine
-	var exist bool
+	var machineInterface datasource.MachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)
 		if err != nil {
@@ -157,20 +138,13 @@ func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		machine, exist = ws.ds.GetMachine(mac)
-		if !exist {
-			http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
-			return
-		}
+		machineInterface = ws.ds.MachineInterface(mac)
+
 	}
 
 	var err error
-	if machine != nil {
-		err = machine.SetFlag(name, value)
-	} else {
-		// TODO deafult flags
-		http.Error(w, `{"error": "Default flags not supported yet"}`, http.StatusInternalServerError)
-	}
+
+	err = machineInterface.SetVariable(name, value)
 
 	if err != nil {
 		http.Error(w, `{"error": "Error while setting value"}`, http.StatusInternalServerError)
@@ -184,8 +158,7 @@ func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) 
 	_, name := path.Split(r.URL.Path)
 
 	macStr := r.FormValue("mac")
-	var machine datasource.Machine
-	var exist bool
+	var machineInterface datasource.MachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)
 		if err != nil {
@@ -193,21 +166,11 @@ func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		machine, exist = ws.ds.GetMachine(mac)
-		if !exist {
-			http.Error(w, `{"error": "Machine not found"}`, http.StatusInternalServerError)
-			return
-		}
+		machineInterface = ws.ds.MachineInterface(mac)
 	}
 
 	var err error
-	if machine != nil {
-		err = machine.DeleteFlag(name)
-	} else {
-		// TODO deafult flags
-		http.Error(w, `{"error": "Default flags not supported yet"}`, http.StatusInternalServerError)
-	}
-
+	machineInterface.DeleteVariable(name)
 	if err != nil {
 		http.Error(w, `{"error": "Error while delleting value"}`, http.StatusInternalServerError)
 		return
@@ -242,47 +205,4 @@ func (ws *webServer) DelVariable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, `"OK"`)
-}
-
-func (ws *webServer) SetConfiguration(w http.ResponseWriter, r *http.Request) {
-	_, name := path.Split(r.URL.Path)
-	value := r.FormValue("value")
-
-	var err error
-	err = ws.ds.SetConfiguration(name, value)
-
-	if err != nil {
-		http.Error(w, `{"error": "Error while setting value"}`, http.StatusInternalServerError)
-		return
-	}
-
-	io.WriteString(w, `"OK"`)
-}
-
-func (ws *webServer) DelConfiguration(w http.ResponseWriter, r *http.Request) {
-	_, name := path.Split(r.URL.Path)
-
-	err := ws.ds.DeleteConfiguration(name)
-
-	if err != nil {
-		http.Error(w, `{"error": "Error while delleting value"}`, http.StatusInternalServerError)
-		return
-	}
-
-	io.WriteString(w, `"OK"`)
-}
-
-func (ws *webServer) ConfigurationList(w http.ResponseWriter, r *http.Request) {
-	variables, err := ws.ds.ListConfigurations()
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
-		return
-	}
-
-	variablesJSON, err := json.Marshal(variables)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
-		return
-	}
-	io.WriteString(w, string(variablesJSON))
 }

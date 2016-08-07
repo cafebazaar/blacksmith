@@ -5,6 +5,9 @@ import (
 	"encoding/base64"
 	"github.com/cafebazaar/blacksmith/logging"
 )
+const (
+	debugTag = "WEB"
+)
 
 // Generates a random string with the given length by reading /dev/urandom and encoding it to
 func urandomString(n int) string {

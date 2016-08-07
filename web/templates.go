@@ -22,14 +22,15 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 		return ""
 	}
 
-	machine, exist := ws.ds.GetMachine(mac)
-	if !exist {
-		http.Error(w, "Machine not found", 500)
+	machineInterface := ws.ds.MachineInterface(mac)
+	_, err = machineInterface.Machine(false, nil)
+	if err != nil {
+		http.Error(w, "Machine not found", 404)
 		return ""
 	}
 
 	cc, err := templating.ExecuteTemplateFolder(
-		path.Join(ws.ds.WorkspacePath(), "config", templateName), ws.ds, machine, r.Host)
+		path.Join(ws.ds.WorkspacePath(), "config", templateName), ws.ds, machineInterface, r.Host)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err), 500)
 		return ""

@@ -2,8 +2,6 @@ package dhcp
 
 import "net"
 
-const NetConfigurationKey = "net-conf"
-
 type classlessRouteOptionPart struct {
 	Router      net.IP `json:"router"`
 	Size        byte   `json:"size"`

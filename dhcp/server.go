@@ -44,6 +44,11 @@ func StartDHCP(ifName string, serverIP net.IP, datasource datasource.DataSource)
 		err = dhcp4.ListenAndServe(handler)
 	}
 
+	// https://groups.google.com/forum/#!topic/coreos-user/Qbn3OdVtrZU
+	if len(datasource.ClusterName()) > 50 { // 63 - 12(mac) - 1(.)
+		logging.Log(debugTag, "Warning: ClusterName is too long. It may break the behaviour of the DHCP clients")
+	}
+
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	return err
@@ -56,6 +61,18 @@ type Handler struct {
 	datasource  datasource.DataSource
 	dhcpOptions dhcp4.Options
 	bootMessage string
+}
+
+// dnsAddressesForDHCP returns instances. marshalled as specified in
+// rfc2132 (option 6), without the length byte
+func dnsAddressesForDHCP(instances *[]datasource.InstanceInfo) []byte {
+	var res []byte
+
+	for _, instanceInfo := range *instances {
+		res = append(res, instanceInfo.IP.To4()...)
+	}
+
+	return res
 }
 
 func (h *Handler) fillPXE() []byte {
@@ -82,105 +99,94 @@ func (h *Handler) fillPXE() []byte {
 
 // ServeDHCP replies a dhcp request
 func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options dhcp4.Options) (d dhcp4.Packet) {
-	dns, err := h.datasource.DNSAddressesForDHCP()
-	if err != nil {
-		logging.Log(debugTag, "Failed to read dns addresses")
-		return nil
-	}
 
-	netConfStr, err := h.datasource.GetConfiguration(NetConfigurationKey)
-	if err != nil {
-		logging.Log(debugTag, "Failed to get network configuration")
-		return nil
-	}
-
-	var netConf networkConfiguration
-	if err := json.Unmarshal([]byte(netConfStr), &netConf); err != nil {
-		logging.Log(debugTag, "failed to unmarshal network configuration: %s / network configuration=%q",
-			err, netConfStr)
-		return nil
-	}
-
-	dhcpOptions := dhcp4.Options{
-		dhcp4.OptionSubnetMask:       netConf.Netmask.To4(),
-		dhcp4.OptionDomainNameServer: dns,
-	}
-
-	if netConf.Router != nil {
-		dhcpOptions[dhcp4.OptionRouter] = netConf.Router.To4()
-	}
-	if len(netConf.ClasslessRouteOption) != 0 {
-		var res []byte
-		for _, part := range netConf.ClasslessRouteOption {
-			res = append(res, part.toBytes()...)
-		}
-		dhcpOptions[dhcp4.OptionClasslessRouteFormat] = res
-
-	}
-
-	macAddress := strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
 	switch msgType {
-	case dhcp4.Discover:
-		ip, err := h.datasource.Assign(p.CHAddr().String())
-		if err != nil {
-			logging.Debug("DHCP", "err in lease pool - %s", err.Error())
-			return nil // pool is full
-		}
-		replyOptions := dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-
-		guidVal, isPxe := options[97]
-		if isPxe { // this is a pxe request
-			logging.Log("DHCP", "dhcp discover with PXE - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
-			guid := guidVal[1:]
-			replyOptions = append(replyOptions,
-				dhcp4.Option{
-					Code:  dhcp4.OptionVendorClassIdentifier,
-					Value: []byte("PXEClient"),
-				},
-				dhcp4.Option{
-					Code:  97, // UUID/GUID-based Client Identifier
-					Value: guid,
-				},
-				dhcp4.Option{
-					Code:  dhcp4.OptionVendorSpecificInformation,
-					Value: h.fillPXE(),
-				},
-			)
-		} else {
-			logging.Log("DHCP", "dhcp discover - CHADDR %s - IP %s", p.CHAddr().String(), ip.String())
-		}
-		packet := dhcp4.ReplyPacket(p, dhcp4.Offer, h.serverIP, ip, randLeaseDuration(), replyOptions)
-		return packet
-	case dhcp4.Request:
+	case dhcp4.Discover, dhcp4.Request:
 		if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(h.serverIP) {
+			if msgType == dhcp4.Discover {
+				logging.Debug("DHCP", "identifying dhcp server in Discover?! (%v)", p)
+			}
 			return nil // this message is not ours
 		}
-		requestedIP := net.IP(options[dhcp4.OptionRequestedIPAddress])
-		if requestedIP == nil {
-			requestedIP = net.IP(p.CIAddr())
-		}
-		if len(requestedIP) != 4 || requestedIP.Equal(net.IPv4zero) {
-			logging.Debug("DHCP", "dhcp request - CHADDR %s - bad request", p.CHAddr().String())
+
+		machineInterface := h.datasource.MachineInterface(p.CHAddr())
+		machine, err := machineInterface.Machine(true, nil)
+		if err != nil {
+			logging.Debug("DHCP", "failed to get machine for the mac (%s) %s",
+				p.CHAddr().String(), err.Error())
 			return nil
 		}
-		_, err := h.datasource.Request(p.CHAddr().String(), requestedIP)
-		if err != nil {
-			logging.Debug("DHCP", "dhcp request - CHADDR %s - Requested IP %s - NO MATCH", p.CHAddr().String(), requestedIP.String())
 
-			return dhcp4.ReplyPacket(p, dhcp4.NAK, h.serverIP, nil, 0, nil)
+		netConfStr, err := machineInterface.GetVariable(datasource.SpecialKeyNetworkConfiguration)
+		if err != nil {
+			logging.Log(debugTag, "failed to get network configuration: %s", err)
+			return nil
 		}
 
-		replyOptions := dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
-		replyOptions = append(replyOptions,
-			dhcp4.Option{
-				Code:  dhcp4.OptionHostName,
-				Value: []byte("node" + macAddress + "." + h.datasource.ClusterName()),
-			},
-		)
+		var netConf networkConfiguration
+		if err := json.Unmarshal([]byte(netConfStr), &netConf); err != nil {
+			logging.Log(debugTag, "failed to unmarshal network configuration: %s / network configuration=%q",
+				err, netConfStr)
+			return nil
+		}
+
+		instanceInfos, err := h.datasource.Instances()
+		if err != nil {
+			logging.Log(debugTag, "failed to get instances: %s", err)
+			return nil
+		}
+
+		hostname := strings.Join(strings.Split(p.CHAddr().String(), ":"), "")
+		hostname += "." + h.datasource.ClusterName()
+
+		dhcpOptions := dhcp4.Options{
+			dhcp4.OptionSubnetMask:       netConf.Netmask.To4(),
+			dhcp4.OptionDomainNameServer: dnsAddressesForDHCP(&instanceInfos),
+			dhcp4.OptionHostName:         []byte(hostname),
+		}
+
+		if netConf.Router != nil {
+			dhcpOptions[dhcp4.OptionRouter] = netConf.Router.To4()
+		}
+		if len(netConf.ClasslessRouteOption) != 0 {
+			var res []byte
+			for _, part := range netConf.ClasslessRouteOption {
+				res = append(res, part.toBytes()...)
+			}
+			dhcpOptions[dhcp4.OptionClasslessRouteFormat] = res
+
+		}
+
+		responseMsgType := dhcp4.Offer
+		if msgType == dhcp4.Request {
+			responseMsgType = dhcp4.ACK
+
+			requestedIP := net.IP(options[dhcp4.OptionRequestedIPAddress])
+			if requestedIP == nil {
+				requestedIP = net.IP(p.CIAddr())
+			}
+			if len(requestedIP) != 4 || requestedIP.Equal(net.IPv4zero) {
+				logging.Debug("DHCP", "dhcp %s - CHADDR %s - bad request",
+					msgType, p.CHAddr().String())
+				return nil
+			}
+			if !requestedIP.Equal(machine.IP) {
+				logging.Log("DHCP", "dhcp %s - CHADDR %s - requestedIP(%s) != assignedIp(%s)",
+					msgType, p.CHAddr().String(), requestedIP.String(), machine.IP.String())
+				return nil
+			}
+
+			machineInterface.CheckIn()
+		}
 
 		guidVal, isPxe := options[97]
+
+		logging.Debug("DHCP", "dhcp %s - CHADDR %s - assignedIp %s - isPxe %v",
+			msgType, p.CHAddr().String(), machine.IP.String(), isPxe)
+
+		replyOptions := dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
+
 		if isPxe { // this is a pxe request
-			logging.Log("DHCP", "dhcp request with PXE - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 			guid := guidVal[1:]
 			replyOptions = append(replyOptions,
 				dhcp4.Option{
@@ -196,13 +202,12 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 					Value: h.fillPXE(),
 				},
 			)
-		} else {
-			logging.Log("DHCP", "dhcp request - CHADDR %s - Requested IP %s - ACCEPTED", p.CHAddr().String(), requestedIP.String())
 		}
-		packet := dhcp4.ReplyPacket(p, dhcp4.ACK, h.serverIP, requestedIP, randLeaseDuration(), replyOptions)
+		packet := dhcp4.ReplyPacket(p, responseMsgType, h.serverIP, machine.IP,
+			randLeaseDuration(), replyOptions)
 		return packet
-	case dhcp4.Release, dhcp4.Decline:
 
+	case dhcp4.Release, dhcp4.Decline:
 		return nil
 	}
 	return nil

@@ -97,7 +97,7 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 }
 
 func gracefulShutdown(etcdDataSource datasource.DataSource) {
-	err := etcdDataSource.RemoveInstance()
+	err := etcdDataSource.Shutdown()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nError while removing the instance: %s\n", err)
 	} else {
@@ -246,11 +246,8 @@ func main() {
 		}
 	}()
 
-	// watching files on etcd
-	go etcdDataSource.WatchFileChanges()
-
 	// waiting til we're officially the master instance
-	for !etcdDataSource.IsMaster() {
+	for !etcdDataSource.WhileMaster() {
 		logging.Debug(debugTag, "Not master, waiting to be promoted...")
 		time.Sleep(datasource.StandbyMasterUpdateTime)
 	}
@@ -281,7 +278,7 @@ func main() {
 		log.Fatalf("\nError while serving dhcp: %s\n", err)
 	}()
 
-	for etcdDataSource.IsMaster() {
+	for etcdDataSource.WhileMaster() {
 		time.Sleep(datasource.ActiveMasterUpdateTime)
 	}
 

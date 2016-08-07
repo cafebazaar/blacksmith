@@ -1,53 +1,71 @@
 package datasource // import "github.com/cafebazaar/blacksmith/datasource"
 
-import (
-	"net"
-	"os"
-	"github.com/coreos/etcd/client"
+import "net"
+
+// MachineType distinguishes normal servers from static ones, and from the BMC inside those machines
+type MachineType int16
+
+const (
+	// MTNormal is for the ethernet of a server machine attached to our private
+	// network and its ip is provided by our DHCP
+	MTNormal MachineType = 1
+	// MTStatic is for the ethernet of a server machine attached to our private
+	// network, but the IP address is forces. Currentl just the Blacksmith
+	// instances are created in this manner.
+	MTStatic MachineType = 2
+	// MTBMC is for the baseboard management controller embedded on the
+	// motherboard of the server machines
+	MTBMC MachineType = 3
+
+	// SpecialKeyCoreosVersion is a special key for the coreos version of the machines
+	SpecialKeyCoreosVersion = "coreos-version"
+	// SpecialKeyNetworkConfiguration is a special key for the network of the cluster
+	SpecialKeyNetworkConfiguration = "net-conf"
 )
 
-// Machine provides the interface for querying/altering Machine entries
-// in the datasource
-type Machine interface {
-	// Nic returns the hardware address of the machine
+// Machine details
+type Machine struct {
+	IP        net.IP      `json:"ip"`
+	FirstSeen int64       `json:"first_seen"`
+	Type      MachineType `json:"type"`
+}
+
+// MachineInterface provides the interface for querying/altering
+// Machine entries in the datasource
+type MachineInterface interface {
+	// Mac returns the hardware address of the associated machine
 	Mac() net.HardwareAddr
 
-	// IP reutrns the IP address associated with the machine
-	//IP() (net.IP, error)
+	// Hostname returns the mac address formatted as a string suitable for hostname
+	Hostname() string
 
-	// Name returns the hostname of the machine
-	Name() string
-
-	// Domain returns the domain name of the machine
-	Domain() string
-
-	// FirstSeen returns the time upon which the machine has
-	// been seen
-	//FirstSeen() (time.Time, error)
+	// Machine returns the associated Machine
+	// If the createIfNeed is true, and there is no machine associated to this
+	// mac, the machine will be created and returned. If the assignedIP is empty,
+	// the IP will be assigned automatically, otherwise the given will be used.
+	// In this case, an error will be raised if the given IP is currently assigned
+	// to another mac.
+	// If createIfNeed == nil, the assignedIP will be ignored.
+	Machine(createIfNeed bool, assignedIP net.IP) (Machine, error)
 
 	// LastSeen returns the last time the machine has been seen
 	LastSeen() (int64, error)
 
-	// GetStats returns an instance of EtcdMachineStats
-	GetStats() (EtcdMachineStats, error)
+	// CheckIn updates the _last_seen field of the machine
+	CheckIn()
 
-        // set stats to etcd
-        SetStats(stats EtcdMachineStats) error
+	// ListVariables returns the list of all the flgas of a machine from Etcd
+	ListVariables() (map[string]string, error)
 
-        // set a new IPMI for the machine
-        SetIPMI(mac net.HardwareAddr)
+	// GetVariable Gets a machine's variable, or the global if it was not
+	// set for the machine
+	GetVariable(key string) (string, error)
 
-	// ListFlags returns the list of all the flgas of a machine from Etcd
-	ListFlags() (map[string]string, error)
+	// SetVariable sets the value of the specified key
+	SetVariable(key string, value string) error
 
-	// GetFlag returns the value of the supplied key
-	GetFlag(key string) (string, error)
-
-	// SetFlag sets the value of the specified key
-	SetFlag(key string, value string) error
-
-	// DeleteFlag erases the entry specified by key
-	DeleteFlag(key string) error
+	// DeleteVariable erases the entry specified by key
+	DeleteVariable(key string) error
 }
 
 // InstanceInfo describes an active instance of blacksmith running on some machine
@@ -61,25 +79,50 @@ type InstanceInfo struct {
 	ServiceStartTime int64            `json:"serviceStartTime"`
 }
 
+// File describes a file located inside our workspace
+type File struct {
+	ID                   string `json:"id,omitempty"`
+	Name                 string `json:"name"`
+	FromInstance         string `json:"fromInstance"`
+	Location             string `json:"location"`
+	UploadedAt           int64  `json:"uploadedAt"` // unix timestamp
+	Size                 int64  `json:"size"`
+	LastModificationDate int64  `json:"lastModifiedDate"`
+}
+
 // DataSource provides the interface for querying general information
 type DataSource interface {
 	// SelfInfo return InstanceInfo of this instance of blacksmith
 	SelfInfo() InstanceInfo
 
-	// CoreOSVerison returns the coreOs version that blacksmith supplies
-	CoreOSVersion() (string, error)
+	// Instances returns the InstanceInfo of all the present instances of
+	// blacksmith in our cluster
+	Instances() ([]InstanceInfo, error)
 
-	// GetMachine returns The Machine object with the specified Hardware
-	// address. Returns a flag to specify whether or not the entry exists
-	GetMachine(net.HardwareAddr) (Machine, bool)
+	// IsMaster checks for being master
+	IsMaster() bool
+
+	// WhileMaster makes a heartbeat and returns IsMaster()
+	WhileMaster() bool
+
+	// Shutdown removes the instance key from the list of instances, used to
+	// gracefully shutdown the instance
+	Shutdown() error
+
+	// ClusterName returns the name of the ClusterName
+	ClusterName() string
 
 	// WorkspacePath returns the path to the workspace which is used after the
 	// machines are booted up
 	WorkspacePath() string
 
-	// Machines returns a slice of Machines whose entries are present in the
-	// datasource storage
-	Machines() ([]Machine, error)
+	// MachineInterfaces returns all the machines in the cluster, as a slice of
+	// MachineInterfaces
+	MachineInterfaces() ([]MachineInterface, error)
+
+	// MachineInterface returns the MachineInterface associated with the given
+	// mac
+	MachineInterface(mac net.HardwareAddr) MachineInterface
 
 	// ListClusterVariables returns the list of all the cluster variables
 	ListClusterVariables() (map[string]string, error)
@@ -89,73 +132,12 @@ type DataSource interface {
 
 	// SetClusterVariable sets a cluster variable
 	SetClusterVariable(key string, value string) error
-    
-        // DeleteClusterVariable delete a cluster variable from etcd.
+
+	// DeleteClusterVariable delete a cluster variable from etcd.
 	DeleteClusterVariable(key string) error
 
-	//ListConfigurations returns the list of all the configuration variables
-	ListConfigurations() (map[string]string, error)
-
-	// Get returns value associated with key
-	Get(key string) (string, error)
-	GetAbsolute(absoluteKey string) (string, error)
-
-	// Get children nodes of a node with key
-	GetNodes(key string) (client.Nodes, error)
-
-	// GetConfiguration returns a configuration variables with the given name
-	GetConfiguration(key string) (string, error)
-
-	// SetConfiguration sets a configuration variable
-	SetConfiguration(key, value string) error
-
-	// DeleteConfiguration deletes a configuration variable
-	DeleteConfiguration(key string) error
-
-	// Delete erases a key from the datasource
-	Delete(key string) (*client.Node, error)
-	DeleteAbsolute(absoluteKey string) (*client.Node, error)
-
-	// ClusterName returns the name of the ClusterName
-	ClusterName() string
-
-	// Assign finds an IP for the specified nic
-	Assign(nic string) (net.IP, error)
-
-	// Request is how to client requests to use the Ip address
-	Request(nic string, currentIP net.IP) (net.IP, error)
-
-	// DNSAddressesForDHCP returns the ip addresses of the present skydns servers
-	// in the network, marshalled as specified in rfc2132 (option 6)
-	DNSAddressesForDHCP() ([]byte, error)
-
-	// IsMaster checks for being master, and makes a heartbeat
-	IsMaster() bool
-
-	// RemoveInstance removes the instance key from the list of instances, used to
-	// gracefully shutdown the instance
-	RemoveInstance() error
-
+	// EtcdMembers returns a string suitable for `-initial-cluster`
+	// This is the etcd the Blacksmith instance is using as its datastore
+	// Smelly function to be here! but it's a lot helpful.
 	EtcdMembers() (string, error)
-
-	// Get all instances
-	GetAllInstances() ([]string, error)
-	GetAllOtherInstances() ([]string, error)
-
-	// Create a new file node in Etcd
-	NewFile(name string, file *os.File)
-	WatchFileChanges()
-	GetAllFiles() []*File
-	GetFile(key string) *File
-	DeleteFile(key string) *File
-}
-
-type File struct  {
-	Id			string		`json:"id,omitempty"`
-	Name			string		`json:"name"`
-	FromInstance		string		`json:"fromInstance"`
-	Location		string		`json:"location"`
-	UploadedAt		int64		`json:"uploadedAt"` // unix timestamp
-	Size			int64           `json:"size"`
-	LastModificationDate 	int64	 	`json:"lastModifiedDate"`
 }

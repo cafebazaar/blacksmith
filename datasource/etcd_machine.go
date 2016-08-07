@@ -2,98 +2,137 @@ package datasource
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"path"
+	"strconv"
 	"strings"
+	"time"
 
 	etcd "github.com/coreos/etcd/client"
+	"github.com/krolaw/dhcp4"
 	"golang.org/x/net/context"
-	"github.com/cafebazaar/blacksmith/logging"
-	"encoding/json"
-	"time"
-	"strconv"
 )
 
-// EtcdMachine implements datasource.Machine interface using etcd as it's
-// datasource
-type EtcdMachine struct {
+// etcdMachineInterface implements datasource.MachineInterface
+// interface using etcd as it's datasource
+type etcdMachineInterface struct {
 	mac     net.HardwareAddr
-	etcd    *EtcdDataSource
+	etcdDS  *EtcdDataSource
 	keysAPI etcd.KeysAPI
 }
 
-// stats like IP, first seen and IPMI node being stored inside machine directory
-type EtcdMachineStats struct {
-	IP		net.IP        `json:"ip"`
-	Mac		string        `json:"mac"`
-	FirstSeen	int64         `json:"first_seen"`
-	IPMInode	string        `json:"IPMInode,omitempty"`
-}
-
-// Mac Returns this machine's hardware address
-func (m *EtcdMachine) Mac() net.HardwareAddr {
+// Mac returns the hardware address of the associated machine
+func (m *etcdMachineInterface) Mac() net.HardwareAddr {
 	return m.mac
 }
 
-// Name returns this machine's hostname
-func (m *EtcdMachine) Name() string {
-	return nameFromMac(m.Mac().String())
+// Hostname returns the mac address formatted as a string suitable for hostname
+func (m *etcdMachineInterface) Hostname() string {
+	return strings.Replace(m.mac.String(), ":", "", -1)
 }
 
-// Domain returns this machine's domain which is equal to the cluster name
-func (m *EtcdMachine) Domain() string {
-	return m.etcd.ClusterName()
+// Machine returns the associated Machine
+// If the createIfNeed is true, and there is no machine associated to this
+// mac, the machine will be created and returned. If the assignedIP is empty,
+// the IP will be assigned automatically, otherwise the given will be used.
+// In this case, an error will be raised if the given IP is currently assigned
+// to another mac.
+// If createIfNeed == nil, the assignedIP will be ignored.
+func (m *etcdMachineInterface) Machine(createIfNeed bool, assignedIP net.IP) (Machine, error) {
+	var machine Machine
+
+	resp, err := m.selfGet("_machine")
+	if err != nil {
+		errorIsKeyNotFound := etcd.IsKeyNotFound(err)
+
+		if !(errorIsKeyNotFound && createIfNeed) {
+			return machine, fmt.Errorf("error while retrieving _machine: %s", err)
+		}
+
+		machine := Machine{
+			IP:        assignedIP, // to be assigned automatically
+			FirstSeen: time.Now().Unix(),
+		}
+		err := m.store(&machine)
+		if err != nil {
+			return machine, fmt.Errorf("error while storing _machine: %s", err)
+		}
+		return machine, nil
+	}
+	json.Unmarshal([]byte(resp), &machine)
+	return machine, nil
 }
 
-func timeError(err error) (int64, error) {
-	return time.Now().Unix(), err
+func (m *etcdMachineInterface) store(machine *Machine) error {
+	if machine.IP == nil {
+		// To avoid concurrency problems
+		if !m.etcdDS.IsMaster() {
+			return errors.New("only the master instance is allowed to store machine info")
+		}
+
+		m.etcdDS.dhcpAssignLock.Lock()
+		defer m.etcdDS.dhcpAssignLock.Unlock()
+
+		machineInterfaces, err := m.etcdDS.MachineInterfaces()
+		if err != nil {
+			return fmt.Errorf("error while getting the machine interfaces: %s", err)
+		}
+		ipSet := make(map[string]bool)
+		for _, mi := range machineInterfaces {
+			machine, err := mi.Machine(false, nil)
+			if err != nil {
+				return fmt.Errorf("error while getting the machine for (%s): %s", mi.Mac().String(), err)
+			}
+			ipSet[machine.IP.String()] = true
+		}
+		counter := len(ipSet)
+		candidateIP := dhcp4.IPAdd(m.etcdDS.leaseStart, counter)
+		for _, isAssigned := ipSet[candidateIP.String()]; isAssigned; {
+			candidateIP = dhcp4.IPAdd(candidateIP, 1)
+			counter++
+		}
+
+		// or >= ? :D
+		if counter > m.etcdDS.leaseRange {
+			return fmt.Errorf("lease range is exceeded (%d > %d)", counter, m.etcdDS.leaseRange)
+		}
+
+		machine.IP = candidateIP
+	}
+
+	if machine.Type == 0 {
+		if machine.IP == nil {
+			machine.Type = MTNormal
+		} else {
+			machine.Type = MTStatic
+		}
+	}
+
+	jsonedStats, err := json.Marshal(*machine)
+	if err != nil {
+		return fmt.Errorf("error while marshaling the machine: %s", err)
+	}
+	err = m.selfSet("_machine", string(jsonedStats))
+	if err != nil {
+		return fmt.Errorf("error while setting the marshaled machine: %s", err)
+	}
+
+	return nil
 }
 
-// CheckIn updates the _last_seen entry of this machine in etcd
-func (m *EtcdMachine) CheckIn() {
+// CheckIn updates the _last_seen field of the machine
+func (m *etcdMachineInterface) CheckIn() {
 	m.selfSet("_last_seen", strconv.FormatInt(time.Now().Unix(), 10))
 }
 
-// Get stats of machine like ip, mac, first seen and IPMI and returns it as EtcdMachineStats instance
-func (m *EtcdMachine) GetStats() (EtcdMachineStats, error) {
-	resp, err := m.selfGet("_stats")
-	if err != nil {
-		logging.Debug(debugTag, "couldn't retrive _stats from %s due to: %s", m.Name(), err)
-		return EtcdMachineStats{}, err
-	}
-	etcdMachineStats := &EtcdMachineStats{}
-	json.Unmarshal([]byte(resp), etcdMachineStats)
-	return *etcdMachineStats, nil
-}
-
-func (m *EtcdMachine) SetStats(stats EtcdMachineStats) error {
-        jsonedStats, err := json.Marshal(stats)
-        if err != nil {
-                logging.Debug(debugTag, "err marshal: %s", err)
-        }
-        err = m.etcd.Set(m.prefixify("_stats"), string(jsonedStats))
-        if err != nil {
-                logging.Debug(debugTag, "couldn't set stats due to: %s", err)
-                return err
-        }
-        return nil
-}
-func (m *EtcdMachine) SetIPMI(mac net.HardwareAddr) {
-        stats, err := m.GetStats()
-        if err != nil {
-                logging.Debug(debugTag, "couldn't get stats due to: %s", err)
-        }
-        stats.IPMInode = mac.String()
-        m.SetStats(stats)
-}
-
-// LastSeen returns the last time the machine has  been ???
-// part of Machine interface implementation
-func (m *EtcdMachine) LastSeen() (int64, error) {
+// LastSeen returns the last time the machine has been seen, 0 for never
+func (m *etcdMachineInterface) LastSeen() (int64, error) {
 	unixString, err := m.selfGet("_last_seen")
 	if err != nil {
-		return timeError(err)
+		return 0, err
 	}
 	unixInt64, _ := strconv.ParseInt(unixString, 10, 64)
 	return unixInt64, nil
@@ -101,11 +140,11 @@ func (m *EtcdMachine) LastSeen() (int64, error) {
 
 // ListFlags returns the list of all the flgas of a machine from Etcd
 // etcd and machine prefix will be added to the path
-func (m *EtcdMachine) ListFlags() (map[string]string, error) {
+func (m *etcdMachineInterface) ListVariables() (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	response, err := m.keysAPI.Get(ctx, path.Join(m.etcd.ClusterName(), "machines", m.Name()), nil)
+	response, err := m.keysAPI.Get(ctx, path.Join(m.etcdDS.ClusterName(), "machines", m.Hostname()), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -119,50 +158,68 @@ func (m *EtcdMachine) ListFlags() (map[string]string, error) {
 	return flags, nil
 }
 
-// GetFlag Gets a machine's flag from Etcd
-// etcd and machine prefix will be added to the path
-func (m *EtcdMachine) GetFlag(key string) (string, error) {
-	return m.selfGet(key)
+// GetVariable Gets a machine's variable, or the global if it was not
+// set for the machine
+func (m *etcdMachineInterface) GetVariable(key string) (string, error) {
+	value, err := m.selfGet(key)
+
+	if err != nil {
+		if !etcd.IsKeyNotFound(err) {
+			return "", fmt.Errorf(
+				"error while getting variable key=%s for machine=%s: %s",
+				key, m.mac, err)
+		}
+
+		// Key was not found for the machine
+		value, err := m.etcdDS.GetClusterVariable(key)
+		if err != nil {
+			if !etcd.IsKeyNotFound(err) {
+				return "", fmt.Errorf(
+					"error while getting variable key=%s for machine=%s (global check): %s",
+					key, m.mac, err)
+
+			}
+			return "", nil // Not set, not for machine, nor globally
+		}
+		return value, nil
+	}
+
+	return value, nil
 }
 
-// SetFlag Sets a machin'es flag in Etcd
-// etcd and machine prefix will be added to the PathPrefix
-func (m *EtcdMachine) SetFlag(key, value string) error {
+// SetVariable sets the value of the specified key
+func (m *etcdMachineInterface) SetVariable(key, value string) error {
 	if len(key) > 0 && key[0] == '_' {
 		return errors.New("NotPermitted")
 	}
 	return m.selfSet(key, value)
 }
 
-// DeleteFlag deletes the record associated with key from Etcd
-func (m *EtcdMachine) DeleteFlag(key string) error {
+// DeleteVariable erases the entry specified by key
+func (m *etcdMachineInterface) DeleteVariable(key string) error {
 	return m.selfDelete(key)
 }
 
-func (m *EtcdMachine) prefixify(str string) string {
-	return m.etcd.prefixify("machines/" + m.Name() + "/" + str)
+func (m *etcdMachineInterface) prefixifyForMachine(key string) string {
+	return path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname(), key)
 }
 
-func (m *EtcdMachine) selfGet(key string) (string, error) {
-	return m.etcd.get(m.prefixify(key))
+func (m *etcdMachineInterface) selfGet(key string) (string, error) {
+	return m.etcdDS.get(m.prefixifyForMachine(key))
 }
 
-func (m *EtcdMachine) selfSet(key, value string) error {
-	return m.etcd.set(m.prefixify(key), value)
+func (m *etcdMachineInterface) selfSet(key, value string) error {
+	return m.etcdDS.set(m.prefixifyForMachine(key), value)
 }
 
-func (m *EtcdMachine) selfDelete(key string) error {
-	_, err:= m.etcd.Delete(m.prefixify(key))
+func (m *etcdMachineInterface) selfDelete(key string) error {
+	err := m.etcdDS.delete(m.prefixifyForMachine(key))
 	return err
 }
 
-func nameFromMac(mac string) string {
-	return strings.Replace("node"+mac, ":", "", -1)
-}
-
-func macFromName(name string) string {
+func macFromName(name string) (net.HardwareAddr, error) {
 	name = strings.Split(name, ".")[0]
-	return colonLessMacToMac(name[len("node"):])
+	return net.ParseMAC(colonLessMacToMac(name))
 }
 
 func colonLessMacToMac(colonLess string) string {

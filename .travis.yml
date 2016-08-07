@@ -9,6 +9,7 @@ go:
   - tip
 
 before_install:
+- make dependencies
 - make prepare_test
 
 script: make test

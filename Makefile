@@ -48,8 +48,6 @@ prepare_test:
 	 -initial-cluster etcd0=http://127.0.0.1:20380 \
 	 -initial-cluster-state new
 
-	$(GO) build -v ./...
-
 
 test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 	$(GO) get -t -v ./...

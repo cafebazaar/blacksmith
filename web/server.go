@@ -32,9 +32,9 @@ func (ws *webServer) Handler() http.Handler {
 	// mux.PathPrefix("/api/machine/").HandlerFunc(ws.NodeSetIPMI).Methods("PUT")
 
 	// Machine variables; used in templates
-	mux.PathPrefix("/api/machine/variables").HandlerFunc(ws.MachineVariables).Methods("GET")
-	mux.PathPrefix("/api/machine/variables").HandlerFunc(ws.SetMachineVariable).Methods("PUT")
-	mux.PathPrefix("/api/machine/variables").HandlerFunc(ws.DelMachineVariable).Methods("DELETE")
+	mux.PathPrefix("/api/machines/{mac}/variables").HandlerFunc(ws.MachineVariables).Methods("GET")
+	mux.PathPrefix("/api/machines/{mac}/variables/{name}/{value}").HandlerFunc(ws.SetMachineVariable).Methods("PUT")
+	mux.PathPrefix("/api/machines/{mac}/variables/{name}").HandlerFunc(ws.DelMachineVariable).Methods("DELETE")
 
 	// Cluster variables; used in templates
 	mux.PathPrefix("/api/variables").HandlerFunc(ws.ClusterVariablesList).Methods("GET")

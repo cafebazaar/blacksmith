@@ -1,86 +1,86 @@
 var blacksmithUIControllers = angular.module('blacksmithUIControllers', []);
 
-blacksmithUIControllers.controller('BlacksmithNodesCtrl', ['$scope', 'Nodes', 'Node', 'Flag', function ($scope, Nodes, Node, Flag) {
+blacksmithUIControllers.controller('BlacksmithMachinesCtrl', ['$scope', 'Machines', 'MachineVariable', function ($scope, Machines, MachineVariable) {
   $scope.sortType     = 'name';
   $scope.sortReverse  = false;
   $scope.searchTerm   = '';
-  $scope.nodeDetails  = {};
-  $scope.nodeName     = '';
-  $scope.nodeMac      = '';
+  $scope.machineDetails  = {};
+  $scope.machineName     = '';
+  $scope.machineMac      = '';
   $scope.IPMInode     = '';
   $scope.errorMessage = false;
-  $scope.getNodes = function () {
-    Nodes.query().$promise.then(
-      function( value ){ $scope.nodes = value; },
-      function( error ){ $scope.errorMessage = error.data; $scope.nodes = []; $scope.nodeDetails = {} }
+  $scope.getMachines = function () {
+    Machines.query().$promise.then(
+      function( value ){ $scope.machines = value; },
+      function( error ){ $scope.errorMessage = error.data; $scope.machines = []; $scope.machinesDetails = {} }
     );
   };
-  $scope.getNodes();
+  $scope.getMachines();
 
-  $scope.getNode = function(nic, name, IPMInode) {
-    $scope.nodeMac = nic;
-    $scope.nodeName = name;
+  $scope.getMachine = function(nic, name, IPMInode) {
+    $scope.machineMac = nic;
+    $scope.machineName = name;
     $scope.IPMInode = IPMInode;
     $scope.errorMessage = false;
-    Node.query({nic: nic}).$promise.then(
+    MachineVariable.query({mac: nic}).$promise.then(
       function( value ){
-        $scope.nodeDetails = value;
+        $scope.machineDetails = value;
       },
       function( error ){
         $scope.errorMessage = error.data;
-        $scope.nodeDetails = {};
-        $('#nodeModal').modal('hide');
+        $scope.machineDetails = {};
+        $('#machineModal').modal('hide');
       }
     );
   };
 
-  $scope.addFlag = function() {
-    var name = prompt("Enter flag name", "");
-    var value = prompt("Enter flag value", "");
+  $scope.addMachineVariable = function() {
+    var name = prompt("Enter variable name", "");
+    var value = prompt("Enter variable value", "");
     if(!name || name == "") return;
 
-    Flag.set({mac: $scope.nodeMac, name: name, value: value}).$promise.then(
+    MachineVariable.set({mac: $scope.machineMac, name: name, value: value}).$promise.then(
       function( value ){
-        $scope.getNode($scope.nodeMac, $scope.nodeName);
+        $scope.getMachine($scope.machineMac, $scope.machineName);
       },
       function( error ){
         $scope.errorMessage = error.data;
-        $('#nodeModal').modal('hide');
+        $('#machineModal').modal('hide');
       }
     );
   };
 
   $scope.setIPMI = function (nic, IPMInode) {
-    Node.setIPMI({nic: nic, node: nic, IPMInode: IPMInode}).$promise.then(
+    Machines.setIPMI({nic: nic, machine: nic, IPMImachine: IPMImachine}).$promise.then(
         function (value) {},
         function (error) {
           $scope.errorMessage = error.data;
-          $('#nodeModal').modal('hide');
+          $('#machineModal').modal('hide');
         }
 
     );
   };
 
-  $scope.setFlag = function(name, value) {
-    Flag.set({mac: $scope.nodeMac, name: name, value: value}).$promise.then(
+  $scope.setMachineVariable = function(name, value) {
+    MachineVariable.set({mac: $scope.machineMac, name: name, value: value}).$promise.then(
       function( value ){
-        $scope.getNode($scope.nodeMac, $scope.nodeName);
+        $scope.getMachine($scope.machineMac, $scope.machineName);
       },
       function( error ){
         $scope.errorMessage = error.data;
-        $('#nodeModal').modal('hide');
+        $('#machineModal').modal('hide');
       }
     );
   };
 
-  $scope.deleteFlag = function(name) {
-    Flag.delete({mac: $scope.nodeMac, name: name}).$promise.then(
+  $scope.deleteMachineVariable = function(name) {
+    MachineVariable.delete({mac: $scope.machineMac, name: name}).$promise.then(
       function( value ){
-        $scope.getNode($scope.nodeMac, $scope.nodeName);
+        $scope.getMachine($scope.machineMac, $scope.machineName);
       },
       function( error ){
         $scope.errorMessage = error.data;
-        $('#nodeModal').modal('hide');
+        $('#machineModal').modal('hide');
       }
     );
   };

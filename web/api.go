@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"path"
 
+
+	"github.com/gorilla/mux"
 	"github.com/cafebazaar/blacksmith/datasource"
 )
 
@@ -36,15 +38,12 @@ func machineToDetails(machineInterface datasource.MachineInterface) (*machineDet
 	name := machineInterface.Hostname()
 	mac := machineInterface.Mac()
 
-	machine, err := machineInterface.Machine(true, nil)
-
+	machine, err := machineInterface.Machine(false, nil)
 	if err != nil {
-		return nil, errors.New("stats")
+		return nil, errors.New("error in retrieving machine details")
 	}
-	last, err := machineInterface.LastSeen()
-	if err != nil {
-		return nil, errors.New("LAST")
-	}
+	last, _ := machineInterface.LastSeen()
+	
 	return &machineDetails{
 		name, mac.String(),
 		machine.IP, machine.Type,
@@ -75,7 +74,7 @@ func (ws *webServer) MachinesList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	machinesJSON, err := json.Marshal(machines)
+	machinesJSON, err := json.Marshal(machinesArray)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 		return
@@ -101,9 +100,10 @@ func (ws *webServer) ClusterVariablesList(w http.ResponseWriter, r *http.Request
 
 // MachineVariable returns all the flags set for the machine
 func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
-	_, macStr := path.Split(r.URL.Path)
+    vars := mux.Vars(r)
+    macString := vars["mac"]
 
-	mac, err := net.ParseMAC(macStr)
+    mac, err := net.ParseMAC(macString)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 		return
@@ -126,10 +126,12 @@ func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) {
-	_, name := path.Split(r.URL.Path)
-	value := r.FormValue("value")
-
-	macStr := r.FormValue("mac")
+	
+    vars := mux.Vars(r)
+    macStr := vars["mac"]
+    name := vars["name"]
+    value := vars["value"]
+    
 	var machineInterface datasource.MachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)
@@ -139,7 +141,6 @@ func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) 
 		}
 
 		machineInterface = ws.ds.MachineInterface(mac)
-
 	}
 
 	var err error
@@ -155,9 +156,11 @@ func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) 
 }
 
 func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) {
-	_, name := path.Split(r.URL.Path)
 
-	macStr := r.FormValue("mac")
+    vars := mux.Vars(r)
+    macStr := vars["mac"]
+    name := vars["name"]
+    
 	var machineInterface datasource.MachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)

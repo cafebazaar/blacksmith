@@ -69,6 +69,7 @@ func UnmarshalNetworkConfiguration(netConfStr string) (*NetworkConfiguration, er
 	if err := json.Unmarshal([]byte(netConfStr), &netConf); err != nil {
 		return nil, err
 	}
+	// TODO: more validation on netmask and ...
 	return &netConf, nil
 }
 

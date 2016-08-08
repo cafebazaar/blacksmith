@@ -2,7 +2,6 @@ package dhcp // import "github.com/cafebazaar/blacksmith/dhcp"
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -123,8 +122,8 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 			return nil
 		}
 
-		var netConf networkConfiguration
-		if err := json.Unmarshal([]byte(netConfStr), &netConf); err != nil {
+		netConf, err := datasource.UnmarshalNetworkConfiguration(netConfStr)
+		if err != nil {
 			logging.Log(debugTag, "failed to unmarshal network configuration: %s / network configuration=%q",
 				err, netConfStr)
 			return nil
@@ -151,10 +150,9 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 		if len(netConf.ClasslessRouteOption) != 0 {
 			var res []byte
 			for _, part := range netConf.ClasslessRouteOption {
-				res = append(res, part.toBytes()...)
+				res = append(res, part.ToBytes()...)
 			}
 			dhcpOptions[dhcp4.OptionClasslessRouteFormat] = res
-
 		}
 
 		responseMsgType := dhcp4.Offer

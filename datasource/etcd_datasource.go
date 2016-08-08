@@ -147,6 +147,10 @@ func (ds *EtcdDataSource) ListConfigurations() (map[string]string, error) {
 
 // SetClusterVariable sets a cluster variable inside etcd
 func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
+	err := validateVariable(key, value)
+	if err != nil {
+		return err
+	}
 	return ds.set(ds.prefixifyForClusterVariables(key), value)
 }
 

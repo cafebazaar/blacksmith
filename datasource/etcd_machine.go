@@ -189,8 +189,9 @@ func (m *etcdMachineInterface) GetVariable(key string) (string, error) {
 
 // SetVariable sets the value of the specified key
 func (m *etcdMachineInterface) SetVariable(key, value string) error {
-	if len(key) > 0 && key[0] == '_' {
-		return errors.New("NotPermitted")
+	err := validateVariable(key, value)
+	if err != nil {
+		return err
 	}
 	return m.selfSet(key, value)
 }

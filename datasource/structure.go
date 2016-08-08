@@ -16,11 +16,6 @@ const (
 	// MTBMC is for the baseboard management controller embedded on the
 	// motherboard of the server machines
 	MTBMC MachineType = 3
-
-	// SpecialKeyCoreosVersion is a special key for the coreos version of the machines
-	SpecialKeyCoreosVersion = "coreos-version"
-	// SpecialKeyNetworkConfiguration is a special key for the network of the cluster
-	SpecialKeyNetworkConfiguration = "net-conf"
 )
 
 // Machine details

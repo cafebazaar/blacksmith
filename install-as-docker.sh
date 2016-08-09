@@ -2,7 +2,7 @@
 
 SCRIPT_DEBUG=true
 
-DOCKER_IMAGE="${DOCKER_IMAGE:-cafebazaar/blacksmith}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-quay.io/cafebazaar/blacksmith}"
 DOCKER_NAME=blacksmith_docker
 DOCKER_EXEC="docker"
 

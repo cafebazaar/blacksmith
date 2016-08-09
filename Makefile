@@ -19,7 +19,7 @@ ARCH ?= amd64
 VERSION ?= $(shell git describe --tags)
 COMMIT := $(shell git rev-parse HEAD)
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
-DOCKER_IMAGE ?= cafebazaar/blacksmith
+DOCKER_IMAGE ?= quay.io/cafebazaar/blacksmith
 
 #  Variables (only used for test)
 DUMMY_WORKSPACE ?= /tmp/blacksmith/workspaces/test-workspace

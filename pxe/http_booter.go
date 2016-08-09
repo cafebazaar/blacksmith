@@ -11,9 +11,11 @@ import (
 	"strings"
 	"text/template"
 
+	log "github.com/Sirupsen/logrus"
+
 	"github.com/cafebazaar/blacksmith/datasource"
-	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/cafebazaar/blacksmith/templating"
+	"github.com/cafebazaar/blacksmith/utils"
 )
 
 const (
@@ -21,8 +23,6 @@ const (
 		Blacksmith ($VERSION) on $HOST
 		+ MAC ADDR:	$MAC
 `
-
-	debugTag = "HTTPBOOTER"
 )
 
 type nodeContext struct {
@@ -63,7 +63,7 @@ func (b *HTTPBooter) Mux() *http.ServeMux {
 }
 
 func (b *HTTPBooter) ldlinuxHandler(w http.ResponseWriter, r *http.Request) {
-	logging.LogHTTPRequest(debugTag, r)
+	utils.LogAccess(r).WithField("where", "pxe.ldlinuxHandler").Info()
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Write(b.ldlinux)
 }
@@ -74,13 +74,13 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	macStr := filepath.Base(r.URL.Path)
 	errStr := fmt.Sprintf("%s requested a pxelinux config from URL %q, which does not include a correct MAC address", r.RemoteAddr, r.URL)
 	if !strings.HasPrefix(macStr, "01-") {
-		logging.Debug(debugTag, errStr)
+		utils.LogAccess(r).WithField("where", "pxe.pxelinuxConfig").Debug(errStr)
 		http.Error(w, "Missing MAC address in request", http.StatusBadRequest)
 		return
 	}
 	mac, err := net.ParseMAC(macStr[3:])
 	if err != nil {
-		logging.Debug(debugTag, errStr)
+		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Debug()
 		http.Error(w, "Malformed MAC address in request", http.StatusBadRequest)
 		return
 	}
@@ -88,7 +88,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	machineInterface := b.datasource.MachineInterface(mac)
 	_, err = machineInterface.Machine(false, nil)
 	if err != nil {
-		logging.Debug(debugTag, "Machine not found. mac=%s", mac)
+		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Debug(
+			"Machine not found")
 		http.Error(w, "Machine not found", http.StatusNotFound)
 		return
 	}
@@ -99,7 +100,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 
 	coreOSVersion, err := machineInterface.GetVariable(datasource.SpecialKeyCoreosVersion)
 	if err != nil {
-		logging.Log(debugTag, "error in getting coreOSVersion: %s", err)
+		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Warn(
+			"error in getting coreOSVersion")
 		http.Error(w, "error in getting coreOSVersion", 500)
 		return
 	}
@@ -109,7 +111,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 
 	host, _, err := net.SplitHostPort(r.Host)
 	if err != nil {
-		logging.Log(debugTag, "error in parsing host and port")
+		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Debug(
+			"error in parsing host and port")
 		http.Error(w, "error in parsing host and port", 500)
 		return
 	}
@@ -117,17 +120,13 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	params, err := templating.ExecuteTemplateFolder(
 		path.Join(b.datasource.WorkspacePath(), "config", "bootparams"), b.datasource, machineInterface, r.Host)
 	if err != nil {
-		logging.Log(debugTag, `Error while executing the template: %q`, err)
+		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Warn(
+			"error while executing the template")
 		http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err),
 			http.StatusInternalServerError)
 		return
 	}
 
-	if err != nil {
-		logging.Log(debugTag, "error in bootparam template - %s", err.Error())
-		http.Error(w, "error in bootparam template", 500)
-		return
-	}
 	params = strings.Replace(params, "\n", " ", -1)
 
 	Cmdline := fmt.Sprintf(
@@ -144,7 +143,8 @@ LINUX %s
 APPEND initrd=%s %s
 `, strings.Replace(bootMessage, "\n", "\nSAY ", -1), KernelURL, InitrdURL, Cmdline)
 	w.Write([]byte(cfg))
-	logging.Log(debugTag, "Sent pxelinux config to %s (%s)", mac, r.RemoteAddr)
+
+	utils.LogAccess(r).WithField("where", "pxe.pxelinuxConfig").Info()
 }
 
 // Get the contents of a blob mentioned in a previously issued
@@ -155,7 +155,6 @@ func (b *HTTPBooter) coreOS(version string, id string) (io.ReadCloser, error) {
 	switch id {
 	case "kernel":
 		path := filepath.Join(imagePath, version, "coreos_production_pxe.vmlinuz")
-		logging.Debug(debugTag, "path=<%q>", path)
 		return os.Open(path)
 	case "initrd":
 		return os.Open(filepath.Join(imagePath, version, "coreos_production_pxe_image.cpio.gz"))
@@ -168,8 +167,6 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	version := splitPath[2]
 	id := splitPath[3]
 
-	logging.Debug(debugTag, "Got request for %s", r.URL.Path)
-
 	var (
 		f   io.ReadCloser
 		err error
@@ -178,7 +175,8 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	f, err = b.coreOS(version, id)
 
 	if err != nil {
-		logging.Log(debugTag, "Couldn't get byte stream for %q from %s: %s", r.URL, r.RemoteAddr, err)
+		utils.LogAccess(r).WithError(err).WithField("where", "pxe.fileHandler").Warn(
+			"error while getting CoreOS reader")
 		http.Error(w, "Couldn't get byte stream", http.StatusInternalServerError)
 		return
 	}
@@ -187,10 +185,12 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	written, err := io.Copy(w, f)
 	if err != nil {
-		logging.Log(debugTag, "Error serving %s to %s: %s", id, r.RemoteAddr, err)
+		utils.LogAccess(r).WithError(err).WithField("where", "pxe.fileHandler").Debug(
+			"error while copying from CoreOS reader")
 		return
 	}
-	logging.Log(debugTag, "Sent %s to %s (%d bytes)", id, r.RemoteAddr, written)
+
+	utils.LogAccess(r).WithField("where", "pxe.fileHandler").Infof("written=%d", written)
 }
 
 func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int) (*http.ServeMux, error) {
@@ -206,10 +206,15 @@ func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int
 }
 
 func ServeHTTPBooter(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int) error {
-	logging.Log(debugTag, "Listening on %s", listenAddr.String())
 	mux, err := HTTPBooterMux(listenAddr, ds, webPort)
 	if err != nil {
 		return err
 	}
+
+	log.WithFields(log.Fields{
+		"where":  "pxe.ServeHTTPBooter",
+		"action": "announce",
+	}).Infof("Listening on %s", listenAddr.String())
+
 	return http.ListenAndServe(listenAddr.String(), mux)
 }

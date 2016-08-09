@@ -95,10 +95,10 @@ type DataSource interface {
 	Instances() ([]InstanceInfo, error)
 
 	// IsMaster checks for being master
-	IsMaster() bool
+	IsMaster() error
 
 	// WhileMaster makes a heartbeat and returns IsMaster()
-	WhileMaster() bool
+	WhileMaster() error
 
 	// Shutdown removes the instance key from the list of instances, used to
 	// gracefully shutdown the instance

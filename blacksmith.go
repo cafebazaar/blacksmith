@@ -3,7 +3,6 @@ package main // import "github.com/cafebazaar/blacksmith"
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -12,12 +11,13 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+	etcd "github.com/coreos/etcd/client"
+
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/dhcp"
-	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/cafebazaar/blacksmith/pxe"
 	"github.com/cafebazaar/blacksmith/web"
-	etcd "github.com/coreos/etcd/client"
 )
 
 //go:generate esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
@@ -32,8 +32,6 @@ const (
 		/images/{core-os-version}/coreos_production_pxe.vmlinuz
 		/initial.yaml
 `
-	debugTag = "MAIN"
-
 	httpListenFlagDefaultTCPAddress = "interface-ip:8000"
 )
 
@@ -118,9 +116,11 @@ func main() {
 		os.Exit(0)
 	}
 
-	go func() {
-		logging.RecordLogs(log.New(os.Stderr, "", log.LstdFlags), *debugFlag)
-	}()
+	if *debugFlag {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 
 	// etcd config
 	if etcdFlag == nil || clusterNameFlag == nil {
@@ -247,12 +247,18 @@ func main() {
 	}()
 
 	// waiting til we're officially the master instance
-	for !etcdDataSource.WhileMaster() {
-		logging.Debug(debugTag, "Not master, waiting to be promoted...")
+	for err := etcdDataSource.WhileMaster(); err != nil; {
+		log.WithFields(log.Fields{
+			"where":  "blacksmith.main",
+			"action": "debug",
+		}).Debug("Not master, waiting to be promoted...")
 		time.Sleep(datasource.StandbyMasterUpdateTime)
 	}
 
-	logging.Debug(debugTag, "Now we're the master instance. Starting the services...")
+	log.WithFields(log.Fields{
+		"where":  "blacksmith.main",
+		"action": "debug",
+	}).Debug("Now we're the master instance. Starting the services...")
 
 	// serving http booter
 	go func() {
@@ -278,11 +284,14 @@ func main() {
 		log.Fatalf("\nError while serving dhcp: %s\n", err)
 	}()
 
-	for etcdDataSource.WhileMaster() {
+	for etcdDataSource.WhileMaster() == nil {
 		time.Sleep(datasource.ActiveMasterUpdateTime)
 	}
 
-	logging.Debug(debugTag, "Now we're NOT the master. Terminating. Hoping to be restarted by the service manager.")
+	log.WithFields(log.Fields{
+		"where":  "blacksmith.main",
+		"action": "debug",
+	}).Debug("Now we're NOT the master. Terminating. Hoping to be restarted by the service manager.")
 
 	gracefulShutdown(etcdDataSource)
 }

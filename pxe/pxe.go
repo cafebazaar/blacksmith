@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/cafebazaar/blacksmith/logging"
+	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/ipv4"
 )
 
@@ -52,30 +52,41 @@ func ServePXE(listenAddr net.UDPAddr, serverIP net.IP, httpAddr net.TCPAddr) err
 		return err
 	}
 
-	logging.Log("PXE", "Listening on %s", listenAddr.String())
+	log.WithFields(log.Fields{
+		"where":  "pxe.ServePXE",
+		"action": "announce",
+	}).Infof("Listening on %s", listenAddr.String())
+
 	buf := make([]byte, 1024)
 	for {
 		n, msg, addr, err := l.ReadFrom(buf)
 		if err != nil {
-			logging.Log("PXE", "Error reading from socket: %s", err)
+			log.WithField("where", "pxe.ServePXE").WithError(err).Debug(
+				"error reading from socket")
 			continue
 		}
 
 		req, err := ParsePXE(buf[:n])
 		if err != nil {
-			logging.Debug("PXE", "ParsePXE: %s", err)
+			log.WithField("where", "pxe.ServePXE").WithError(err).Debug(
+				"error while ParsePXE")
 			continue
 		}
 
 		req.ServerIP = serverIP
 		req.HTTPServer = fmt.Sprintf("http://%s/", httpAddr.String())
 
-		logging.Log("PXE", "Chainloading %s (%s) to pxelinux (via %s)", req.MAC, req.ClientIP, req.ServerIP)
+		log.WithFields(log.Fields{
+			"where":  "pxe.ServePXE",
+			"action": "debug",
+			"object": req.MAC,
+		}).Info()
 
 		if _, err := l.WriteTo(ReplyPXE(req), &ipv4.ControlMessage{
 			IfIndex: msg.IfIndex,
 		}, addr); err != nil {
-			logging.Log("PXE", "Responding to %s: %s", req.MAC, err)
+			log.WithField("where", "pxe.ServePXE").WithError(err).Debugf(
+				"error while responding to %s", req.MAC)
 			continue
 		}
 	}

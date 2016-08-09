@@ -8,16 +8,14 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/cafebazaar/blacksmith/datasource"
-	"github.com/cafebazaar/blacksmith/logging"
 	"github.com/krolaw/dhcp4"
 )
 
 const (
 	minLeaseHours = 24
 	maxLeaseHours = 48
-
-	debugTag = "DHCP"
 )
 
 func randLeaseDuration() time.Duration {
@@ -35,7 +33,11 @@ func StartDHCP(ifName string, serverIP net.IP, datasource datasource.DataSource)
 		bootMessage: fmt.Sprintf("Blacksmith (%s)", datasource.SelfInfo().Version),
 	}
 
-	logging.Log("DHCP", "Listening on %s:67 (interface: %s)", serverIP.String(), ifName)
+	log.WithFields(log.Fields{
+		"where":  "dhcp.StartDHCP",
+		"action": "announce",
+	}).Infof("Listening on %s:67 (interface: %s)", serverIP.String(), ifName)
+
 	var err error
 	if ifName != "" {
 		err = dhcp4.ListenAndServeIf(ifName, handler)
@@ -45,7 +47,8 @@ func StartDHCP(ifName string, serverIP net.IP, datasource datasource.DataSource)
 
 	// https://groups.google.com/forum/#!topic/coreos-user/Qbn3OdVtrZU
 	if len(datasource.ClusterName()) > 50 { // 63 - 12(mac) - 1(.)
-		logging.Log(debugTag, "Warning: ClusterName is too long. It may break the behaviour of the DHCP clients")
+		log.WithField("where", "dhcp.StartDHCP").Warn(
+			"Warning: ClusterName is too long. It may break the behaviour of the DHCP clients")
 	}
 
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -103,7 +106,8 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 	case dhcp4.Discover, dhcp4.Request:
 		if server, ok := options[dhcp4.OptionServerIdentifier]; ok && !net.IP(server).Equal(h.serverIP) {
 			if msgType == dhcp4.Discover {
-				logging.Debug("DHCP", "identifying dhcp server in Discover?! (%v)", p)
+				log.WithField("where", "dhcp.ServeDHCP").Debugf(
+					"identifying dhcp server in Discover?! (%v)", p)
 			}
 			return nil // this message is not ours
 		}
@@ -111,27 +115,29 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 		machineInterface := h.datasource.MachineInterface(p.CHAddr())
 		machine, err := machineInterface.Machine(true, nil)
 		if err != nil {
-			logging.Debug("DHCP", "failed to get machine for the mac (%s) %s",
-				p.CHAddr().String(), err.Error())
+			log.WithField("where", "dhcp.ServeDHCP").WithError(err).Warn(
+				"failed to get machine")
 			return nil
 		}
 
 		netConfStr, err := machineInterface.GetVariable(datasource.SpecialKeyNetworkConfiguration)
 		if err != nil {
-			logging.Log(debugTag, "failed to get network configuration: %s", err)
+			log.WithField("where", "dhcp.ServeDHCP").WithError(err).Warn(
+				"failed to get network configuration")
 			return nil
 		}
 
 		netConf, err := datasource.UnmarshalNetworkConfiguration(netConfStr)
 		if err != nil {
-			logging.Log(debugTag, "failed to unmarshal network configuration: %s / network configuration=%q",
-				err, netConfStr)
+			log.WithField("where", "dhcp.ServeDHCP").WithError(err).Warn(
+				"failed to unmarshal network-configuration=%q", netConfStr)
 			return nil
 		}
 
 		instanceInfos, err := h.datasource.Instances()
 		if err != nil {
-			logging.Log(debugTag, "failed to get instances: %s", err)
+			log.WithField("where", "dhcp.ServeDHCP").WithError(err).Warn(
+				"failed to get instances")
 			return nil
 		}
 
@@ -164,13 +170,20 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 				requestedIP = net.IP(p.CIAddr())
 			}
 			if len(requestedIP) != 4 || requestedIP.Equal(net.IPv4zero) {
-				logging.Debug("DHCP", "dhcp %s - CHADDR %s - bad request",
-					msgType, p.CHAddr().String())
+				log.WithFields(log.Fields{
+					"where":   "dhcp.ServeDHCP",
+					"object":  p.CHAddr().String(),
+					"subject": msgType,
+				}).Debugf("bad request")
 				return nil
 			}
 			if !requestedIP.Equal(machine.IP) {
-				logging.Log("DHCP", "dhcp %s - CHADDR %s - requestedIP(%s) != assignedIp(%s)",
-					msgType, p.CHAddr().String(), requestedIP.String(), machine.IP.String())
+				log.WithFields(log.Fields{
+					"where":   "dhcp.ServeDHCP",
+					"object":  p.CHAddr().String(),
+					"subject": msgType,
+				}).Debugf("requestedIP(%s) != assignedIp(%s)",
+					requestedIP.String(), machine.IP.String())
 				return nil
 			}
 
@@ -179,8 +192,12 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 
 		guidVal, isPxe := options[97]
 
-		logging.Debug("DHCP", "dhcp %s - CHADDR %s - assignedIp %s - isPxe %v",
-			msgType, p.CHAddr().String(), machine.IP.String(), isPxe)
+		log.WithFields(log.Fields{
+			"where":   "dhcp.ServeDHCP",
+			"action":  "debug",
+			"object":  p.CHAddr().String(),
+			"subject": msgType,
+		}).Infof("assignedIp=%s isPxe=%v", machine.IP.String(), isPxe)
 
 		replyOptions := dhcpOptions.SelectOrderOrAll(options[dhcp4.OptionParameterRequestList])
 

@@ -3,14 +3,13 @@ package web // import "github.com/cafebazaar/blacksmith/web"
 import (
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"github.com/cafebazaar/blacksmith/datasource"
-	"github.com/cafebazaar/blacksmith/logging"
 )
 
 type webServer struct {
@@ -50,16 +49,29 @@ func (ws *webServer) Handler() http.Handler {
 	return mux
 }
 
+func logHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r)
+	})
+}
+
 //ServeWeb serves api of Blacksmith and a ui connected to that api
 func ServeWeb(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 	r := &webServer{ds: ds}
-	loggedRouter := handlers.LoggingHandler(os.Stdout, r.Handler())
+
+	logWriter := log.StandardLogger().Writer()
+	defer logWriter.Close()
+
+	loggedRouter := handlers.LoggingHandler(logWriter, r.Handler())
 	s := &http.Server{
 		Addr:    listenAddr.String(),
 		Handler: loggedRouter,
 	}
 
-	logging.Log("WEB", "Listening on %s", listenAddr.String())
+	log.WithFields(log.Fields{
+		"where":  "web.ServeWeb",
+		"action": "announce",
+	}).Infof("Listening on %s", listenAddr.String())
 
 	return s.ListenAndServe()
 }

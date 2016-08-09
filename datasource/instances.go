@@ -6,7 +6,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/cafebazaar/blacksmith/logging"
+	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
@@ -17,7 +17,6 @@ const (
 
 	masterTTLTime = ActiveMasterUpdateTime * 3
 
-	debugTag         = "DS:Instances"
 	invalidEtcdKey   = "INVALID"
 	instancesEtcdDir = "instances"
 	etcdTimeout      = 5 * time.Second
@@ -51,7 +50,7 @@ func (ds *EtcdDataSource) etcdHeartbeat() error {
 }
 
 // IsMaster checks for being master
-func (ds *EtcdDataSource) IsMaster() bool {
+func (ds *EtcdDataSource) IsMaster() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	masterGetOptions := etcd.GetOptions{
@@ -61,34 +60,30 @@ func (ds *EtcdDataSource) IsMaster() bool {
 	}
 	resp, err := ds.keysAPI.Get(ctx, path.Join(ds.ClusterName(), instancesEtcdDir), &masterGetOptions)
 	if err != nil {
-		logging.Log(debugTag, "error while getting the dir list from etcd: %s", err)
-		return false
+		return fmt.Errorf("error while getting the dir list from etcd: %s", err)
 	}
 	if len(resp.Node.Nodes) < 1 {
-		logging.Log(debugTag, "empty list while getting the dir list from etcd")
-		return false
+		return fmt.Errorf("empty list while getting the dir list from etcd")
 	}
 	if resp.Node.Nodes[0].Key == ds.instanceEtcdKey {
-		return true
+		return nil
 	}
-	return false
+	return fmt.Errorf("this is not the master instance")
 }
 
 // WhileMaster makes a heartbeat and returns IsMaster()
-func (ds *EtcdDataSource) WhileMaster() bool {
+func (ds *EtcdDataSource) WhileMaster() error {
 	var err error
 	if ds.instanceEtcdKey == invalidEtcdKey {
 		err = ds.registerOnEtcd()
 		if err != nil {
-			logging.Log(debugTag, "error while registerOnEtcd: %s", err)
-			return false
+			return fmt.Errorf("error while registerOnEtcd: %s", err)
 		}
 	} else {
 		err = ds.etcdHeartbeat()
 		if err != nil {
 			ds.instanceEtcdKey = invalidEtcdKey
-			logging.Log(debugTag, "error while updateOnEtcd: %s", err)
-			return false
+			return fmt.Errorf("error while updateOnEtcd: %s", err)
 		}
 	}
 
@@ -140,7 +135,7 @@ func (ds *EtcdDataSource) SelfInfo() InstanceInfo {
 func (ii *InstanceInfo) String() string {
 	marshaled, err := json.Marshal(ii)
 	if err != nil {
-		logging.Log(debugTag, "Failed to marshal instanceInfo: %s", err)
+		log.WithField("where", "InstanceInfo.String").WithError(err).Warnf("failed to marshal instanceInfo")
 		return ""
 	}
 	return string(marshaled)

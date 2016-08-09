@@ -4,14 +4,24 @@ import (
 	"io"
 	"net"
 
-	"github.com/cafebazaar/blacksmith/logging"
+	log "github.com/Sirupsen/logrus"
 	"github.com/danderson/pixiecore/tftp"
 )
 
 func ServeTFTP(listenAddr net.UDPAddr) error {
 	pxelinuxDir := FS(false)
-	tftp.Logf = func(msg string, args ...interface{}) { logging.Log("TFTP", msg, args...) }
-	tftp.Debug = func(msg string, args ...interface{}) { logging.Debug("TFTP", msg, args...) }
+	tftp.Logf = func(msg string, args ...interface{}) {
+		log.WithFields(log.Fields{
+			"where":  "pxe.ServeTFTP",
+			"action": "tftp-said",
+		}).Infof(msg, args...)
+	}
+	tftp.Debug = func(msg string, args ...interface{}) {
+		log.WithFields(log.Fields{
+			"where":  "pxe.ServeTFTP",
+			"action": "tftp-said",
+		}).Debugf(msg, args...)
+	}
 
 	handler := func(string, net.Addr) (io.ReadCloser, error) {
 		pxelinux, err := pxelinuxDir.Open("/pxelinux/lpxelinux.0")

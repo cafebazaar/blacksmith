@@ -3,7 +3,6 @@ package datasource
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"path"
@@ -69,8 +68,8 @@ func (m *etcdMachineInterface) Machine(createIfNeed bool, assignedIP net.IP) (Ma
 func (m *etcdMachineInterface) store(machine *Machine) error {
 	if machine.IP == nil {
 		// To avoid concurrency problems
-		if !m.etcdDS.IsMaster() {
-			return errors.New("only the master instance is allowed to store machine info")
+		if err := m.etcdDS.IsMaster(); err != nil {
+			return fmt.Errorf("only the master instance is allowed to store machine info: %s", err)
 		}
 
 		m.etcdDS.dhcpAssignLock.Lock()

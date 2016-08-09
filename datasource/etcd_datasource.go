@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cafebazaar/blacksmith/logging"
+	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
@@ -238,7 +238,12 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 
 			currentValue = value
 		}
-		logging.Debug(debugTag, "ClusterVariable: %q: %q", key, currentValue)
+		log.WithFields(log.Fields{
+			"where":   "datasource.NewEtcdDataSource",
+			"action":  "debug",
+			"object":  "ClusterVariable",
+			"subject": key,
+		}).Debug()
 	}
 
 	// TODO: Integrate DNS service into Blacksmith

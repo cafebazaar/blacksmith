@@ -9,12 +9,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/cafebazaar/blacksmith/datasource"
-	"github.com/cafebazaar/blacksmith/logging"
-)
+	log "github.com/Sirupsen/logrus"
 
-const (
-	templatesDebugTag = "TEMPLATING"
+	"github.com/cafebazaar/blacksmith/datasource"
 )
 
 func findFiles(path string) ([]string, error) {
@@ -36,7 +33,7 @@ func findFiles(path string) ([]string, error) {
 func templateFromPath(tmplPath string) (*template.Template, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
-		return nil, fmt.Errorf("Error while trying to list files in%s: %s", tmplPath, err)
+		return nil, fmt.Errorf("error while trying to list files in%s: %s", tmplPath, err)
 	}
 
 	t := template.New("")
@@ -82,7 +79,8 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		"V": func(key string) string {
 			value, err := machineInterface.GetVariable(key)
 			if err != nil {
-				logging.Log(templatesDebugTag, "error while GetVariable: %s", err)
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
+					"error while GetVariable")
 			}
 			return value
 		},
@@ -92,9 +90,9 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		"b64template": func(templateName string) string {
 			text, err := executeTemplate(rootTemplte, templateName, ds, machineInterface, webServerAddr)
 			if err != nil {
-				logging.Log(templatesDebugTag,
-					"Error while b64template for templateName=%s machine=%s: %s",
-					templateName, mac, err)
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warnf(
+					"error while executeTemplate(templateName=%s machine=%s)",
+					templateName, mac)
 				return ""
 			}
 			return base64.StdEncoding.EncodeToString([]byte(text))
@@ -140,7 +138,7 @@ func ExecuteTemplateFolder(tmplFolder string,
 
 	template, err := templateFromPath(tmplFolder)
 	if err != nil {
-		return "", fmt.Errorf("Error while reading the template with path=%s: %s",
+		return "", fmt.Errorf("error while reading the template with path=%s: %s",
 			tmplFolder, err)
 	}
 

@@ -85,7 +85,7 @@ if [ "$(docker inspect $DOCKER_NAME | grep "\"Restarting\": false")" ]; then
 	print_logs
   echo Seems OK.
 
-  curl -X PUT http://127.0.0.1:8000/api/configuration/net-conf -d "value={\"netmask\":\"$LEASE_SUBNET\", \"router\": \"$ROUTER\"}"
+  curl -X PUT http://127.0.0.1:8000/api/variables/net-conf -d "value={\"netmask\":\"$LEASE_SUBNET\", \"router\": \"$ROUTER\"}"
 
   echo
 else

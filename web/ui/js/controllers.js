@@ -39,15 +39,7 @@ blacksmithUIControllers.controller('BlacksmithMachinesCtrl', ['$scope', 'Machine
     var value = prompt("Enter variable value", "");
     if(!name || name == "") return;
 
-    MachineVariable.set({mac: $scope.machineMac, name: name, value: value}).$promise.then(
-      function( value ){
-        $scope.getMachine($scope.machineMac, $scope.machineName);
-      },
-      function( error ){
-        $scope.errorMessage = error.data;
-        $('#machineModal').modal('hide');
-      }
-    );
+    $scope.setMachineVariable(name, value);
   };
 
   $scope.setIPMI = function (nic, IPMInode) {
@@ -90,7 +82,7 @@ blacksmithUIControllers.controller('BlacksmithMachinesCtrl', ['$scope', 'Machine
 
 
 blacksmithUIControllers.controller('BlacksmithVariablesCtrl', ['$scope', 'Variable', function ($scope, Variable) {
-  $scope.sortType     = 'key';
+  $scope.sortType     = 'name';
   $scope.sortReverse  = false;
   $scope.searchTerm   = '';
   $scope.errorMessage = false;
@@ -104,11 +96,15 @@ blacksmithUIControllers.controller('BlacksmithVariablesCtrl', ['$scope', 'Variab
   $scope.getVariables();
   
   $scope.addVariable = function() {
-    var key = prompt("Enter variable key", "");
+    var name = prompt("Enter variable name", "");
     var value = prompt("Enter variable value", "");
-    if(!key || key == "") return;
+    if(!name || name == "") return;
 
-    Variable.set({key: key, value: value}).$promise.then(
+    $scope.setVariable(name, value);
+  };
+
+  $scope.setVariable = function(name, value) {
+    Variable.set({name: name, value: value}).$promise.then(
       function( value ){
         $scope.getVariables();
       },
@@ -118,19 +114,8 @@ blacksmithUIControllers.controller('BlacksmithVariablesCtrl', ['$scope', 'Variab
     );
   };
 
-  $scope.setVariable = function(key, value) {
-    Variable.set({key: key, value: value}).$promise.then(
-      function( value ){
-        $scope.getVariables();
-      },
-      function( error ){
-        $scope.errorMessage = error.data;
-      }
-    );
-  };
-
-  $scope.deleteVariable = function(key) {
-    Variable.delete({key: key}).$promise.then(
+  $scope.deleteVariable = function(name) {
+    Variable.delete({name: name}).$promise.then(
       function( value ){
         $scope.getVariables();
       },

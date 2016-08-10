@@ -32,13 +32,13 @@ func (ws *webServer) Handler() http.Handler {
 
 	// Machine variables; used in templates
 	mux.PathPrefix("/api/machines/{mac}/variables").HandlerFunc(ws.MachineVariables).Methods("GET")
-	mux.PathPrefix("/api/machines/{mac}/variables/{name}/{value}").HandlerFunc(ws.SetMachineVariable).Methods("PUT")
+	mux.PathPrefix("/api/machines/{mac}/variables/{name}").HandlerFunc(ws.SetMachineVariable).Methods("PUT")
 	mux.PathPrefix("/api/machines/{mac}/variables/{name}").HandlerFunc(ws.DelMachineVariable).Methods("DELETE")
 
 	// Cluster variables; used in templates
 	mux.PathPrefix("/api/variables").HandlerFunc(ws.ClusterVariablesList).Methods("GET")
-	mux.PathPrefix("/api/variables").HandlerFunc(ws.SetVariable).Methods("PUT")
-	mux.PathPrefix("/api/variables").HandlerFunc(ws.DelVariable).Methods("DELETE")
+	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.SetClusterVariables).Methods("PUT")
+	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.DelClusterVariables).Methods("DELETE")
 
 	// TODO: returning other files functionalities
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",

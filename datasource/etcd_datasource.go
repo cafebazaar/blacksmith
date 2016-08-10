@@ -243,7 +243,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 			"action":  "debug",
 			"object":  "ClusterVariable",
 			"subject": key,
-		}).Debug()
+		}).Debugf("%s=%q", key, value)
 	}
 
 	// TODO: Integrate DNS service into Blacksmith

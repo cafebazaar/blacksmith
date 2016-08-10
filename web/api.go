@@ -7,11 +7,9 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"path"
 
-
-	"github.com/gorilla/mux"
 	"github.com/cafebazaar/blacksmith/datasource"
+	"github.com/gorilla/mux"
 )
 
 // Version returns json encoded version details
@@ -43,7 +41,7 @@ func machineToDetails(machineInterface datasource.MachineInterface) (*machineDet
 		return nil, errors.New("error in retrieving machine details")
 	}
 	last, _ := machineInterface.LastSeen()
-	
+
 	return &machineDetails{
 		name, mac.String(),
 		machine.IP, machine.Type,
@@ -82,28 +80,12 @@ func (ws *webServer) MachinesList(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(machinesJSON))
 }
 
-// ClusterVariables returns all the cluster general variables
-func (ws *webServer) ClusterVariablesList(w http.ResponseWriter, r *http.Request) {
-	flags, err := ws.ds.ListClusterVariables()
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
-		return
-	}
-
-	flagsJSON, err := json.Marshal(flags)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
-		return
-	}
-	io.WriteString(w, string(flagsJSON))
-}
-
 // MachineVariable returns all the flags set for the machine
 func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
-    vars := mux.Vars(r)
-    macString := vars["mac"]
+	vars := mux.Vars(r)
+	macString := vars["mac"]
 
-    mac, err := net.ParseMAC(macString)
+	mac, err := net.ParseMAC(macString)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 		return
@@ -126,12 +108,12 @@ func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) {
-	
-    vars := mux.Vars(r)
-    macStr := vars["mac"]
-    name := vars["name"]
-    value := vars["value"]
-    
+
+	vars := mux.Vars(r)
+	macStr := vars["mac"]
+	name := vars["name"]
+	value := r.FormValue("value")
+
 	var machineInterface datasource.MachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)
@@ -157,10 +139,10 @@ func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) 
 
 func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) {
 
-    vars := mux.Vars(r)
-    macStr := vars["mac"]
-    name := vars["name"]
-    
+	vars := mux.Vars(r)
+	macStr := vars["mac"]
+	name := vars["name"]
+
 	var machineInterface datasource.MachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)
@@ -182,8 +164,25 @@ func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) 
 	io.WriteString(w, `"OK"`)
 }
 
-func (ws *webServer) SetVariable(w http.ResponseWriter, r *http.Request) {
-	_, name := path.Split(r.URL.Path)
+// ClusterVariables returns all the cluster general variables
+func (ws *webServer) ClusterVariablesList(w http.ResponseWriter, r *http.Request) {
+	flags, err := ws.ds.ListClusterVariables()
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	flagsJSON, err := json.Marshal(flags)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+	io.WriteString(w, string(flagsJSON))
+}
+
+func (ws *webServer) SetClusterVariables(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
 	value := r.FormValue("value")
 
 	var err error
@@ -197,8 +196,9 @@ func (ws *webServer) SetVariable(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, `"OK"`)
 }
 
-func (ws *webServer) DelVariable(w http.ResponseWriter, r *http.Request) {
-	_, name := path.Split(r.URL.Path)
+func (ws *webServer) DelClusterVariables(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
 
 	err := ws.ds.DeleteClusterVariable(name)
 

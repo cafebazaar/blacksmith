@@ -1,7 +1,6 @@
 package datasource
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -177,23 +176,14 @@ func (ds *EtcdDataSource) EtcdMembers() (string, error) {
 		return "", fmt.Errorf("Error while checking etcd members: %s", err)
 	}
 
-	var buffer bytes.Buffer
-
+	var peers []string
 	for _, member := range members {
-		lastIndex := len(member.PeerURLs) - 1
-
-		for i, peer := range member.PeerURLs {
-			buffer.WriteString(member.Name)
-			buffer.WriteString("=")
-			buffer.WriteString(peer)
-
-			if i != lastIndex {
-				buffer.WriteString(",")
-			}
+		for _, peer := range member.PeerURLs {
+			peers = append(peers, fmt.Sprintf("%s=%s", member.Name, peer))
 		}
 	}
 
-	return buffer.String(), err
+	return strings.Join(peers, ","), err
 }
 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as

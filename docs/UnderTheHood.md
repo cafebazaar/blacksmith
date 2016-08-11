@@ -2,6 +2,8 @@
 
 Blacksmith is forked from [Pixiecore](https://github.com/danderson/pixiecore).
 
+## Pixiecore
+
 Booting a Linux system over the network is quite tedious. You have to
 set up a TFTP server, configure your DHCP server to recognize PXE
 clients, and send them the right set of magical options to get them to
@@ -15,25 +17,19 @@ the boot process for a PXE ROM.
 ## DHCP/ProxyDHCP
 
 The first thing a PXE ROM does is request a configuration through
-DHCP, waiting for a DHCP reply that includes PXE vendor options. The
-normal way of providing these options is to edit your DHCP server's
-configuration to provide them to clients that identify themselves as
-PXE clients. Unfortunately, reconfiguring your network's DHCP server
-is tedious at best, and impossible if you DHCP server is built into a
-consumer router, or managed by someone else.
+DHCP, waiting for a DHCP reply that includes PXE vendor options. At
+this step, we try to get the assined `Machine` for the given hardware
+address (mac), or create a new one, and pass the ip and the pxe params
+to the PXE Rom.
 
-Pixiecore instead uses a feature of the PXE specification called
-_ProxyDHCP_. As you might guess from the name, ProxyDHCP is not a
-proxy at all (yeah, the PXE spec is like that), but a second DHCP
-server that only provides PXE configuration.
-
-When the PXE ROM sends out a `DHCPDISCOVER`, it gets two replies back:
-one containing network configuration from the primary DHCP server, and
-one containing only PXE DHCP options from the ProxyDHCP server. The
-PXE firmware combines the two, and continues as if the primary server
-had provided all the configuration.
+Pixiecore has implemented a ProxyDHCP, which can co-exist with the
+current DHCP server in the network. As it was a case for us, we have
+changed it to a normal DHCP server.
 
 ## PXE
+
+(TODO: As we're not using ProxyDHCP, can we optimse this step in our
+code? Although this step takes less than a second in our experiments.)
 
 In theory, you'd expect the ProxyDHCP server to just provide a TFTP
 server IP and a filename to the PXE firmware, and it would proceed to
@@ -112,25 +108,36 @@ This is what the whole boot process looks like on the wire.
 ### Dramatis Personae
 
 - **Machine**, which want to join to our cluster.
-  - **PXE ROM**, a brittle firmware burned into the network card of the Machine.
-- **Blacksmith**, the Hero and server of DHCP, PXE, TFTP and multiple HTTP.
-- **PXELINUX**, an open source bootloader of the [Syslinux project](http://www.syslinux.org).
+  - **PXE ROM**, a brittle firmware burned into the network card of
+  the Machine.
+- **Blacksmith**, the server of DHCP, PXE, TFTP and two HTTPs!
+- **PXELINUX**, an open source bootloader of the [Syslinux project][syslinux].
+
+[syslinux]: http://www.syslinux.org
 
 ### Timeline
 
-- Machine, and so PXE ROM starts, broadcasts `DHCPDISCOVER`.
-- Blacksmith's DHCP server responds with a `DHCPOFFER` containing network configs.
+- Machine, the PXE ROM, broadcasts `DHCPDISCOVER`.
+- Blacksmith's DHCP server responds with a `DHCPOFFER` containing
+  network configs.
 - Machine, and so PXE ROM starts, broadcasts `DHCPREQUEST`.
-- Blacksmith's DHCP server responds with a `DHCPACK` containing a PXE boot menu.
-- PXE ROM processes the PXE boot menu, decides to boot menu entry 0 (after 2 seconds).
-- PXE ROM sends a `DHCPREQUEST` to Blacksmith's PXE server, asking for a boot file.
+- Blacksmith's DHCP server responds with a `DHCPACK` containing a PXE
+  boot menu.
+- PXE ROM processes the PXE boot menu, decides to boot menu entry 0
+  (after 2 seconds).
+- PXE ROM sends a `DHCPREQUEST` to Blacksmith's PXE server, asking for
+  a boot file.
 - Pixiecore's PXE server responds with a `DHCPACK` listing a TFTP
   server, a boot filename, and a PXELINUX vendor option to make it use
   HTTP.
-- PXE ROM downloads PXELINUX from Blacksmith's TFTP server, and hands off to PXELINUX.
+- PXE ROM downloads PXELINUX from Blacksmith's TFTP server, and hands
+  off to PXELINUX.
 - PXELINUX fetches its configuration from Blacksmith's HTTP server.
-- PXELINUX fetches a kernel and ramdisk from Blacksmith's HTTP server, and boots CoreOS.
-- CoreOS on Machine asks for a `cloudinit` file from another HTTP server on
-  Blacksmith (cloudconfig package).
-- The cloudinit is generated according to the workspace and the states stored in
-  the etcd datasource, and is returned to the Machine.
+  The *bootparams*, included in this configuration. is customizable
+  through Blacksmith workspace.
+- PXELINUX fetches a kernel and ramdisk from Blacksmith's HTTP server,
+  and boots CoreOS.
+- CoreOS on Machine asks for a *cloudinit* (or *ignition*) file from
+  another HTTP server on  Blacksmith.
+- The cloudinit is generated according to the workspace and the states
+  stored in the etcd datasource, and is returned to the Machine.

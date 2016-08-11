@@ -37,6 +37,11 @@ func TestMachine(t *testing.T) {
 		return
 	}
 
+	if machine1.Type == MTNormal {
+		t.Error("unexpected type for machine1:", machine1.Type)
+		return
+	}
+
 	if machine2.IP == nil {
 		t.Error("unexpected nil value for machine2.IP")
 		return

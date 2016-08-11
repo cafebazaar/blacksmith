@@ -20,6 +20,7 @@ VERSION ?= $(shell git describe --tags)
 COMMIT := $(shell git rev-parse HEAD)
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DOCKER_IMAGE ?= quay.io/cafebazaar/blacksmith
+ETCD_ENDPOINT ?= http://127.0.0.1:20379
 
 #  Variables (only used for test)
 DUMMY_WORKSPACE ?= /tmp/blacksmith/workspaces/test-workspace
@@ -51,7 +52,7 @@ prepare_test:
 
 test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 	$(GO) get -t -v ./...
-	ETCD_ENDPOINT=http://127.0.0.1:20379 $(GO) test -v ./...
+	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -v ./...
 
 dependencies: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 	$(GO) get -v

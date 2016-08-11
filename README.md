@@ -1,11 +1,13 @@
 # Blacksmith, Bare-Metal CoreOS Cluster Manager
 
-[![Travis Widget]][Travis] [![Quay Widget]][Quay]
+[![Travis widget]][Travis] [![wercker widget]][wercker] [![Quay widget]][Quay]
 
-[Travis]: https://travis-ci.org/cafebazaar/blacksmith
-[Travis Widget]: https://travis-ci.org/cafebazaar/blacksmith.svg?branch=master
-[Quay]: https://quay.io/repository/cafebazaar/blacksmith
-[Quay Widget]: https://quay.io/repository/cafebazaar/blacksmith/status "Docker Repository on Quay"
+[Travis]: https://travis-ci.org/cafebazaar/blacksmith "Continuous Integration"
+[Travis widget]: https://travis-ci.org/cafebazaar/blacksmith.svg?branch=master
+[wercker]: https://app.wercker.com/project/bykey/3f1066d1d6886dfc62a9469da691c1c3 "Container Build System"
+[wercker widget]: https://app.wercker.com/status/3f1066d1d6886dfc62a9469da691c1c3/s/master
+[Quay]: https://quay.io/repository/cafebazaar/blacksmith "Docker Repository on Quay"
+[Quay widget]: https://quay.io/repository/cafebazaar/blacksmith/status
 
 Blacksmith is a collection of DHCP, PXE, TFTP, and HTTP servers,
 created with the purpose of booting CoreOS on bare-metal machines,

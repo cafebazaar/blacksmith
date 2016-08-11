@@ -1,0 +1,66 @@
+box: golang
+build-and-test:
+  services:
+    - id: quay.io/coreos/etcd
+      registry: https://quay.io
+      tag: v2.3.7
+      name: etcd
+      cmd: |
+        -name etcd0 -advertise-client-urls http://0.0.0.0:2379 -listen-client-urls http://0.0.0.0:2379 -initial-advertise-peer-urls http://0.0.0.0:2380 -listen-peer-urls http://0.0.0.0:2380 -initial-cluster-token etcd-cluster-1 -initial-cluster etcd0=http://0.0.0.0:2380 -initial-cluster-state new
+
+  steps:
+    - setup-go-workspace
+
+    - script:
+        name: make clean
+        code: |
+          make clean
+
+    - script:
+        name: make dependencies
+        code: |
+          make dependencies
+
+    - script:
+        name: make blacksmith
+        code: |
+          make blacksmith
+
+    - script:
+        name: "Prepare Test Env"
+        code: |
+          rm -rf /tmp/blacksmith/workspaces/test-workspace
+          mkdir -p /tmp/blacksmith/workspaces/test-workspace
+          echo "coreos-version: 1068.2.0" > /tmp/blacksmith/workspaces/test-workspace/initial.yaml
+          echo "net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> /tmp/blacksmith/workspaces/test-workspace/initial.yaml
+
+    - script:
+        name: make test
+        code: |
+          ETCD_ENDPOINT=http://${ETCD_PORT_2379_TCP_ADDR}:${ETCD_PORT_2379_TCP_PORT} make test
+
+    - script:
+        name: copy binary
+        code: cp blacksmith "$WERCKER_OUTPUT_DIR"
+
+check-if-tagged:
+  steps:
+    - script:
+        name: "Check if this is a release commit"
+        code: |
+          [ `git tag -l --points-at HEAD` | grep -e "^v" ] && exit 0
+          exit 1
+
+    - script:
+        name: copy binary
+        code: cp blacksmith "$WERCKER_OUTPUT_DIR"
+
+release:
+  steps:
+    - internal/docker-scratch-push:
+        username: $QUAY_USERNAME
+        password: $QUAY_PASSWORD
+        cmd: ./blacksmith
+        tag: $WERCKER_GIT_COMMIT
+        repository: quay.io/cafebazaar/blacksmith
+        registry: https://quay.io

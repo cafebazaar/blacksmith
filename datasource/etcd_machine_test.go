@@ -11,6 +11,11 @@ func TestMachine(t *testing.T) {
 	if err := ds.WhileMaster(); err != nil {
 		t.Error("failed to register as the master instance:", err)
 	}
+	defer func() {
+		if err := ds.Shutdown(); err != nil {
+			t.Error("failed to shutdown:", err)
+		}
+	}()
 
 	mac1, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
 	mac2, _ := net.ParseMAC("FF:FF:FF:FF:FF:FE")
@@ -20,11 +25,6 @@ func TestMachine(t *testing.T) {
 		t.Error("error in creating first machine:", err)
 		return
 	}
-	defer func() {
-		if err := ds.Shutdown(); err != nil {
-			t.Error("failed to shutdown:", err)
-		}
-	}()
 
 	machine2, err := ds.MachineInterface(mac2).Machine(true, nil)
 	if err != nil {

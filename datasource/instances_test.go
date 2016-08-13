@@ -33,7 +33,7 @@ func TestInstances(t *testing.T) {
 		return
 	}
 
-	if self.IP.Equal(i0.IP) || i0.Commit != self.Commit || i0.ServiceStartTime != self.ServiceStartTime {
+	if !self.IP.Equal(i0.IP) || i0.Commit != self.Commit || i0.ServiceStartTime != self.ServiceStartTime {
 		t.Errorf("expecting i0 to be same as self, but i0=%v self=%v", i0, self)
 		return
 	}

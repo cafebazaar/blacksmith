@@ -1,7 +1,6 @@
-package dhcp
+package templating
 
 import (
-	"bytes"
 	"net"
 	"testing"
 	"text/template"
@@ -11,13 +10,13 @@ import (
 
 func TestExecuteTemplate(t *testing.T) {
 	tests := []struct {
-		inputTemplteRoot    *template.Template
-		templateName string
-		webServerAddr string
-		err bool
-		expected string
+		inputTemplteRoot *template.Template
+		templateName     string
+		webServerAddr    string
+		err              bool
+		expected         string
 	}{
-		// TODO
+	// TODO
 	}
 
 	mac1, _ := net.ParseMAC("FF:FF:FF:FF:00:0F")

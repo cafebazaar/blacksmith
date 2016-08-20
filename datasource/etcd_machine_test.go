@@ -37,7 +37,7 @@ func TestMachine(t *testing.T) {
 		return
 	}
 
-	if machine1.Type == MTNormal {
+	if machine1.Type != MTNormal {
 		t.Error("unexpected type for machine1:", machine1.Type)
 		return
 	}

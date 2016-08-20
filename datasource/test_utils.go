@@ -58,7 +58,7 @@ func ForTest() (DataSource, error) {
 	defer cancel()
 	_, err = kapi.Delete(ctx, clusterNameFlag,
 		&etcd.DeleteOptions{Dir: true, Recursive: true})
-	if err != nil {
+	if err != nil && !etcd.IsKeyNotFound(err) {
 		return nil, fmt.Errorf("error while purging previous data from etcd: %s", err)
 	}
 

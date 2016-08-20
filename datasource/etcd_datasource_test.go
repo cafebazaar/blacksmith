@@ -6,7 +6,11 @@ import (
 )
 
 func TestCoreOSVersion(t *testing.T) {
-	ds := ForTest(t)
+	ds, err := ForTest()
+	if err != nil {
+		t.Error("error in getting a DataSource instance for our test:", err)
+		return
+	}
 
 	version, err := ds.GetClusterVariable("coreos-version")
 	if err != nil {
@@ -19,7 +23,11 @@ func TestCoreOSVersion(t *testing.T) {
 }
 
 func TestEtcdMembers(t *testing.T) {
-	ds := ForTest(t)
+	ds, err := ForTest()
+	if err != nil {
+		t.Error("error in getting a DataSource instance for our test:", err)
+		return
+	}
 
 	got, err := ds.EtcdMembers()
 	if err != nil {

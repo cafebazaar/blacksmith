@@ -1,11 +1,13 @@
 package datasource
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"strings"
-	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
 )
@@ -22,7 +24,7 @@ func etcdClietForTest() (etcd.Client, error) {
 }
 
 // ForTest constructs a DataSource to be used in tests
-func ForTest(t *testing.T) DataSource {
+func ForTest() (DataSource, error) {
 	var err error
 
 	// mocked data
@@ -38,7 +40,8 @@ func ForTest(t *testing.T) DataSource {
 	var dhcpIF *net.Interface
 	dhcpIF, err = net.InterfaceByName(listenIFFlag)
 	if err != nil {
-		t.Errorf("\nError while trying to get the interface (%s): %s\n", listenIFFlag, err)
+		return nil,
+			fmt.Errorf("error while trying to get the interface (%s): %s", listenIFFlag, err)
 	}
 
 	serverIP := net.IPv4(127, 0, 0, 1)
@@ -46,10 +49,18 @@ func ForTest(t *testing.T) DataSource {
 	etcdClient, err := etcdClietForTest()
 
 	if err != nil {
-		t.Error("etcd instance not found")
+		return nil, fmt.Errorf("etcd instance not found: %s", err)
 	}
 
 	kapi := etcd.NewKeysAPI(etcdClient)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err = kapi.Delete(ctx, clusterNameFlag,
+		&etcd.DeleteOptions{Dir: true, Recursive: true})
+	if err != nil {
+		return nil, fmt.Errorf("error while purging previous data from etcd: %s", err)
+	}
 
 	selfInfo := InstanceInfo{
 		IP:               serverIP,
@@ -73,8 +84,8 @@ func ForTest(t *testing.T) DataSource {
 	)
 
 	if err != nil {
-		t.Errorf("\nCouldn't create runtime configuration: %s\n", err)
+		return nil, fmt.Errorf("Couldn't create runtime configuration: %s", err)
 	}
 
-	return etcdDataSource
+	return etcdDataSource, nil
 }

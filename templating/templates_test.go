@@ -21,7 +21,11 @@ func TestExecuteTemplate(t *testing.T) {
 
 	mac1, _ := net.ParseMAC("FF:FF:FF:FF:00:0F")
 
-	ds := datasource.ForTest(t)
+	ds, err := datasource.ForTest()
+	if err != nil {
+		t.Error("error in getting a DataSource instance for our test:", err)
+		return
+	}
 
 	for i, tt := range tests {
 		got, err := executeTemplate(

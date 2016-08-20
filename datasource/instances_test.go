@@ -3,7 +3,11 @@ package datasource
 import "testing"
 
 func TestInstances(t *testing.T) {
-	ds := ForTest(t)
+	ds, err := ForTest()
+	if err != nil {
+		t.Error("error in getting a DataSource instance for our test:", err)
+		return
+	}
 
 	if err := ds.WhileMaster(); err != nil {
 		t.Error("failed to register as the master instance:", err)

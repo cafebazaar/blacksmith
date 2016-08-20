@@ -14,7 +14,11 @@ import (
 func TestMachineVariablesAPI(t *testing.T) {
 	mac1, _ := net.ParseMAC("00:11:22:33:44:55")
 
-	ds := datasource.ForTest(t)
+	ds, err := datasource.ForTest()
+	if err != nil {
+		t.Error("error in getting a DataSource instance for our test:", err)
+		return
+	}
 
 	if err := ds.WhileMaster(); err != nil {
 		t.Error("failed to register as the master instance:", err)
@@ -30,7 +34,7 @@ func TestMachineVariablesAPI(t *testing.T) {
 	h := r.Handler()
 
 	mi := ds.MachineInterface(mac1)
-	_, err := mi.Machine(true, nil)
+	_, err = mi.Machine(true, nil)
 	if err != nil {
 		t.Error("error while creating machine:", err)
 		return

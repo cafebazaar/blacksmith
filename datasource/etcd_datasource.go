@@ -49,11 +49,15 @@ func (ds *EtcdDataSource) MachineInterfaces() ([]MachineInterface, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
+	var ret []MachineInterface
+
 	response, err := ds.keysAPI.Get(ctx, path.Join(ds.clusterName, etcdMachinesDirName), &etcd.GetOptions{Recursive: false})
 	if err != nil {
+		if etcd.IsKeyNotFound(err) {
+			return ret, nil
+		}
 		return nil, err
 	}
-	var ret []MachineInterface
 	for _, ent := range response.Node.Nodes {
 		pathToMachineDir := ent.Key
 		machineName := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]

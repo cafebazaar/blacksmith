@@ -14,6 +14,7 @@ help:
 
 GIT ?= git
 GO ?= go
+CURL ?= curl
 OS ?= linux
 ARCH ?= amd64
 VERSION ?= $(shell git describe --tags)
@@ -52,6 +53,7 @@ prepare_test:
 
 test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 	$(GO) get -t -v ./...
+	$(CURL) -XDELETE $(ETCD_ENDPOINT)/v2/keys/blacksmith?recursive=true
 	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -v ./...
 
 dependencies: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go

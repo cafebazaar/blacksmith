@@ -66,6 +66,14 @@ func (m *etcdMachineInterface) Machine(createIfNeed bool, assignedIP net.IP) (Ma
 }
 
 func (m *etcdMachineInterface) store(machine *Machine) error {
+	if machine.Type == 0 {
+		if machine.IP == nil {
+			machine.Type = MTNormal
+		} else {
+			machine.Type = MTStatic
+		}
+	}
+
 	if machine.IP == nil {
 		// To avoid concurrency problems
 		if err := m.etcdDS.IsMaster(); err != nil {
@@ -100,14 +108,6 @@ func (m *etcdMachineInterface) store(machine *Machine) error {
 		}
 
 		machine.IP = candidateIP
-	}
-
-	if machine.Type == 0 {
-		if machine.IP == nil {
-			machine.Type = MTNormal
-		} else {
-			machine.Type = MTStatic
-		}
 	}
 
 	jsonedStats, err := json.Marshal(*machine)

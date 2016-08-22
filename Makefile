@@ -1,4 +1,4 @@
-.PHONY: help clean docker push test prepare_test
+.PHONY: help clean docker push test prepare_test prepare_test_ws prepare_test_etcd
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  dependencies to install the dependencies"
@@ -29,12 +29,13 @@ ETCD_RELEASE_VERSION ?= v2.3.7
 ################################################################
 #  Tasks
 
-prepare_test:
+prepare_test_ws:
 	rm -rf $(DUMMY_WORKSPACE)
 	mkdir -p $(DUMMY_WORKSPACE)
 	echo "coreos-version: 1068.2.0" > $(DUMMY_WORKSPACE)/initial.yaml
 	echo "net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> $(DUMMY_WORKSPACE)/initial.yaml
 
+prepare_test_etcd:
 	docker kill blacksmith-test-etcd || echo "wasn't running"
 	docker rm blacksmith-test-etcd || echo "didn't exist'"
 	docker pull quay.io/coreos/etcd:$(ETCD_RELEASE_VERSION)
@@ -49,6 +50,7 @@ prepare_test:
 	 -initial-cluster etcd0=http://127.0.0.1:20380 \
 	 -initial-cluster-state new
 
+prepare_test: prepare_test_ws prepare_test_etcd
 
 test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
 	$(GO) get -t -v ./...

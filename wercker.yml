@@ -27,12 +27,9 @@ build-and-test:
           make blacksmith
 
     - script:
-        name: "Prepare Test Env"
+        name: make prepare_test_ws
         code: |
-          rm -rf /tmp/blacksmith/workspaces/test-workspace
-          mkdir -p /tmp/blacksmith/workspaces/test-workspace
-          echo "coreos-version: 1068.2.0" > /tmp/blacksmith/workspaces/test-workspace/initial.yaml
-          echo "net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> /tmp/blacksmith/workspaces/test-workspace/initial.yaml
+          make prepare_test_ws
 
     - script:
         name: make test

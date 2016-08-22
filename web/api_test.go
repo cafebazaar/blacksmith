@@ -14,7 +14,7 @@ import (
 func TestMachineVariablesAPI(t *testing.T) {
 	mac1, _ := net.ParseMAC("00:11:22:33:44:55")
 
-	ds, err := datasource.ForTest()
+	ds, err := datasource.ForTest(nil)
 	if err != nil {
 		t.Error("error in getting a DataSource instance for our test:", err)
 		return

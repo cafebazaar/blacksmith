@@ -34,14 +34,19 @@ type MachineInterface interface {
 	// Hostname returns the mac address formatted as a string suitable for hostname
 	Hostname() string
 
-	// Machine returns the associated Machine
-	// If the createIfNeed is true, and there is no machine associated to this
-	// mac, the machine will be created and returned. If the assignedIP is empty,
-	// the IP will be assigned automatically, otherwise the given will be used.
-	// In this case, an error will be raised if the given IP is currently assigned
-	// to another mac.
-	// If createIfNeed == nil, the assignedIP will be ignored.
-	Machine(createIfNeed bool, assignedIP net.IP) (Machine, error)
+	// Machine creates a record for the associated mac if needed
+	// and asked for, and returns a Machine with the stored values.
+	// If createIfNeeded is true, and there is no machine associated to
+	// this mac, the machine will be created, stored, and returned.
+	// In this case, if createWithIP is empty, the IP will be assigned
+	// automatically, otherwise the given will be used. An error will be
+	// raised if createWithIP is currently assigned to another mac. Also
+	// the Type will be automatically set to MTNormal if createWithIP is
+	// nil, otherwise to MTStatic.
+	// If createIfNeeded is false, the createWithIP is expected to be nil.
+	// Note: if the machine exists, createWithIP is ignored. It's possible
+	// for the returned Machine to have an IP different from createWithIP.
+	Machine(createIfNeeded bool, createWithIP net.IP) (Machine, error)
 
 	// LastSeen returns the last time the machine has been seen
 	LastSeen() (int64, error)

@@ -13,6 +13,24 @@ import (
 	etcd "github.com/coreos/etcd/client"
 )
 
+// ForTestParams is the way to create a customized DataSource to be
+// used in a test. Fields with value=nil will be ignored.
+type ForTestParams struct {
+	leaseStart    *net.IP
+	leaseRange    *int
+	workspacePath *string
+	listenIF      *string
+	dnsIPStrings  *[]string
+}
+
+const (
+	forTestDefaultLeaseStart    = "127.0.0.2"
+	forTestDefaultLeaseRange    = 10
+	forTestDefaultWorkspacePath = "/tmp/blacksmith/workspaces/test-workspace"
+	forTestDefaultListenIF      = "lo"
+	forTestDNSIPStrings         = "8.8.8.8"
+)
+
 var (
 	forTestLock  = &sync.Mutex{}
 	forTestIndex = 1
@@ -30,15 +48,31 @@ func etcdClietForTest() (etcd.Client, error) {
 }
 
 // ForTest constructs a DataSource to be used in tests
-func ForTest() (DataSource, error) {
+func ForTest(params *ForTestParams) (DataSource, error) {
 	var err error
 
-	listenIFFlag := "lo"
-	workspacePathFlag := "/tmp/blacksmith/workspaces/test-workspace"
-	leaseStart := net.ParseIP("192.168.100.1")
-	leaseRange := 10
-	dnsIPStrings := []string{
-		"8.8.8.8",
+	leaseStart := net.ParseIP(forTestDefaultLeaseStart)
+	leaseRange := forTestDefaultLeaseRange
+	workspacePath := forTestDefaultWorkspacePath
+	listenIF := "lo"
+	dnsIPStrings := strings.Split(forTestDNSIPStrings, ",")
+
+	if params != nil {
+		if params.leaseStart != nil {
+			leaseStart = *params.leaseStart
+		}
+		if params.leaseRange != nil {
+			leaseRange = *params.leaseRange
+		}
+		if params.workspacePath != nil {
+			workspacePath = *params.workspacePath
+		}
+		if params.listenIF != nil {
+			listenIF = *params.listenIF
+		}
+		if params.dnsIPStrings != nil {
+			dnsIPStrings = *params.dnsIPStrings
+		}
 	}
 
 	// For tests to be safe for parallel execution
@@ -48,10 +82,10 @@ func ForTest() (DataSource, error) {
 	forTestLock.Unlock()
 
 	var dhcpIF *net.Interface
-	dhcpIF, err = net.InterfaceByName(listenIFFlag)
+	dhcpIF, err = net.InterfaceByName(listenIF)
 	if err != nil {
 		return nil,
-			fmt.Errorf("error while trying to get the interface (%s): %s", listenIFFlag, err)
+			fmt.Errorf("error while trying to get the interface (%s): %s", listenIF, err)
 	}
 
 	serverIP := net.IPv4(127, 0, 0, 1)
@@ -88,7 +122,7 @@ func ForTest() (DataSource, error) {
 		leaseStart,
 		leaseRange,
 		clusterNameFlag,
-		workspacePathFlag,
+		workspacePath,
 		dnsIPStrings,
 		selfInfo,
 	)

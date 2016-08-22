@@ -3,6 +3,7 @@ package datasource
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"path"
@@ -33,26 +34,37 @@ func (m *etcdMachineInterface) Hostname() string {
 	return strings.Replace(m.mac.String(), ":", "", -1)
 }
 
-// Machine returns the associated Machine
-// If the createIfNeed is true, and there is no machine associated to this
-// mac, the machine will be created and returned. If the assignedIP is empty,
-// the IP will be assigned automatically, otherwise the given will be used.
-// In this case, an error will be raised if the given IP is currently assigned
-// to another mac.
-// If createIfNeed == nil, the assignedIP will be ignored.
-func (m *etcdMachineInterface) Machine(createIfNeed bool, assignedIP net.IP) (Machine, error) {
+// Machine creates a record for the associated mac if needed
+// and asked for, and returns a Machine with the stored values.
+// If createIfNeeded is true, and there is no machine associated to
+// this mac, the machine will be created, stored, and returned.
+// In this case, if createWithIP is empty, the IP will be assigned
+// automatically, otherwise the given will be used. An error will be
+// raised if createWithIP is currently assigned to another mac. Also
+// the Type will be automatically set to MTNormal if createWithIP is
+// nil, otherwise to MTStatic.
+// If createIfNeeded is false, the createWithIP is expected to be nil.
+// Note: if the machine exists, createWithIP is ignored. It's possible
+// for the returned Machine to have an IP different from createWithIP.
+func (m *etcdMachineInterface) Machine(createIfNeeded bool,
+	createWithIP net.IP) (Machine, error) {
 	var machine Machine
+
+	if !createIfNeeded && (createWithIP != nil) {
+		return machine, errors.New(
+			"if createIfNeeded is false, the createWithIP is expected to be nil")
+	}
 
 	resp, err := m.selfGet("_machine")
 	if err != nil {
 		errorIsKeyNotFound := etcd.IsKeyNotFound(err)
 
-		if !(errorIsKeyNotFound && createIfNeed) {
+		if !(errorIsKeyNotFound && createIfNeeded) {
 			return machine, fmt.Errorf("error while retrieving _machine: %s", err)
 		}
 
 		machine := Machine{
-			IP:        assignedIP, // to be assigned automatically
+			IP:        createWithIP, // to be assigned automatically
 			FirstSeen: time.Now().Unix(),
 		}
 		err := m.store(&machine)
@@ -74,40 +86,62 @@ func (m *etcdMachineInterface) store(machine *Machine) error {
 		}
 	}
 
+	m.etcdDS.dhcpAssignLock.Lock()
+	defer m.etcdDS.dhcpAssignLock.Unlock()
+
+	machineInterfaces, err := m.etcdDS.MachineInterfaces()
+	if err != nil {
+		return fmt.Errorf("error while getting the machine interfaces: %s", err)
+	}
+	ipToMac := make(map[string]net.HardwareAddr)
+	for _, mi := range machineInterfaces {
+		machine, err := mi.Machine(false, nil)
+		if err != nil {
+			return fmt.Errorf("error while getting the machine for (%s): %s",
+				mi.Mac().String(), err)
+		}
+		ipToMac[machine.IP.String()] = mi.Mac()
+	}
+
 	if machine.IP == nil {
 		// To avoid concurrency problems
+		// We expect rhis part to be triggered only through DHCP, so we expect
+		// IsMaster() to returns true
 		if err := m.etcdDS.IsMaster(); err != nil {
-			return fmt.Errorf("only the master instance is allowed to store machine info: %s", err)
+			return fmt.Errorf(
+				"only the master instance is allowed to store machine info: %s",
+				err)
 		}
 
-		m.etcdDS.dhcpAssignLock.Lock()
-		defer m.etcdDS.dhcpAssignLock.Unlock()
+		counter := len(ipToMac) % m.etcdDS.leaseRange
+		firstCandidateIP := dhcp4.IPAdd(m.etcdDS.leaseStart, counter) // kickstarted
+		candidateIP := net.IPv4(
+			firstCandidateIP[0], firstCandidateIP[1],
+			firstCandidateIP[2], firstCandidateIP[3]) // copy
 
-		machineInterfaces, err := m.etcdDS.MachineInterfaces()
-		if err != nil {
-			return fmt.Errorf("error while getting the machine interfaces: %s", err)
-		}
-		ipSet := make(map[string]bool)
-		for _, mi := range machineInterfaces {
-			machine, err := mi.Machine(false, nil)
-			if err != nil {
-				return fmt.Errorf("error while getting the machine for (%s): %s", mi.Mac().String(), err)
-			}
-			ipSet[machine.IP.String()] = true
-		}
-		counter := len(ipSet)
-		candidateIP := dhcp4.IPAdd(m.etcdDS.leaseStart, counter)
-		for _, isAssigned := ipSet[candidateIP.String()]; isAssigned; {
+		for _, isAssigned := ipToMac[candidateIP.String()]; isAssigned; {
 			candidateIP = dhcp4.IPAdd(candidateIP, 1)
 			counter++
+			if counter == m.etcdDS.leaseRange {
+				candidateIP = m.etcdDS.leaseStart
+				counter = 0
+			}
+			if firstCandidateIP.Equal(candidateIP) {
+				break
+			}
 		}
 
-		// or >= ? :D
-		if counter > m.etcdDS.leaseRange {
-			return fmt.Errorf("lease range is exceeded (%d > %d)", counter, m.etcdDS.leaseRange)
+		if _, isAssigned := ipToMac[candidateIP.String()]; isAssigned {
+			return fmt.Errorf("no unassigned IP was found")
 		}
 
 		machine.IP = candidateIP
+	} else {
+		if m, isAssigned := ipToMac[machine.IP.String()]; isAssigned {
+			return fmt.Errorf(
+				"the requested IP(%s) is already assigned to another machine(%s)",
+				machine.IP.String(), m.String())
+		}
 	}
 
 	jsonedStats, err := json.Marshal(*machine)
@@ -143,7 +177,8 @@ func (m *etcdMachineInterface) ListVariables() (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	response, err := m.keysAPI.Get(ctx, path.Join(m.etcdDS.ClusterName(), "machines", m.Hostname()), nil)
+	response, err := m.keysAPI.Get(ctx, path.Join(m.etcdDS.ClusterName(),
+		"machines", m.Hostname()), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +236,8 @@ func (m *etcdMachineInterface) DeleteVariable(key string) error {
 }
 
 func (m *etcdMachineInterface) prefixifyForMachine(key string) string {
-	return path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname(), key)
+	return path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname(),
+		key)
 }
 
 func (m *etcdMachineInterface) selfGet(key string) (string, error) {

@@ -3,7 +3,7 @@ package datasource
 import "testing"
 
 func TestInstances(t *testing.T) {
-	ds, err := ForTest()
+	ds, err := ForTest(nil)
 	if err != nil {
 		t.Error("error in getting a DataSource instance for our test:", err)
 		return

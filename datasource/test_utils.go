@@ -5,11 +5,17 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
+)
+
+var (
+	forTestLock  = &sync.Mutex{}
+	forTestIndex = 1
 )
 
 func etcdClietForTest() (etcd.Client, error) {
@@ -27,15 +33,19 @@ func etcdClietForTest() (etcd.Client, error) {
 func ForTest() (DataSource, error) {
 	var err error
 
-	// mocked data
 	listenIFFlag := "lo"
-	clusterNameFlag := "blacksmith"
 	workspacePathFlag := "/tmp/blacksmith/workspaces/test-workspace"
 	leaseStart := net.ParseIP("192.168.100.1")
 	leaseRange := 10
 	dnsIPStrings := []string{
 		"8.8.8.8",
 	}
+
+	// For tests to be safe for parallel execution
+	forTestLock.Lock()
+	clusterNameFlag := fmt.Sprintf("blacksmith-%04d", forTestIndex)
+	forTestIndex++
+	forTestLock.Unlock()
 
 	var dhcpIF *net.Interface
 	dhcpIF, err = net.InterfaceByName(listenIFFlag)
@@ -84,7 +94,7 @@ func ForTest() (DataSource, error) {
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't create runtime configuration: %s", err)
+		return nil, fmt.Errorf("couldn't create runtime configuration: %s", err)
 	}
 
 	return etcdDataSource, nil

@@ -1,23 +1,25 @@
 var blacksmithUIApp = angular.module('blacksmithUIApp', ["xeditable", 'ngRoute', 'blacksmithUIControllers', 'apiServices']);
 
-blacksmithUIApp.config(['$routeProvider',
-  function($routeProvider) {
+blacksmithUIApp.config(['$routeProvider', '$locationProvider',
+  function($routeProvider, $locationProvider) {
     $routeProvider.
-      when('/machines/', {
-        templateUrl: 'partials/machines-list.html',
+      when('/ui/app/machines/', {
+        templateUrl: 'ui/partials/machines-list.html',
         controller: 'BlacksmithMachinesCtrl'
       }).
-      when('/variables/', {
-        templateUrl: 'partials/variables-list.html',
+      when('/ui/app/variables/', {
+        templateUrl: 'ui/partials/variables-list.html',
         controller: 'BlacksmithVariablesCtrl'
       }).
-      when('/about/', {
-        templateUrl: 'partials/about.html',
+      when('/ui/app/about/', {
+        templateUrl: 'ui/partials/about.html',
         controller: 'BlacksmithAboutCtrl'
       }).
       otherwise({
-        redirectTo: '/machines/'
+        redirectTo: '/ui/app/machines/'
       });
+
+      $locationProvider.html5Mode(true);
   }]);
 
 blacksmithUIApp

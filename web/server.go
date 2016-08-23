@@ -44,6 +44,11 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
 		http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "files")))))
 
+	mux.PathPrefix("/ui/app/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		index, _ := FSByte(false, "/ui/index.html")
+		w.Write(index)
+	}))
+
 	mux.PathPrefix("/ui/").Handler(http.FileServer(FS(false)))
 
 	return mux

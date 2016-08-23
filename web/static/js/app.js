@@ -3,20 +3,20 @@ var blacksmithUIApp = angular.module('blacksmithUIApp', ["xeditable", 'ngRoute',
 blacksmithUIApp.config(['$routeProvider', '$locationProvider',
   function($routeProvider, $locationProvider) {
     $routeProvider.
-      when('/ui/app/machines/', {
-        templateUrl: 'ui/partials/machines-list.html',
+      when('/ui/machines/', {
+        templateUrl: 'static/partials/machines-list.html',
         controller: 'BlacksmithMachinesCtrl'
       }).
-      when('/ui/app/variables/', {
-        templateUrl: 'ui/partials/variables-list.html',
+      when('/ui/variables/', {
+        templateUrl: 'static/partials/variables-list.html',
         controller: 'BlacksmithVariablesCtrl'
       }).
-      when('/ui/app/about/', {
-        templateUrl: 'ui/partials/about.html',
+      when('/ui/about/', {
+        templateUrl: 'static/partials/about.html',
         controller: 'BlacksmithAboutCtrl'
       }).
       otherwise({
-        redirectTo: '/ui/app/machines/'
+        redirectTo: '/ui/machines/'
       });
 
       $locationProvider.html5Mode(true);

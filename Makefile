@@ -67,22 +67,22 @@ pxe/pxelinux_autogen.go: pxe/pxelinux
 	$(GO) get github.com/mjibson/esc
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
 
-EXTERNAL_FILES := web/ui/bower_components/angular/angular.min.js web/ui/bower_components/angular-route/angular-route.min.js web/ui/bower_components/angular-resource/angular-resource.min.js web/ui/bower_components/angular-xeditable/dist/js/xeditable.min.js web/ui/bower_components/jquery/dist/jquery.min.js web/ui/bower_components/bootstrap/dist/js/bootstrap.min.js web/ui/bower_components/bootstrap/dist/css/bootstrap.css web/ui/bower_components/angular-xeditable/dist/css/xeditable.css
-web/ui/external: $(EXTERNAL_FILES)
-	mkdir -p web/ui/external
-	cp -v $(EXTERNAL_FILES) web/ui/external
+EXTERNAL_FILES := web/static/bower_components/angular/angular.min.js web/static/bower_components/angular-route/angular-route.min.js web/static/bower_components/angular-resource/angular-resource.min.js web/static/bower_components/angular-xeditable/dist/js/xeditable.min.js web/static/bower_components/jquery/dist/jquery.min.js web/static/bower_components/bootstrap/dist/js/bootstrap.min.js web/static/bower_components/bootstrap/dist/css/bootstrap.css web/static/bower_components/angular-xeditable/dist/css/xeditable.css
+web/static/external: $(EXTERNAL_FILES)
+	mkdir -p web/static/external
+	cp -v $(EXTERNAL_FILES) web/static/external
 
-EXTERNAL_FILES_FONT := web/ui/bower_components/bootstrap/fonts/glyphicons-halflings-regular.woff2
-web/ui/fonts: $(EXTERNAL_FILES_FONT)
-	mkdir -p web/ui/fonts
-	cp -v $(EXTERNAL_FILES_FONT) web/ui/fonts
+EXTERNAL_FILES_FONT := web/static/bower_components/bootstrap/fonts/glyphicons-halflings-regular.woff2
+web/static/fonts: $(EXTERNAL_FILES_FONT)
+	mkdir -p web/static/fonts
+	cp -v $(EXTERNAL_FILES_FONT) web/static/fonts
 
-web/ui_autogen.go: web/ui/* web/ui/partials/* web/ui/css/*  web/ui/img/* web/ui/js/* web/ui/external web/ui/fonts
+web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/static/img/* web/static/js/* web/static/external web/static/fonts
 	$(GO) get github.com/mjibson/esc
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
 
 clean:
-	rm -rf blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go web/ui/external web/ui/fonts
+	rm -rf blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go web/static/external web/static/fonts
 
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE):$(VERSION) .

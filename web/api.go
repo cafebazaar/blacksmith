@@ -80,6 +80,27 @@ func (ws *webServer) MachinesList(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(machinesJSON))
 }
 
+// MachineDelete deletes associated information of a machine entirely
+func (ws *webServer) MachineDelete(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	macString := vars["mac"]
+
+	mac, err := net.ParseMAC(macString)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	machineInterface := ws.ds.MachineInterface(mac)
+	err = machineInterface.DeleteMachine()
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	io.WriteString(w, `"OK"`)
+}
+
 // MachineVariable returns all the flags set for the machine
 func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

@@ -25,6 +25,13 @@ apiServices.factory('MachineVariable', ['$resource',
     });
 }]);
 
+apiServices.factory('MachineConfigure', ['$resource',
+  function ($resource) {
+    return $resource('/api/machines/:mac', {}, {
+      delete: {method:'DELETE', params:{name: '@mac'}, isArray:false}
+    });
+}]);
+
 apiServices.factory('Version', ['$resource',
   function($resource){
     return $resource('/api/version', {}, {

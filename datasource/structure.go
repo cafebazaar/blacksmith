@@ -51,6 +51,9 @@ type MachineInterface interface {
 	// LastSeen returns the last time the machine has been seen
 	LastSeen() (int64, error)
 
+	// DeleteMachine deletes a machine from the store entirely
+	DeleteMachine() error
+
 	// CheckIn updates the _last_seen field of the machine
 	CheckIn()
 

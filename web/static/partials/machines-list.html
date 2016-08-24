@@ -86,7 +86,8 @@
         Last IP Assignment Time
         <span ng-show="sortType == 'lastAssigned'" ng-class="sortReverse ? 'caret' : 'caret caret-reversed'"></span>
     </a></th>
-	<th>Configuration</th>
+    <th>Configuration</th>
+    <th>Delete</th>
   </tr>
   </thead>
   <tbody>
@@ -97,6 +98,7 @@
     <td>{{ machine.firstAssigned * 1000 | date :'medium' }}</td>
     <td>{{ machine.lastAssigned  * 1000 | date :'medium' }}</td>
     <td><button class="btn btn-info btn-xs" ng-click="getMachine(machine.nic, machine.name, machine.IPMInode)" data-toggle="modal" data-target="#machineModal"> View/Modify </button></td>
+    <td><a href="ui/machines/" ng-click="deleteMachine(machine, machine.nic)"><span class="glyphicon glyphicon-remove"></span></a></td>
   </tr>
   </tbody>
 </table>

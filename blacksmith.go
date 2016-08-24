@@ -21,7 +21,7 @@ import (
 )
 
 //go:generate esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
-//go:generate esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/ui
+//go:generate esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/static
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure

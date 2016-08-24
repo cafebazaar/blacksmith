@@ -10,8 +10,8 @@ vagrant_provision_after_docker_installation.local
 blacksmith
 pxe/pxelinux_autogen.go
 web/ui_autogen.go
-web/ui/external
-web/ui/fonts
+web/static/external
+web/static/fonts
 
 # local
 example/example

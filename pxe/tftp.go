@@ -5,7 +5,7 @@ import (
 	"net"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/danderson/pixiecore/tftp"
+	"go.universe.tf/netboot/tftp"
 )
 
 func ServeTFTP(listenAddr net.UDPAddr) error {

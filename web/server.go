@@ -27,6 +27,7 @@ func (ws *webServer) Handler() http.Handler {
 	mux.HandleFunc("/api/version", ws.Version)
 
 	mux.HandleFunc("/api/machines", ws.MachinesList)
+	mux.HandleFunc("/api/machines/{mac}", ws.MachineDelete).Methods("DELETE")
 
 	// mux.PathPrefix("/api/machine/").HandlerFunc(ws.NodeSetIPMI).Methods("PUT")
 

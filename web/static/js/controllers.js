@@ -1,6 +1,6 @@
 var blacksmithUIControllers = angular.module('blacksmithUIControllers', []);
 
-blacksmithUIControllers.controller('BlacksmithMachinesCtrl', ['$scope', 'Machines', 'MachineVariable', function ($scope, Machines, MachineVariable) {
+blacksmithUIControllers.controller('BlacksmithMachinesCtrl', ['$scope', 'Machines', 'MachineVariable', 'MachineConfigure', function ($scope, Machines, MachineVariable, MachineConfigure) {
   $scope.sortType     = 'name';
   $scope.sortReverse  = false;
   $scope.searchTerm   = '';
@@ -30,6 +30,19 @@ blacksmithUIControllers.controller('BlacksmithMachinesCtrl', ['$scope', 'Machine
         $scope.errorMessage = error.data;
         $scope.machineDetails = {};
         $('#machineModal').modal('hide');
+      }
+    );
+  };
+
+  $scope.deleteMachine = function(machine, nic) {
+    $scope.machineMac = nic;
+    $scope.errorMessage = false;
+    MachineConfigure.delete({mac: nic}).$promise.then(
+      function( value ){
+        $scope.machines.splice($scope.machines.indexOf(machine), 1);
+      },
+      function( error ){
+        $scope.errorMessage = error.data;
       }
     );
   };

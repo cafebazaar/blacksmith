@@ -171,6 +171,16 @@ func (m *etcdMachineInterface) LastSeen() (int64, error) {
 	return unixInt64, nil
 }
 
+// DeleteMachine deletes associated etcd folder of a machine entirely
+func (m *etcdMachineInterface) DeleteMachine() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := m.etcdDS.keysAPI.Delete(ctx,
+		path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname()),
+		&etcd.DeleteOptions{Dir: true, Recursive: true})
+	return err
+}
+
 // ListFlags returns the list of all the flgas of a machine from Etcd
 // etcd and machine prefix will be added to the path
 func (m *etcdMachineInterface) ListVariables() (map[string]string, error) {

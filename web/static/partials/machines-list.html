@@ -50,7 +50,7 @@
               <span class="glyphicon glyphicon-trash"></span>
             </button></td>
             <td>
-              <span>{{k}}:</span>
+              <span>{{k}}</span>
             </td>
             <td>
               <span class="value" editable-text="v" onbeforesave="setMachineVariable(k,$data)">{{v || '(empty)'}}</span>
@@ -94,8 +94,8 @@
     <td>{{ machine.name }}</td>
     <td>{{ machine.ip }}</td>
     <td>{{ machine.type }}</td>
-    <td>{{ machine.firstAssigned * 1000 | date :'medium' }}</td>
-    <td>{{ machine.lastAssigned  * 1000 | date :'medium' }}</td>
+    <td>{{ machine.firstAssigned ? (machine.firstAssigned * 1000 | date:'medium') : '-' }}</td>
+    <td>{{ machine.lastAssigned  ? (machine.lastAssigned  * 1000 | date:'medium') : '-' }}</td>
     <td><button class="btn btn-info btn-xs" ng-click="getMachine(machine.nic, machine.name, machine.IPMInode)" data-toggle="modal" data-target="#machineModal"> View/Modify </button></td>
   </tr>
   </tbody>

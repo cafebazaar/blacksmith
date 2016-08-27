@@ -35,6 +35,9 @@ blacksmithUIControllers.controller('BlacksmithMachinesCtrl', ['$scope', 'Machine
   };
 
   $scope.deleteMachine = function(machine, nic) {
+    if (!confirm("Are you sure about removal of this machine? This action is not easily undoable."))
+      return;
+
     $scope.machineMac = nic;
     $scope.errorMessage = false;
     MachineConfigure.delete({mac: nic}).$promise.then(

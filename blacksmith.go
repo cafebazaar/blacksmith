@@ -246,8 +246,8 @@ func main() {
 		}
 	}()
 
-	// waiting til we're officially the master instance
-	for err := etcdDataSource.WhileMaster(); err != nil; {
+	// waiting till we're officially the master instance
+	for etcdDataSource.WhileMaster() != nil {
 		log.WithFields(log.Fields{
 			"where":  "blacksmith.main",
 			"action": "debug",

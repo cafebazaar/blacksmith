@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if ! which VBoxManage > /dev/null; then
+    echo "Error:VBoxManage Is Required!"
+    exit 1
+fi
 
 ####
 HostIP="192.168.56.1"

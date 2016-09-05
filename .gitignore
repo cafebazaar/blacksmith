@@ -18,3 +18,7 @@ example/example
 deploy.sh
 remote_deploy.sh
 workspaces
+
+#
+*.vdi
+.vbox_*

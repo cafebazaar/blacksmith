@@ -17,13 +17,11 @@ HostIP="192.168.56.1"
 # hostonly network name, it is "vboxnet0" by default and we have less control for what it should be it seems
 HOSTONLY=$(cat .vbox_network_hostonly_if) || "vboxnet0"
 # NAT network interface name
-NATNAME="natnet0"
+NATNAME="NatNetwork"
 # detects which interface connects us to the Internet, needed for bridge
 INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$')
 # number of bootstrapper, 3 is good enough usually
 BOOTSTAPPERS=3
-# number of workers
-WORKERS=3
 
 
 ####
@@ -40,18 +38,16 @@ function create_machine {
     vboxmanage createvm --name $1 --register
 
     vboxmanage modifyvm $1 \
-        --ostype Linux \
+        --ostype "Linux_64" \
         --memory 2048 \
         --nic1 hostonly \
         --nictype1 82540EM \
         --hostonlyadapter1 $HOSTONLY \
         --nicpromisc1 allow-all \
         --nic2 natnetwork \
-        --nictype2 82540EM \
         --natnet2 $NATNAME \
         --nicpromisc2 allow-all \
         --nic3 bridged \
-        --nictype3 82540EM \
         --bridgeadapter3 $INTERTNETIF \
         --nicpromisc3 allow-all \
         --boot1 disk \
@@ -76,12 +72,9 @@ function create_machine {
         --medium $1.vdi
 }
 
-function create_machines {
+function create_bootstrappers {
     for i in $(seq $BOOTSTAPPERS); do
         create_machine bootstrapper_$i
-    done
-    for i in $(seq $WORKERS); do
-        create_machine worker_$i
     done
 }
 
@@ -90,13 +83,14 @@ function remove_machines {
         vboxmanage controlvm boostrapper_$i poweroff
         vboxmanage unregistervm bootstrapper_$i --delete
     done
-    for i in $(seq $WORKERS); do
+    #TODO: we shoud store number of created workers to not go for blindly deletion of created workers
+    for i in $(seq 9); do
         vboxmanage controlvm worker_$i poweroff
         vboxmanage unregistervm worker_$i --delete
     done
 }
 
-function start_machines {
+function start_bootstrapper_machines {
     for i in $(seq $BOOTSTAPPERS); do
         vboxmanage startvm bootstrapper_$i --type gui
     done
@@ -133,20 +127,42 @@ function run_blacksmith {
 }
 
 
-####
+#### clean
 if [ "$1" == "clean" ]; then
     remove_machines
     vboxmanage hostonlyif remove $HOSTONLY
     vboxmanage natnetwork remove --netname $NATNAME
-    rm .vbox*
+    rm .vbox* *.vdi
+    rm -rf ~/VirtualBox\ VMs/worker_* ~/VirtualBox\ VMs/bootstrapper_*
     echo "Cleaned."
     exit
 fi
 
-make blacksmith
+
+#### init workers
+if [ "$1" == "worker" ]; then
+    if [ ! "$1" -eq "$1" ]; then
+        echo 'Put a number on second parameter'
+        exit 1
+    fi
+
+    for i in $(seq $2); do
+        create_machine worker_$i
+    done
+
+    for i in $(seq $2); do
+        vboxmanage startvm worker_$i --type gui &
+    done
+
+    exit
+fi
+
+
+####
+make blacksmith 1>/dev/null 2>&1
 if [ ! -e ".vbox_network_inited" ]; then create_network; touch .vbox_network_inited; fi
-if [ ! -e ".vbox_machines_inited" ]; then create_machines; touch .vbox_machines_inited; fi
+if [ ! -e ".vbox_bootstrappers_inited" ]; then create_bootstrappers; touch .vbox_bootstrappers_inited; fi
 init_etcd
-start_machines
+start_bootstrapper_machines
 xdg-open http://127.0.0.1:8000/ui
 run_blacksmith

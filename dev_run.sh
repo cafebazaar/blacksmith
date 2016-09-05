@@ -1,23 +1,38 @@
 #!/bin/bash
 
-if ! which VBoxManage > /dev/null; then
-    echo "Error:VBoxManage Is Required!"
+if ! which vboxmanage > /dev/null; then
+    echo 'You should install VirtualBox or make sure "vboxmanage" is in path'
     exit 1
 fi
 
+if [[ ! $(vboxmanage list extpacks | grep "Oracle VM VirtualBox Extension Pack") ]]; then
+    echo 'You should make sure if "virtualbox-ext-pack" is installed which is needed for PXE boot thing, its installation however could be tricky (needs proxy)'
+    exit 1
+fi
+
+
 ####
+# BoB IP
 HostIP="192.168.56.1"
-HOSTONLY="vboxnet0"
+# hostonly network name, it is "vboxnet0" by default and we have less control for what it should be it seems
+HOSTONLY=$(cat .vbox_network_hostonly_if) || "vboxnet0"
+# NAT network interface name
 NATNAME="natnet0"
+# detects which interface connects us to the Internet, needed for bridge
 INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$')
+# number of bootstrapper, 3 is good enough usually
 BOOTSTAPPERS=3
-WORKER=3
+# number of workers
+WORKERS=3
 
 
 ####
 function create_network {
+    # usually it installs a hostonly network named "vboxnet0", it would be nice if we could control its name, it seems we can't, however
     HOSTONLY=$(vboxmanage hostonlyif create 2>/dev/null | sed "s/.*'\(.*\)'.*/\1/g")
-    vboxmanage hostonlyif ipconfig $HOSTONLYNAME # --ip192.168.56.1
+    echo $HOSTONLY > .vbox_network_hostonly_if
+    # vboxmanage hostonlyif ipconfig $HOSTONLY --ip192.168.56.1
+
     vboxmanage natnetwork add --netname $NATNAME --dhcp off --network "172.19.1.0/24" --enable
 }
 
@@ -94,7 +109,6 @@ function init_etcd {
 }
 
 function run_blacksmith {
-    make blacksmith
     sudo ./blacksmith \
         -workspace $(pwd)/workspaces/current \
         -etcd http://${HostIP}:2379 \
@@ -109,8 +123,9 @@ function run_blacksmith {
 
 
 ####
-if [ ! -e "vbox_network_inited" ]; then create_network; touch vbox_network_inited; fi
-if [ ! -e "vbox_machines_inited" ]; then create_machines; touch vbox_machines_inited; fi
+make blacksmith
+if [ ! -e ".vbox_network_inited" ]; then create_network; touch .vbox_network_inited; fi
+if [ ! -e ".vbox_machines_inited" ]; then create_machines; touch .vbox_machines_inited; fi
 init_etcd
 start_machines
 xdg-open http://127.0.0.1:8000/ui

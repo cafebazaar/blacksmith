@@ -85,6 +85,17 @@ function create_machines {
     done
 }
 
+function remove_machines {
+    for i in $(seq $BOOTSTAPPERS); do
+        vboxmanage controlvm boostrapper_$i poweroff
+        vboxmanage unregistervm bootstrapper_$i --delete
+    done
+    for i in $(seq $WORKERS); do
+        vboxmanage controlvm worker_$i poweroff
+        vboxmanage unregistervm worker_$i --delete
+    done
+}
+
 function start_machines {
     for i in $(seq $BOOTSTAPPERS); do
         vboxmanage startvm bootstrapper_$i --type gui
@@ -123,6 +134,15 @@ function run_blacksmith {
 
 
 ####
+if [ "$1" == "clean" ]; then
+    remove_machines
+    vboxmanage hostonlyif remove $HOSTONLY
+    vboxmanage natnetwork remove --netname $NATNAME
+    rm .vbox*
+    echo "Cleaned."
+    exit
+fi
+
 make blacksmith
 if [ ! -e ".vbox_network_inited" ]; then create_network; touch .vbox_network_inited; fi
 if [ ! -e ".vbox_machines_inited" ]; then create_machines; touch .vbox_machines_inited; fi

@@ -1,6 +1,7 @@
 # Blacksmith, Bare-Metal CoreOS Cluster Manager
 
 [![Travis widget]][Travis] [![wercker widget]][wercker] [![Quay widget]][Quay]
+![Status](https://img.shields.io/badge/status-under%20development-orange.svg)
 
 [Travis]: https://travis-ci.org/cafebazaar/blacksmith "Continuous Integration"
 [Travis widget]: https://travis-ci.org/cafebazaar/blacksmith.svg?branch=master
@@ -12,12 +13,12 @@
 Blacksmith is a collection of DHCP, PXE, TFTP, and HTTP servers,
 created with the purpose of booting CoreOS on bare-metal machines,
 configuring them by serving generated [cloud-config] and [ignition] files, and
-maintaining the cluster over the time.
-Blacksmith uses etcd to store the states, and to elect a leader. So you can run
+maintaining the cluster over time.
+Blacksmith uses [etcd](https://coreos.com/etcd/) to store the states, and to elect a leader. So you can run
 multiple instances of Blacksmith to provide a high available CoreOS over bare-metal
 infrastructure.
 
-Warning: **UNDER DEVELOPMENT**. To be notified about the project getting more stable,
+**Warning:** This project is under development. To be notified about the project becoming more stable,
 please subscribe to [this issue](https://github.com/cafebazaar/blacksmith/issues/5).
 
 ![Screenshot of Nodes List page - Blacksmith][screenshot]
@@ -30,7 +31,7 @@ please subscribe to [this issue](https://github.com/cafebazaar/blacksmith/issues
 
 The cloud-config and ignition files, and the bootparams string which is passed
 to the kernel at boot time, are provided by executing templates for each machine.
-These templates, along with CoreOS images and other binary files forms the
+These templates, along with CoreOS images and other binary files, form the
 runtime environment of your cluster. In Blacksmith, we call this folder *Workspace*.
 For more information on the structure of a workspace, check the [workspace doc].
 
@@ -53,7 +54,7 @@ $ sudo ./install-as-docker.sh <workspace-path> <etcd-endpoints> <network-interfa
 
 ## DNS
 In some IaaS environments, machine names are resolvable in the internal network.
-Some softwares (Kubernetes?) count on it. To provide similar functionality, you
+Some software (Kubernetes?) count on it. To provide similar functionality, you
 need to run [SkyDNS] on the same instances you run Blacksmith on. Blacksmith will
 configure them through etcd.
 

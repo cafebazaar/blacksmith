@@ -22,6 +22,8 @@ NATNAME="NatNetwork"
 INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$')
 # number of bootstrapper, 3 is good enough usually
 BOOTSTAPPERS=3
+# number of workers
+WORKERS=$(cat .vbox_number_of_workers) || "3"
 
 
 ####
@@ -80,11 +82,10 @@ function create_bootstrappers {
 
 function remove_machines {
     for i in $(seq $BOOTSTAPPERS); do
-        vboxmanage controlvm boostrapper_$i poweroff
+        vboxmanage controlvm bootstrapper_$i poweroff
         vboxmanage unregistervm bootstrapper_$i --delete
     done
-    #TODO: we shoud store number of created workers to not go for blindly deletion of created workers
-    for i in $(seq 9); do
+    for i in $(seq $WORKERS); do
         vboxmanage controlvm worker_$i poweroff
         vboxmanage unregistervm worker_$i --delete
     done
@@ -132,25 +133,27 @@ if [ "$1" == "clean" ]; then
     remove_machines
     vboxmanage hostonlyif remove $HOSTONLY
     vboxmanage natnetwork remove --netname $NATNAME
-    rm .vbox* *.vdi
-    rm -rf ~/VirtualBox\ VMs/worker_* ~/VirtualBox\ VMs/bootstrapper_*
+    rm .vbox_*
+    rm *.vdi
+    rm -rf ~/VirtualBox\ VMs/worker_*
+    rm -rf ~/VirtualBox\ VMs/bootstrapper_*
     echo "Cleaned."
     exit
 fi
 
 
-#### init workers
+#### create workers
 if [ "$1" == "worker" ]; then
-    if [ ! "$1" -eq "$1" ]; then
-        echo 'Put a number on second parameter'
-        exit 1
+    if [ "$2" -eq "$2" ]; then
+        WORKERS=$2
+        echo $2 > .vbox_number_of_workers
     fi
 
-    for i in $(seq $2); do
+    for i in $(seq $WORKERS); do
         create_machine worker_$i
     done
 
-    for i in $(seq $2); do
+    for i in $(seq $WORKERS); do
         vboxmanage startvm worker_$i --type gui &
     done
 
@@ -158,7 +161,25 @@ if [ "$1" == "worker" ]; then
 fi
 
 
-####
+#### initialize state of machines
+if [ "$1" == "init" ]; then
+    #FIXME: These are blacksmith-kubernetes specific thigs indeed and should be moved there 
+    for i in $(seq $BOOTSTAPPERS); do
+        MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
+        curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/desired-state?value=bootstrapper$i"
+        curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=init-install-coreos"
+        vboxmanage controlvm bootstrapper_$i reset
+    done
+    for i in $(seq $WORKERS); do
+        MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
+        curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=init-worker"
+        vboxmanage controlvm worker_$i reset
+    done
+
+    exit
+fi
+
+#### default run
 make blacksmith 1>/dev/null 2>&1
 if [ ! -e ".vbox_network_inited" ]; then create_network; touch .vbox_network_inited; fi
 if [ ! -e ".vbox_bootstrappers_inited" ]; then create_bootstrappers; touch .vbox_bootstrappers_inited; fi

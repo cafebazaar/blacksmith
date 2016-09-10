@@ -10,12 +10,24 @@ if [[ ! $(vboxmanage list extpacks | grep "Oracle VM VirtualBox Extension Pack")
     exit 1
 fi
 
+if ! which docker > /dev/null; then
+    echo 'You should install Docker, needed for local etcd'
+    exit 1
+fi
+
+# check if etcd port is busy
+#if [[ ! -z $(netstat -lnt | awk '$6 == "LISTEN" && $4 ~ ".2379"') ]]; then
+#    echo "etcd port is already in use, you should check why it is perhaps"
+#    exit 1
+#fi
+
 
 ####
 # BoB IP
 HostIP="192.168.56.1"
 # hostonly network name, it is "vboxnet0" by default and we have less control for what it should be it seems
-HOSTONLY=$(cat .vbox_network_hostonly_if) || "vboxnet0"
+HOSTONLY="vboxnet0"
+if [[ -f ".vbox_network_hostonly_if" ]]; then HOSTONLY=$(cat .vbox_network_hostonly_if); fi
 # NAT network interface name
 NATNAME="NatNetwork"
 # detects which interface connects us to the Internet, needed for bridge
@@ -23,11 +35,14 @@ INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$')
 # number of bootstrapper, 3 is good enough usually
 BOOTSTAPPERS=3
 # number of workers
-WORKERS=$(cat .vbox_number_of_workers) || "3"
+WORKERS=3
+if [[ -f ".vbox_number_of_workers" ]]; then WORKERS=$(cat .vbox_number_of_workers); fi
+# VirtualBox's default VM folder, usually is "/home/$USER/VirtualBox VMs"
+VMDIR=$(vboxmanage list systemproperties | grep 'Default machine folder' | grep -o '/.*')
 
 
 ####
-function create_network {
+function createNetwork {
     # usually it installs a hostonly network named "vboxnet0", it would be nice if we could control its name, it seems we can't, however
     HOSTONLY=$(vboxmanage hostonlyif create 2>/dev/null | sed "s/.*'\(.*\)'.*/\1/g")
     echo $HOSTONLY > .vbox_network_hostonly_if
@@ -37,19 +52,22 @@ function create_network {
 }
 
 function create_machine {
-    vboxmanage createvm --name $1 --register
+    vboxmanage createvm --name $1 --ostype "Linux_64"
+
+    vboxmanage registervm "$VMDIR/$1/$1.vbox"
 
     vboxmanage modifyvm $1 \
-        --ostype "Linux_64" \
         --memory 2048 \
         --nic1 hostonly \
         --nictype1 82540EM \
         --hostonlyadapter1 $HOSTONLY \
         --nicpromisc1 allow-all \
         --nic2 natnetwork \
+        --nictype2 82540EM \
         --natnet2 $NATNAME \
         --nicpromisc2 allow-all \
         --nic3 bridged \
+        --nictype3 82540EM \
         --bridgeadapter3 $INTERTNETIF \
         --nicpromisc3 allow-all \
         --boot1 disk \
@@ -59,35 +77,36 @@ function create_machine {
 
     vboxmanage storagectl $1 \
         --name IDE0 \
-        --add ide
+        --add sata \
+        --bootable on \
+        2>/dev/null
 
     vboxmanage createhd \
-        --filename $1 \
-        --size 8000 \
-        --variant Standard
+        --filename "$VMDIR/$1/$1" \
+        --size 8000
 
     vboxmanage storageattach $1 \
         --storagectl IDE0 \
         --port 0 \
         --device 0 \
         --type hdd \
-        --medium $1.vdi
+        --medium "$VMDIR/$1/$1.vdi"
 }
 
-function create_bootstrappers {
+function createBootstrappers {
     for i in $(seq $BOOTSTAPPERS); do
         create_machine bootstrapper_$i
     done
 }
 
-function remove_machines {
+function removeMachines {
     for i in $(seq $BOOTSTAPPERS); do
-        vboxmanage controlvm bootstrapper_$i poweroff
-        vboxmanage unregistervm bootstrapper_$i --delete
+        vboxmanage controlvm bootstrapper_$i poweroff 2>/dev/null
+        vboxmanage unregistervm bootstrapper_$i --delete 2>/dev/null
     done
     for i in $(seq $WORKERS); do
-        vboxmanage controlvm worker_$i poweroff
-        vboxmanage unregistervm worker_$i --delete
+        vboxmanage controlvm worker_$i poweroff 2>/dev/null
+        vboxmanage unregistervm worker_$i --delete 2>/dev/null
     done
 }
 
@@ -98,8 +117,8 @@ function start_bootstrapper_machines {
 }
 
 function init_etcd {
-    docker rm -f blacksmith-dev-etcd
-    docker run -d \
+    sudo docker rm -f blacksmith-dev-etcd
+    sudo docker run -d \
         -p 4001:4001 \
         -p 2380:2380 \
         -p 2379:2379 \
@@ -114,7 +133,7 @@ function init_etcd {
         -initial-cluster-state new
 }
 
-function run_blacksmith {
+function runBlacksmith {
     sudo ./blacksmith \
         -workspace $(pwd)/workspaces/current \
         -etcd http://${HostIP}:2379 \
@@ -127,24 +146,76 @@ function run_blacksmith {
         -http-listen :8000
 }
 
+function setState {
+    # ",," means converting a string to lowercase
+    local MAC=${1,,}
+    local VALUE=$2
+    curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=$VALUE"
+}
+
+function setDesiredState {
+    local MAC=${1,,}
+    local VALUE=$2
+    curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/desired-state?value=$VALUE"
+}
+
+function runWithDelay {
+    sleep $1
+    "${@:2}"
+}
+
 
 #### clean
-if [ "$1" == "clean" ]; then
-    remove_machines
-    vboxmanage hostonlyif remove $HOSTONLY
-    vboxmanage natnetwork remove --netname $NATNAME
-    rm .vbox_*
-    rm *.vdi
-    rm -rf ~/VirtualBox\ VMs/worker_*
-    rm -rf ~/VirtualBox\ VMs/bootstrapper_*
+if [[ "$1" == "clean" ]]; then
+
+    removeMachines
+
+    for i in 0 1 2 3 4 5 6 7 8 9; do
+        if [[ ! -z $(VBoxManage list hostonlyifs | grep vboxnet$i) ]]; then
+          vboxmanage hostonlyif remove vboxnet$i 2>/dev/null || true
+        fi
+    done
+
+    vboxmanage natnetwork remove --netname $NATNAME 2>/dev/null
+    rm .vbox_* 2>/dev/null
+    rm -rf "$VMDIR"/worker_* 2>/dev/null
+    rm -rf "$VMDIR"/bootstrapper_* 2>/dev/null
+
+    sudo docker rm -f blacksmith-dev-etcd 2>/dev/null
+
     echo "Cleaned."
     exit
 fi
 
 
+#### init bootstrappers etcd
+if [[ "$1" == "init-bootstrappers" ]]; then
+    for i in $(seq $BOOTSTAPPERS); do
+        MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
+        # FIXME: blacksmith-kubernetes specific thing
+        setDesiredState $MAC bootstrapper$i
+        setState $MAC init-install-coreos
+        vboxmanage controlvm bootstrapper_$i reset
+    done
+    exit
+fi
+
+
+#### init workers etcd
+if [[ "$1" == "init-workers" ]]; then
+    for i in $(seq $WORKERS); do
+        MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
+        # FIXME: blacksmith-kubernetes specific thing
+        setState $MAC init-worker
+        vboxmanage controlvm worker_$i reset
+    done
+    exit
+fi
+
+
 #### create workers
-if [ "$1" == "worker" ]; then
-    if [ "$2" -eq "$2" ]; then
+if [[ "$1" == "worker" ]]; then
+    if [[ "$2" -eq "$2" ]]; then
         WORKERS=$2
         echo $2 > .vbox_number_of_workers
     fi
@@ -157,33 +228,24 @@ if [ "$1" == "worker" ]; then
         vboxmanage startvm worker_$i --type gui &
     done
 
-    exit
-fi
-
-
-#### initialize state of machines
-if [ "$1" == "init" ]; then
-    #FIXME: These are blacksmith-kubernetes specific thigs indeed and should be moved there 
-    for i in $(seq $BOOTSTAPPERS); do
-        MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
-        curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/desired-state?value=bootstrapper$i"
-        curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=init-install-coreos"
-        vboxmanage controlvm bootstrapper_$i reset
-    done
-    for i in $(seq $WORKERS); do
-        MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
-        curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=init-worker"
-        vboxmanage controlvm worker_$i reset
-    done
+    runWithDelay 10 exec ./dev_run.sh init-workers &
 
     exit
 fi
+
 
 #### default run
 make blacksmith 1>/dev/null 2>&1
-if [ ! -e ".vbox_network_inited" ]; then create_network; touch .vbox_network_inited; fi
-if [ ! -e ".vbox_bootstrappers_inited" ]; then create_bootstrappers; touch .vbox_bootstrappers_inited; fi
-init_etcd
+# dummy command to make sure next sudo will be ran without delay
+sudo echo
+if [[ ! -e ".vbox_cluster_inited" ]]
+then
+    createNetwork
+    createBootstrappers
+    init_etcd
+    runWithDelay 10 exec ./dev_run.sh init-bootstrappers &
+    touch .vbox_cluster_inited
+fi
 start_bootstrapper_machines
-xdg-open http://127.0.0.1:8000/ui
-run_blacksmith
+runWithDelay 5 xdg-open http://127.0.0.1:8000/ui &
+runBlacksmith

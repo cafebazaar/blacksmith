@@ -1,7 +1,16 @@
 #!/bin/bash
+set -o errexit
+set -o pipefail
+set -o nounset
+# set -o xtrace
 
 if ! which vboxmanage > /dev/null; then
     echo 'You should install VirtualBox or make sure "vboxmanage" is in path'
+    exit 1
+fi
+
+if ! which virtualbox > /dev/null; then
+    echo 'You should install "virtualbox-qt" also'
     exit 1
 fi
 
@@ -14,12 +23,6 @@ if ! which docker > /dev/null; then
     echo 'You should install Docker, needed for local etcd'
     exit 1
 fi
-
-# check if etcd port is busy
-#if [[ ! -z $(netstat -lnt | awk '$6 == "LISTEN" && $4 ~ ".2379"') ]]; then
-#    echo "etcd port is already in use, you should check why it is perhaps"
-#    exit 1
-#fi
 
 
 ####
@@ -110,14 +113,14 @@ function removeMachines {
     done
 }
 
-function start_bootstrapper_machines {
+function startBootstrapperMachines {
     for i in $(seq $BOOTSTAPPERS); do
-        vboxmanage startvm bootstrapper_$i --type gui
+        vboxmanage startvm bootstrapper_$i --type gui || true
     done
 }
 
-function init_etcd {
-    sudo docker rm -f blacksmith-dev-etcd
+function initEtcd {
+    sudo docker rm -f blacksmith-dev-etcd 2>/dev/null || true
     sudo docker run -d \
         -p 4001:4001 \
         -p 2380:2380 \
@@ -166,9 +169,9 @@ function runWithDelay {
 
 
 #### clean
-if [[ "$1" == "clean" ]]; then
+if [[ "${1:-}" == "clean" ]]; then
 
-    removeMachines
+    removeMachines || true
 
     for i in 0 1 2 3 4 5 6 7 8 9; do
         if [[ ! -z $(VBoxManage list hostonlyifs | grep vboxnet$i) ]]; then
@@ -181,7 +184,9 @@ if [[ "$1" == "clean" ]]; then
     rm -rf "$VMDIR"/worker_* 2>/dev/null
     rm -rf "$VMDIR"/bootstrapper_* 2>/dev/null
 
-    sudo docker rm -f blacksmith-dev-etcd 2>/dev/null
+    sudo docker rm -f blacksmith-dev-etcd || true
+
+    rm .vbox_cluster_inited 2>/dev/null || true
 
     echo "Cleaned."
     exit
@@ -189,7 +194,7 @@ fi
 
 
 #### init bootstrappers etcd
-if [[ "$1" == "init-bootstrappers" ]]; then
+if [[ "${1:-}" == "init-bootstrappers" ]]; then
     for i in $(seq $BOOTSTAPPERS); do
         MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
@@ -202,7 +207,7 @@ fi
 
 
 #### init workers etcd
-if [[ "$1" == "init-workers" ]]; then
+if [[ "${1:-}" == "init-workers" ]]; then
     for i in $(seq $WORKERS); do
         MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
@@ -214,14 +219,15 @@ fi
 
 
 #### create workers
-if [[ "$1" == "worker" ]]; then
-    if [[ "$2" -eq "$2" ]]; then
+if [[ "${1:-}" == "worker" ]]; then
+    if [[ "${2:-}" -eq "${2:-}" ]]; then
         WORKERS=$2
         echo $2 > .vbox_number_of_workers
     fi
 
     for i in $(seq $WORKERS); do
         create_machine worker_$i
+        vboxmanage modifyvm worker_$i --nic1 none
     done
 
     for i in $(seq $WORKERS); do
@@ -235,17 +241,25 @@ fi
 
 
 #### default run
-make blacksmith 1>/dev/null 2>&1
+make blacksmith 1>/dev/null
+
+# check if blacksmith port is busy
+if [[ ! -z $(netstat -lnt | awk '$6 == "LISTEN" && $4 ~ ".8000"') ]]; then
+    echo "blacksmith port is already busy, perhaps another instance of it is open"
+    exit 1
+fi
+
 # dummy command to make sure next sudo will be ran without delay
 sudo echo
+
 if [[ ! -e ".vbox_cluster_inited" ]]
 then
     createNetwork
     createBootstrappers
-    init_etcd
+    initEtcd
     runWithDelay 10 exec ./dev_run.sh init-bootstrappers &
     touch .vbox_cluster_inited
 fi
-start_bootstrapper_machines
+startBootstrapperMachines
 runWithDelay 5 xdg-open http://127.0.0.1:8000/ui &
 runBlacksmith

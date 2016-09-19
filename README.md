@@ -68,27 +68,26 @@ Check [this](docs/README.md).
 You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test environment:
 
 ```bash
-make blacksmith
+go get github.com/cafebazaar/blacksmith
+go get github.com/cafebazaar/blacksmith-kubernetes
 
 ### Clone and prepare a workspace
-mkdir workspaces
-cd workspaces
-git clone https://github.com/cafebazaar/blacksmith-kubernetes.git
-cd blacksmith-kubernetes/binaries
+cd $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/binaries
 ./download-all.sh
 cd ..
 # put your key into ssh-keys.yaml
+# echo "  - $(cat ~/.ssh/id_rsa.pub)"
 ./build.sh
-cd ..
-ln -s blacksmith-kubernetes/workspace current
 
-# Start 3 machines, which will be provisioned to serve a 3-node etcd cluster,
-# 3 working instances of SkyDNS, and a 3-node Blacksmith cluster
-vagrant up --provider=libvirt
+cd $GOPATH/src/github.com/cafebazaar/blacksmith
 
-### Check the logs
-vagrant ssh pxeserver1 -c "docker logs -f blacksmith_docker"
+mkdir workspaces
+ln -s ../blacksmith-kubernetes/workspace workspaces/current
 
-### In another terminal, start a client machine
-vagrant up --provider=libvirt pxeclient1
+# initialize the cluster using VirtualBox
+./dev_run.sh
+# On blacksmith-kubernetes, once machines reached "installed" state,
+# you can either terminate BoB or just issue this on a new terminal
+# which adds new workers to the virtualized cluster.
+./dev_run.sh worker 5
 ```

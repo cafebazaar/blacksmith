@@ -76,13 +76,13 @@ cd $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/binaries
 ./download-all.sh
 cd ..
 # put your key into ssh-keys.yaml
-# echo "  - $(cat ~/.ssh/id_rsa.pub)"
+# echo "  - $(cat ~/.ssh/id_rsa.pub)" > ssh-keys.yaml
 ./build.sh
 
 cd $GOPATH/src/github.com/cafebazaar/blacksmith
 
 mkdir workspaces
-ln -s ../blacksmith-kubernetes/workspace workspaces/current
+ln -s $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/workspace workspaces/current
 
 # initialize the cluster using VirtualBox
 ./dev_run.sh

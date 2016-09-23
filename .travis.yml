@@ -6,6 +6,8 @@ services:
   - docker
 
 go:
+  - 1.6
+  - 1.7
   - tip
 
 before_install:
@@ -13,3 +15,7 @@ before_install:
 - make prepare_test
 
 script: make test
+
+matrix:
+  allow_failures:
+    - go: tip

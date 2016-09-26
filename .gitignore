@@ -2,6 +2,8 @@
 *~
 .DS_Store
 .vscode
+.idea
+blacksmith.iml
 
 # Local customizations
 vagrant_provision_after_docker_installation.local

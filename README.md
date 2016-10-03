@@ -63,31 +63,67 @@ configure them through etcd.
 ## Documentation
 Check [this](docs/README.md).
 
-## Development
+## Test
+For test you can use our ```blacksmith-kubernetes``` workspace.
 
-You can use [Vagrant](https://www.vagrantup.com/) to quickly setup a test environment:
-
+### Cluster Setup
+Get packages:
 ```bash
 go get github.com/cafebazaar/blacksmith
 go get github.com/cafebazaar/blacksmith-kubernetes
-
-### Clone and prepare a workspace
+```
+You can customize ```config.sh``` file for your needs. For example for your proxy config you can edit the in this way:
+```bash
+export CONTAINER_HTTP_PROXY=http://<your http proxy ip>:<port>
+export CONTAINER_HTTPS_PROXY=http://<your https proxy ip>:<port>
+```
+`Warning:` Do not use system specific IPs such as ```localhost``` and ```127.0.0.1``` in this case.
+You need to specify your interface names:
+```bash
+export INTERNAL_INTERFACE_NAME=enp0s8
+export EXTERNAL_INTERFACE_NAME=enp0s9
+```
+Place your ```config.sh``` file in workspace:
+```bash
+cp config.sh $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes
+```
+Clone and prepare a workspace:
+```bash
 cd $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/binaries
 ./download-all.sh
 cd ..
-# put your key into ssh-keys.yaml
-# echo "  - $(cat ~/.ssh/id_rsa.pub)" > ssh-keys.yaml
+```
+Put your key into ```ssh-keys.yaml```:
+```bash
+echo "  - $(cat ~/.ssh/id_rsa.pub)" > ssh-keys.yaml
+```
+Build workspace:
+```bash 
 ./build.sh
-
+```
+Goto Blacksmith and link workspace to desired directory:
+```bash
 cd $GOPATH/src/github.com/cafebazaar/blacksmith
-
 mkdir workspaces
 ln -s $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/workspace workspaces/current
-
-# initialize the cluster using VirtualBox
+```
+Initialize the cluster using VirtualBox
+```bash
 ./dev_run.sh
-# On blacksmith-kubernetes, once machines reached "installed" state,
-# you can either terminate BoB or just issue this on a new terminal
-# which adds new workers to the virtualized cluster.
+```
+On blacksmith-kubernetes, once machines reached "installed" state, you should terminate BoB. Now you can add new workers to the virtualized cluster.
+```bash
 ./dev_run.sh worker 5
+```
+Five is the number of worker nodes to be initialized.
+
+### Kubernetes
+
+Add this line to your ```/etc/hosts``` file:
+```
+<bootstrapper1 ip address>  test.cafecluster
+```
+Kubernetes setup takes several minutes. For poor internet connection it may takes several hours. After that you can use kubernetes via ```kubectl``` command as follows:
+```bash
+kubectl --kubeconfig $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/Takeaways/kubeconfig get nodes
 ```

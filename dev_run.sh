@@ -36,7 +36,7 @@ NATNAME="NatNetwork"
 # detects which interface connects us to the Internet, needed for bridge
 INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$')
 # number of bootstrapper, 3 is good enough usually
-BOOTSTAPPERS=3
+BOOTSTRAPPERS=3
 # number of workers
 WORKERS=3
 if [[ -f ".vbox_number_of_workers" ]]; then WORKERS=$(cat .vbox_number_of_workers); fi
@@ -97,13 +97,13 @@ function create_machine {
 }
 
 function createBootstrappers {
-    for i in $(seq $BOOTSTAPPERS); do
+    for i in $(seq $BOOTSTRAPPERS); do
         create_machine bootstrapper_$i
     done
 }
 
 function removeMachines {
-    for i in $(seq $BOOTSTAPPERS); do
+    for i in $(seq $BOOTSTRAPPERS); do
         vboxmanage controlvm bootstrapper_$i poweroff 2>/dev/null
         vboxmanage unregistervm bootstrapper_$i --delete 2>/dev/null
     done
@@ -114,7 +114,7 @@ function removeMachines {
 }
 
 function startBootstrapperMachines {
-    for i in $(seq $BOOTSTAPPERS); do
+    for i in $(seq $BOOTSTRAPPERS); do
         vboxmanage startvm bootstrapper_$i --type gui || true
     done
 }
@@ -156,6 +156,22 @@ function setState {
     curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=$VALUE"
 }
 
+function setInternalState {
+    # ",," means converting a string to lowercase
+    local MAC=${1,,}
+    local VALUE=$2
+    for i in $(seq $BOOTSTRAPPERS); do
+        local MASTERMAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
+        local MASTERMAC=$(echo ${MASTERMAC} | sed -e 's/[0-9A-F]\{2\}/&:/g' -e 's/:$//')
+        local IPS=$(ip neighbor | grep -i "${MASTERMAC}" | cut -d" " -f1)
+    
+        for ip in $(echo $IPS); do
+            ssh-keygen -R $ip &> /dev/null
+            ssh -o StrictHostKeyChecking=no core@$ip "curl -X PUT \"http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=$VALUE\" &>/dev/null" &>/dev/null || true
+        done
+    done
+}
+
 function setDesiredState {
     local MAC=${1,,}
     local VALUE=$2
@@ -195,7 +211,7 @@ fi
 
 #### init bootstrappers etcd
 if [[ "${1:-}" == "init-bootstrappers" ]]; then
-    for i in $(seq $BOOTSTAPPERS); do
+    for i in $(seq $BOOTSTRAPPERS); do
         MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
         setDesiredState $MAC bootstrapper$i
@@ -209,9 +225,9 @@ fi
 #### init workers etcd
 if [[ "${1:-}" == "init-workers" ]]; then
     for i in $(seq $WORKERS); do
-        MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
+        MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress2 | sed 's/macaddress2="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
-        setState $MAC init-worker
+        setInternalState $MAC init-worker
         vboxmanage controlvm worker_$i reset
     done
     exit

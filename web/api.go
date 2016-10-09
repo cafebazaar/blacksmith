@@ -7,9 +7,15 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path"
+	"sync"
 
 	"github.com/cafebazaar/blacksmith/datasource"
+	"github.com/cafebazaar/blacksmith/utils"
 	"github.com/gorilla/mux"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // Version returns json encoded version details
@@ -229,4 +235,66 @@ func (ws *webServer) DelClusterVariables(w http.ResponseWriter, r *http.Request)
 	}
 
 	io.WriteString(w, `"OK"`)
+}
+
+var workspaceUploadLock = &sync.Mutex{}
+
+func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	hash := vars["hash"]
+
+	workspaceUploadLock.Lock()
+
+	workspaceParentPath := path.Dir(ws.ds.WorkspacePath())
+	tarPath := path.Join(workspaceParentPath, "workspace.tar")
+	file, err := os.Create(tarPath)
+	if err != nil {
+		http.Error(w, `{"error": "Error while creating new file for storing the upload"}`, http.StatusInternalServerError)
+		return
+	}
+	_, err = io.Copy(file, r.Body)
+	if err != nil {
+		http.Error(w, `{"error": "Error while storing the workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	extractPath := path.Join(workspaceParentPath, hash)
+	err = utils.Untar(tarPath, extractPath)
+	if err != nil {
+		http.Error(w, `{"error": "Error untaring the uploaded workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	currentWorkspacePath := path.Join(workspaceParentPath, "current/")
+	os.Remove(currentWorkspacePath)
+	if err != nil {
+		log.Info("Failed to unlink \"current\" symlink, but it is a no issue as it could be the first initialization")
+	}
+
+	destinedCurrentWorkspacePath := path.Join(extractPath, "workspace/")
+	err = os.Symlink(destinedCurrentWorkspacePath, currentWorkspacePath)
+	if err != nil {
+		http.Error(w, `{"error": "Error symlinking current to the untared workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	imagesWorkspaceDir := path.Join(currentWorkspacePath, "files/")
+	imagesWorkspaceTarPath := path.Join(imagesWorkspaceDir, "workspace.tar")
+	os.Rename(tarPath, imagesWorkspaceTarPath)
+	if err != nil {
+		http.Error(w, `{"error": "Error while moving uploaded tar itself into workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	ws.ds.(*datasource.EtcdDataSource).FillEtcdFromWorkspace()
+
+	err = ws.ds.SetClusterVariable(datasource.ActiveWorkspaceHashKey, hash)
+	if err != nil {
+		http.Error(w, `{"error": "Unable to set current workspace hash"}`, http.StatusInternalServerError)
+		return
+	}
+
+	io.WriteString(w, `"OK"`)
+
+	workspaceUploadLock.Unlock()
 }

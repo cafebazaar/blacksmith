@@ -144,15 +144,21 @@ blacksmithUIControllers.controller('BlacksmithVariablesCtrl', ['$scope', 'Variab
 }]);
 
 
-blacksmithUIControllers.controller('BlacksmithAboutCtrl', ['$scope', 'Version', function ($scope, Version) {
+blacksmithUIControllers.controller('BlacksmithAboutCtrl', ['$scope', 'Version', 'Variable', function ($scope, Version, Variable) {
   Version.query().$promise.then(
-    function( value ){
-      $scope.info = value
+    function (value) {
+      $scope.info = value;
       $scope.uptime = function() {
         return secondsToStr((new Date().getTime())/1000 - $scope.info.serviceStartTime);
       }
     },
-    function( error ){ $scope.errorMessage = error.data; $scope.info = {} }
+    function (error) { $scope.errorMessage = error.data; $scope.info = {}; }
+  );
+  Variable.query().$promise.then(
+    function (value) {
+      $scope.activeWorkspaceHash = value.activeWorkspaceHash;
+    },
+    function (error) { $scope.errorMessage = error.data; $scope.info = {}; }
   );
 }]);
 

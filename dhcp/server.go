@@ -217,6 +217,11 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 					Value: h.fillPXE(),
 				},
 			)
+
+			hash, err := h.datasource.GetClusterVariable(datasource.ActiveWorkspaceHashKey)
+			if err == nil {
+				machineInterface.SetVariable("booted-workspace-hash", hash)
+			}
 		}
 		packet := dhcp4.ReplyPacket(p, responseMsgType, h.serverIP, machine.IP,
 			randLeaseDuration(), replyOptions)

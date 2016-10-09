@@ -1,12 +1,16 @@
 package web
 
 import (
+	"archive/tar"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
 
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/gorilla/mux"
@@ -229,4 +233,88 @@ func (ws *webServer) DelClusterVariables(w http.ResponseWriter, r *http.Request)
 	}
 
 	io.WriteString(w, `"OK"`)
+}
+
+func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	hash := vars["hash"]
+
+	workspaceParentPath := path.Dir(ws.ds.WorkspacePath())
+	tarPath := path.Join(workspaceParentPath, "workspace.tar")
+	file, err := os.Create(tarPath)
+	if err != nil {
+		http.Error(w, `{"error": "Error while creating new file for storing the upload"}`, http.StatusInternalServerError)
+		return
+	}
+	_, err = io.Copy(file, r.Body)
+	if err != nil {
+		http.Error(w, `{"error": "Error while storing the workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	extractPath := path.Join(workspaceParentPath, hash)
+	err = untar(tarPath, extractPath)
+	if err != nil {
+		http.Error(w, `{"error": "Error untaring the workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	currentWorkspacePath := path.Join(workspaceParentPath, "current/")
+	destiniedCurrentWorkspacePath := path.Join(extractPath, "workspace/")
+	err = os.Symlink(destiniedCurrentWorkspacePath, currentWorkspacePath)
+	if err != nil {
+		http.Error(w, `{"error": "Error untaring the workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	imagesWorkspaceDir := path.Join(currentWorkspacePath, "files/")
+	imagesWorkspaceTarPath := path.Join(imagesWorkspaceDir, "workspace.tar")
+	os.Rename(tarPath, imagesWorkspaceTarPath)
+	if err != nil {
+		http.Error(w, `{"error": "Error while moving uploaded tar itself into workspace"}`, http.StatusInternalServerError)
+		return
+	}
+
+	ws.ds.(*datasource.EtcdDataSource).FillEtcdFromWorkspace()
+
+	io.WriteString(w, `"OK"`)
+}
+
+// https://gist.github.com/svett/dc27b7fb04c2549e3ada#file-untarball-go
+func untar(tarball, target string) error {
+	reader, err := os.Open(tarball)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	tarReader := tar.NewReader(reader)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		path := filepath.Join(target, header.Name)
+		info := header.FileInfo()
+		if info.IsDir() {
+			if err = os.MkdirAll(path, info.Mode()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(file, tarReader)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

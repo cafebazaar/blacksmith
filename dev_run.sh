@@ -209,6 +209,24 @@ if [[ "${1:-}" == "clean" ]]; then
 fi
 
 
+
+#### upload workspace
+if [[ "${1:-}" == "upload-workspace" ]]; then
+    FILENAME=../blacksmith-kubernetes/workspace/files/workspace.tar
+    #gzip -k ../blacksmith-kubernetes/workspaces/current/files/workspace.tar
+
+    for i in $(seq $BOOTSTRAPPERS); do
+        MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress3 | sed 's/macaddress3="\(.*\)"/\1/g')
+        MAC=$(echo $MAC | sed -e 's/[0-9A-F]\{2\}/&:/g' -e 's/:$//')
+        IP=$(ip neighbor | grep -i "${MAC}" | cut -d" " -f1)
+        echo "Starting $IP"
+        ./workspace_upload.sh $IP $FILENAME
+    done
+    exit
+fi
+
+
+
 #### init bootstrappers etcd
 if [[ "${1:-}" == "init-bootstrappers" ]]; then
     for i in $(seq $BOOTSTRAPPERS); do

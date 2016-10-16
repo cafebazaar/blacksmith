@@ -16,9 +16,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const currentWorkspaceHashKey = "CurrentWorkspaceHash"
+
 // Version returns json encoded version details
 func (ws *webServer) Version(w http.ResponseWriter, r *http.Request) {
-	versionJSON, err := json.Marshal(ws.ds.SelfInfo())
+	selfInfo := ws.ds.SelfInfo()
+	currentHash, err := ws.ds.GetClusterVariable(currentWorkspaceHashKey)
+	if err != nil {
+		fmt.Println("Error while retrieving current workspace hash")
+	} else {
+		selfInfo.CurrentWorkspaceHash = currentHash
+	}
+
+	versionJSON, err := json.Marshal(selfInfo)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), 500)
 		return
@@ -255,15 +265,15 @@ func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Reque
 	extractPath := path.Join(workspaceParentPath, hash)
 	err = untar(tarPath, extractPath)
 	if err != nil {
-		http.Error(w, `{"error": "Error untaring the workspace"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error": "Error untaring the uploaded workspace"}`, http.StatusInternalServerError)
 		return
 	}
 
 	currentWorkspacePath := path.Join(workspaceParentPath, "current/")
-	destiniedCurrentWorkspacePath := path.Join(extractPath, "workspace/")
-	err = os.Symlink(destiniedCurrentWorkspacePath, currentWorkspacePath)
+	destinedCurrentWorkspacePath := path.Join(extractPath, "workspace/")
+	err = os.Symlink(destinedCurrentWorkspacePath, currentWorkspacePath)
 	if err != nil {
-		http.Error(w, `{"error": "Error untaring the workspace"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error": "Error symlinking current to the untared workspace"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -276,6 +286,12 @@ func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	ws.ds.(*datasource.EtcdDataSource).FillEtcdFromWorkspace()
+
+	err = ws.ds.SetClusterVariable(currentWorkspaceHashKey, hash)
+	if err != nil {
+		http.Error(w, `{"error": "Unable to set current workspace hash"}`, http.StatusInternalServerError)
+		return
+	}
 
 	io.WriteString(w, `"OK"`)
 }

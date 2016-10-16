@@ -73,13 +73,14 @@ type MachineInterface interface {
 
 // InstanceInfo describes an active instance of blacksmith running on some machine
 type InstanceInfo struct {
-	IP               net.IP           `json:"ip"`
-	Nic              net.HardwareAddr `json:"nic"`
-	WebPort          int              `json:"webPort"`
-	Version          string           `json:"version"`
-	Commit           string           `json:"commit"`
-	BuildTime        string           `json:"buildTime"`
-	ServiceStartTime int64            `json:"serviceStartTime"`
+	IP                   net.IP           `json:"ip"`
+	Nic                  net.HardwareAddr `json:"nic"`
+	WebPort              int              `json:"webPort"`
+	Version              string           `json:"version"`
+	Commit               string           `json:"commit"`
+	BuildTime            string           `json:"buildTime"`
+	ServiceStartTime     int64            `json:"serviceStartTime"`
+	CurrentWorkspaceHash string           `json:"currentWorkspaceHash"`
 }
 
 // File describes a file located inside our workspace

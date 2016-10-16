@@ -209,6 +209,19 @@ if [[ "${1:-}" == "clean" ]]; then
 fi
 
 
+#### upload workspace
+if [[ "${1:-}" == "upload-workspace" ]]; then
+    for i in $(seq $BOOTSTRAPPERS); do
+        MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress3 | sed 's/macaddress3="\(.*\)"/\1/g')
+        MAC=$(echo $MAC | sed -e 's/[0-9A-F]\{2\}/&:/g' -e 's/:$//')
+        IP=$(ip neighbor | grep -i "${MAC}" | cut -d" " -f1)
+        echo "Starting $IP"
+        ./workspace-upload.sh $IP
+    done
+    exit
+fi
+
+
 #### init bootstrappers etcd
 if [[ "${1:-}" == "init-bootstrappers" ]]; then
     for i in $(seq $BOOTSTRAPPERS); do
@@ -273,7 +286,9 @@ then
     createNetwork
     createBootstrappers
     initEtcd
-    runWithDelay 10 exec ./dev_run.sh init-bootstrappers &
+    sudo rm -rf workspaces/*
+    runWithDelay 10 exec ./workspace-upload.sh &
+    runWithDelay 15 exec ./dev_run.sh init-bootstrappers &
     touch .vbox_cluster_inited
 fi
 startBootstrapperMachines

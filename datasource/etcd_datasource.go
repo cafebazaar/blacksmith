@@ -23,6 +23,9 @@ const (
 	etcdFilesDirName         = "files"
 )
 
+// ActiveWorkspaceHashKey is cluster variable key of active workspace hash
+const ActiveWorkspaceHashKey = "activeWorkspaceHash"
+
 // EtcdDataSource implements MasterDataSource interface using etcd as it's
 // datasource
 // Implements MasterDataSource interface
@@ -196,17 +199,6 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	leaseRange int, clusterName, workspacePath string, defaultNameServers []string,
 	selfInfo InstanceInfo) (DataSource, error) {
 
-	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
-	if err != nil {
-		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
-	}
-
-	iVals := make(map[string]string)
-	err = yaml.Unmarshal(data, &iVals)
-	if err != nil {
-		return nil, fmt.Errorf("error while reading initial data: %s", err)
-	}
-
 	ds := &EtcdDataSource{
 		keysAPI:         kapi,
 		client:          client,
@@ -219,26 +211,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		selfInfo:        selfInfo,
 	}
 
-	for key, value := range iVals {
-		currentValue, _ := ds.GetClusterVariable(key)
-		if len(currentValue) == 0 {
-			err := ds.SetClusterVariable(key, value)
-
-			if err != nil {
-				return nil,
-					fmt.Errorf("error while setting initial value (%q: %q): %s",
-						key, value, err)
-			}
-
-			currentValue = value
-		}
-		log.WithFields(log.Fields{
-			"where":   "datasource.NewEtcdDataSource",
-			"action":  "debug",
-			"object":  "ClusterVariable",
-			"subject": key,
-		}).Debugf("%s=%q", key, value)
-	}
+	ds.FillEtcdFromWorkspace()
 
 	// TODO: Integrate DNS service into Blacksmith
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
@@ -259,10 +232,40 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	defer cancel4()
 	ds.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)
 
-	_, err = ds.MachineInterface(selfInfo.Nic).Machine(true, selfInfo.IP)
+	_, err := ds.MachineInterface(selfInfo.Nic).Machine(true, selfInfo.IP)
 	if err != nil {
 		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
 	}
 
 	return ds, nil
+}
+
+func (ds *EtcdDataSource) FillEtcdFromWorkspace() {
+	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "initial.yaml"))
+	if err != nil {
+		log.Info("datasource.fillEtcdFromWorkspace: initial.yaml was not avaiable to read, perhaps should be provided later")
+	}
+
+	iVals := make(map[string]string)
+	err = yaml.Unmarshal(data, &iVals)
+	if err != nil {
+		log.Errorf("error while reading initial data: %s", err)
+		return
+	}
+
+	for key, value := range iVals {
+		err := ds.SetClusterVariable(key, value)
+
+		if err != nil {
+			log.Errorf("error while setting initial value (%q: %q): %s", key, value, err)
+			return
+		}
+
+		log.WithFields(log.Fields{
+			"where":   "datasource.NewEtcdDataSource",
+			"action":  "debug",
+			"object":  "ClusterVariable",
+			"subject": key,
+		}).Debugf("%s=%q", key, value)
+	}
 }

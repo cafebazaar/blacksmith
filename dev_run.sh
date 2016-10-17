@@ -164,7 +164,7 @@ function setInternalState {
         local MASTERMAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
         local MASTERMAC=$(echo ${MASTERMAC} | sed -e 's/[0-9A-F]\{2\}/&:/g' -e 's/:$//')
         local IPS=$(ip neighbor | grep -i "${MASTERMAC}" | cut -d" " -f1)
-    
+
         for ip in $(echo $IPS); do
             ssh-keygen -R $ip &> /dev/null
             ssh -o StrictHostKeyChecking=no core@$ip "curl -X PUT \"http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=$VALUE\" &>/dev/null" &>/dev/null || true
@@ -273,7 +273,9 @@ then
     createNetwork
     createBootstrappers
     initEtcd
-    runWithDelay 10 exec ./dev_run.sh init-bootstrappers &
+    sudo rm -rf workspaces/*
+    runWithDelay 10 exec ./workspace-upload.sh &
+    runWithDelay 15 exec ./dev_run.sh init-bootstrappers &
     touch .vbox_cluster_inited
 fi
 startBootstrapperMachines

@@ -245,7 +245,9 @@ func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Reque
 
 	workspaceUploadLock.Lock()
 
-	workspaceParentPath := path.Dir(ws.ds.WorkspacePath())
+	workspacePath := ws.ds.WorkspacePath()
+
+	workspaceParentPath := path.Dir(workspacePath)
 	tarPath := path.Join(workspaceParentPath, "workspace.tar")
 	file, err := os.Create(tarPath)
 	if err != nil {
@@ -258,6 +260,12 @@ func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	actualHash, _ := utils.HashFileMD5(tarPath)
+	if actualHash != hash {
+		http.Error(w, `{"error": "Actual hash of uploaded file doesn't match with the request"}`, http.StatusInternalServerError)
+		return
+	}
+
 	extractPath := path.Join(workspaceParentPath, hash)
 	err = utils.Untar(tarPath, extractPath)
 	if err != nil {
@@ -265,20 +273,19 @@ func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	currentWorkspacePath := path.Join(workspaceParentPath, "current/")
-	os.Remove(currentWorkspacePath)
+	os.Remove(workspacePath)
 	if err != nil {
 		log.Info("Failed to unlink \"current\" symlink, but it is a no issue as it could be the first initialization")
 	}
 
 	destinedCurrentWorkspacePath := path.Join(extractPath, "workspace/")
-	err = os.Symlink(destinedCurrentWorkspacePath, currentWorkspacePath)
+	err = os.Symlink(destinedCurrentWorkspacePath, workspacePath)
 	if err != nil {
 		http.Error(w, `{"error": "Error symlinking current to the untared workspace"}`, http.StatusInternalServerError)
 		return
 	}
 
-	imagesWorkspaceDir := path.Join(currentWorkspacePath, "files/")
+	imagesWorkspaceDir := path.Join(workspacePath, "files/")
 	imagesWorkspaceTarPath := path.Join(imagesWorkspaceDir, "workspace.tar")
 	os.Rename(tarPath, imagesWorkspaceTarPath)
 	if err != nil {

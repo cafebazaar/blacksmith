@@ -100,7 +100,6 @@ echo "  - $(cat ~/.ssh/id_rsa.pub)" > ssh-keys.yaml
 # Enter blacksmith
 cd $GOPATH/src/github.com/cafebazaar/blacksmith
 mkdir workspaces
-ln -s $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/workspace workspaces/current
 
 # Initialize the cluster using VirtualBox
 ./dev_run.sh

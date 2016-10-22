@@ -273,7 +273,7 @@ then
     createNetwork
     createBootstrappers
     initEtcd
-    sudo rm -rf workspaces/*
+    sudo rm -rf workspaces/* || true
     runWithDelay 10 exec ./workspace-upload.sh &
     runWithDelay 15 exec ./dev_run.sh init-bootstrappers &
     touch .vbox_cluster_inited

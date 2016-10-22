@@ -40,7 +40,7 @@ var (
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "", "Interface name for DHCP and PXE to listen on")
 	httpListenFlag    = flag.String("http-listen", httpListenFlagDefaultTCPAddress, "IP range to listen on for web requests")
-	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
+	workspacePathFlag = flag.String("workspace", "/workspaces/current", workspacePathHelp)
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
 	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 	dnsAddressesFlag  = flag.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")

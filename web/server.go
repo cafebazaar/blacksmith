@@ -42,6 +42,8 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.DelClusterVariables).Methods("DELETE")
 
 	// TODO: returning other files functionalities
+	mux.PathPrefix("/files/images/").Handler(http.StripPrefix("/files/images",
+		http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "images")))))
 	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
 		http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "files")))))
 

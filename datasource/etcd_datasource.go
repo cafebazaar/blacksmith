@@ -24,7 +24,7 @@ const (
 )
 
 // ActiveWorkspaceHashKey is cluster variable key of active workspace hash
-const ActiveWorkspaceHashKey = "activeWorkspaceHash"
+const ActiveWorkspaceHashKey = "active-workspace-hash"
 
 // EtcdDataSource implements MasterDataSource interface using etcd as it's
 // datasource
@@ -243,7 +243,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 func (ds *EtcdDataSource) FillEtcdFromWorkspace() {
 	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "initial.yaml"))
 	if err != nil {
-		log.Info("datasource.fillEtcdFromWorkspace: initial.yaml was not avaiable to read, perhaps should be provided later")
+		log.Info("datasource.fillEtcdFromWorkspace: initial.yaml was not avaiable to read, perhaps will be provided later")
 	}
 
 	iVals := make(map[string]string)

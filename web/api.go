@@ -207,6 +207,17 @@ func (ws *webServer) ClusterVariablesList(w http.ResponseWriter, r *http.Request
 	io.WriteString(w, string(flagsJSON))
 }
 
+func (ws *webServer) GetClusterVariables(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+	value, err := ws.ds.GetClusterVariable(name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
+		return
+	}
+	io.WriteString(w, value)
+}
+
 func (ws *webServer) SetClusterVariables(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
@@ -244,6 +255,7 @@ func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Reque
 	hash := vars["hash"]
 
 	workspaceUploadLock.Lock()
+	defer workspaceUploadLock.Unlock()
 
 	workspacePath := ws.ds.WorkspacePath()
 
@@ -302,6 +314,4 @@ func (ws *webServer) WorkspaceUploadHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	io.WriteString(w, `"OK"`)
-
-	workspaceUploadLock.Unlock()
 }

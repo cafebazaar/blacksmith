@@ -156,7 +156,7 @@ blacksmithUIControllers.controller('BlacksmithAboutCtrl', ['$scope', 'Version', 
   );
   Variable.query().$promise.then(
     function (value) {
-      $scope.activeWorkspaceHash = value.activeWorkspaceHash;
+      $scope.activeWorkspaceHash = value['active-workspace-hash'];
     },
     function (error) { $scope.errorMessage = error.data; $scope.info = {}; }
   );

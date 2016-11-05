@@ -108,16 +108,15 @@ mkdir workspaces
 # you can terminate BoB (local instance of blacksmith that has provisioned
 # master machines with blacksmith-kubernetes workspace)
 
-# Now you can add 5 workers to your just created virtual cluster. 
+# Once download of blacksmith container and its requironments finished which
+# takes minutes of even hours, for poor Internet connections
+# (login with IP of third interface of boostrapper1 with `ssh core@IP`
+# and enter `journalctl -f` to check that) you can add 5 workers to your
+# just created virtual cluster. 
 ./dev_run.sh worker 5
 
-
-# Access to Kubernetes via kubectl
 # Append this line to your /etc/hosts
 # <bootstrapper1 ip address>  test.cafecluster
-
-# Kubernetes setup takes several minutes or hours,
-# for poor Internet connections
 #
 kubectl --kubeconfig $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/Takeaways/kubeconfig get nodes
 ```

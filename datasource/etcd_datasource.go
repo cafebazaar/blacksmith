@@ -153,7 +153,7 @@ func (ds *EtcdDataSource) ListConfigurations() (map[string]string, error) {
 
 // SetClusterVariable sets a cluster variable inside etcd
 func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
-	err := validateVariable(key, value)
+	err := validateVariable(key, value, false)
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,13 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		selfInfo:        selfInfo,
 	}
 
-	ds.FillEtcdFromWorkspace()
+	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "initial.yaml"))
+	if err == nil {
+		err = ds.ImportClusterVariables(data)
+		if err != nil {
+			return nil, fmt.Errorf("error while ImportClusterVariables: %s", err)
+		}
+	}
 
 	// TODO: Integrate DNS service into Blacksmith
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
@@ -232,7 +238,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	defer cancel4()
 	ds.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)
 
-	_, err := ds.MachineInterface(selfInfo.Nic).Machine(true, selfInfo.IP)
+	_, err = ds.MachineInterface(selfInfo.Nic).Machine(true, selfInfo.IP)
 	if err != nil {
 		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
 	}
@@ -240,32 +246,27 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	return ds, nil
 }
 
-func (ds *EtcdDataSource) FillEtcdFromWorkspace() {
-	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "initial.yaml"))
-	if err != nil {
-		log.Info("datasource.fillEtcdFromWorkspace: initial.yaml was not avaiable to read, perhaps should be provided later")
-	}
-
+func (ds *EtcdDataSource) ImportClusterVariables(data []byte) error {
 	iVals := make(map[string]string)
-	err = yaml.Unmarshal(data, &iVals)
+	err := yaml.Unmarshal(data, &iVals)
 	if err != nil {
-		log.Errorf("error while reading initial data: %s", err)
-		return
+		return fmt.Errorf("error while Unmarshal: %s", err)
 	}
 
 	for key, value := range iVals {
 		err := ds.SetClusterVariable(key, value)
 
 		if err != nil {
-			log.Errorf("error while setting initial value (%q: %q): %s", key, value, err)
-			return
+			return fmt.Errorf("error while SetClusterVariable(%q: %q): %s", key, value, err)
 		}
 
 		log.WithFields(log.Fields{
-			"where":   "datasource.NewEtcdDataSource",
+			"where":   "datasource.ImportClusterVariables",
 			"action":  "debug",
 			"object":  "ClusterVariable",
 			"subject": key,
 		}).Debugf("%s=%q", key, value)
 	}
+
+	return nil
 }

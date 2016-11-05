@@ -3,6 +3,7 @@ package templating // import "github.com/cafebazaar/blacksmith/templating"
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -13,6 +14,65 @@ import (
 
 	"github.com/cafebazaar/blacksmith/datasource"
 )
+
+func templateFuncs(machineInterface datasource.MachineInterface) map[string]interface{} {
+	return map[string]interface{}{
+		"getVariable": func(key string) string {
+			value, err := machineInterface.GetVariable(key, true)
+			if err != nil {
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
+					"error while GetVariable")
+			}
+			return value
+		},
+		"base64Encode": func(text string) string {
+			return base64.StdEncoding.EncodeToString([]byte(text))
+		},
+		"base64Decode": func(text string) string {
+			data, err := base64.StdEncoding.DecodeString(text)
+			if err != nil {
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
+					"error while base64Decode")
+				return ""
+			}
+			return string(data)
+		},
+		"machineKeyCertPair": func(pairName, caKeyName string, size int) *KeyCertPair {
+			keyCertPairStr, err := machineInterface.GetVariable(pairName, false)
+			if err == nil {
+				var keyCertPair KeyCertPair
+				if err := json.Unmarshal([]byte(keyCertPairStr), &keyCertPair); err != nil {
+					log.WithField("where", "templating.generateKeyCertPair").WithError(err).Warn(
+						"error while Unmarshal")
+					return nil
+				}
+				return &keyCertPair
+			}
+
+			keyCertPair, err := generateKeyCertPair()
+			if err != nil {
+				log.WithField("where", "templating.generateKeyCertPair").WithError(err).Warn(
+					"error while GenerateKey")
+				return nil
+			}
+
+			keyCertPairBytes, err := json.Marshal(keyCertPair)
+			if err != nil {
+				log.WithField("where", "templating.generateKeyCertPair").WithError(err).Warn(
+					"error while Marshal")
+				return nil
+			}
+			err = machineInterface.SetVariable(pairName, string(keyCertPairBytes))
+			if err != nil {
+				log.WithField("where", "templating.generateKeyCertPair").WithError(err).Warn(
+					"error while SetVariable")
+				return nil
+			}
+
+			return keyCertPair
+		},
+	}
+}
 
 func findFiles(path string) ([]string, error) {
 	infos, err := ioutil.ReadDir(path)
@@ -30,25 +90,16 @@ func findFiles(path string) ([]string, error) {
 }
 
 //FromPath creates templates from the files located in the specifed path
-func templateFromPath(tmplPath string) (*template.Template, error) {
+func templateFromPath(tmplPath string, templateFuncs map[string]interface{}) (*template.Template, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to list files in%s: %s", tmplPath, err)
 	}
 
 	t := template.New("")
+	// {{ and }} are popular delimiters in the industry. To avoid escaping, let's change them!
 	t.Delims("<<", ">>")
-	t.Funcs(map[string]interface{}{
-		"V": func(key string) string {
-			return ""
-		},
-		"b64": func(text string) string {
-			return ""
-		},
-		"b64template": func(templateName string) string {
-			return ""
-		},
-	})
+	t.Funcs(templateFuncs)
 
 	for i := range files {
 		files[i] = path.Join(tmplPath, files[i])
@@ -72,40 +123,11 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 			templateName, rootTemplte)
 	}
 
-	mac := machineInterface.Mac().String()
-
-	buf := new(bytes.Buffer)
-	template.Funcs(map[string]interface{}{
-		"V": func(key string) string {
-			value, err := machineInterface.GetVariable(key)
-			if err != nil {
-				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
-					"error while GetVariable")
-			}
-			return value
-		},
-		"b64": func(text string) string {
-			return base64.StdEncoding.EncodeToString([]byte(text))
-		},
-		"b64template": func(templateName string) string {
-			text, err := executeTemplate(rootTemplte, templateName, ds, machineInterface, webServerAddr)
-			if err != nil {
-				log.WithField("where", "templating.executeTemplate").WithError(err).Warnf(
-					"error while executeTemplate(templateName=%s machine=%s)",
-					templateName, mac)
-				return ""
-			}
-			return base64.StdEncoding.EncodeToString([]byte(text))
-		},
-	})
-
 	etcdMembers, _ := ds.EtcdMembers()
-
 	machine, err := machineInterface.Machine(false, nil)
 	if err != nil {
 		return "", err
 	}
-
 	data := struct {
 		Mac           string
 		IP            string
@@ -114,13 +136,14 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		WebServerAddr string
 		EtcdEndpoints string
 	}{
-		mac,
+		machineInterface.Mac().String(),
 		machine.IP.String(),
 		machineInterface.Hostname(),
 		ds.ClusterName(),
 		webServerAddr,
 		etcdMembers,
 	}
+	buf := new(bytes.Buffer)
 	err = template.ExecuteTemplate(buf, templateName, &data)
 	if err != nil {
 		return "", err
@@ -136,7 +159,8 @@ func ExecuteTemplateFolder(tmplFolder string,
 	ds datasource.DataSource, machineInterface datasource.MachineInterface,
 	webServerAddr string) (string, error) {
 
-	template, err := templateFromPath(tmplFolder)
+	funcs := templateFuncs(machineInterface)
+	template, err := templateFromPath(tmplFolder, funcs)
 	if err != nil {
 		return "", fmt.Errorf("error while reading the template with path=%s: %s",
 			tmplFolder, err)

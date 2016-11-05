@@ -60,9 +60,9 @@ type MachineInterface interface {
 	// ListVariables returns the list of all the flgas of a machine from Etcd
 	ListVariables() (map[string]string, error)
 
-	// GetVariable Gets a machine's variable, or the global if it was not
-	// set for the machine
-	GetVariable(key string) (string, error)
+	// GetVariable Gets a variable for the machine, or for the cluster if it was
+	// not set for the machine and fallbackToCluster is true
+	GetVariable(key string, fallbackToCluster bool) (string, error)
 
 	// SetVariable sets the value of the specified key
 	SetVariable(key string, value string) error
@@ -138,6 +138,10 @@ type DataSource interface {
 
 	// DeleteClusterVariable delete a cluster variable from etcd.
 	DeleteClusterVariable(key string) error
+
+	// ImportClusterVariables Unmarshals the given yaml and calls SetClusterVariable
+	// for every key value.
+	ImportClusterVariables(data []byte) error
 
 	// EtcdMembers returns a string suitable for `-initial-cluster`
 	// This is the etcd the Blacksmith instance is using as its datastore

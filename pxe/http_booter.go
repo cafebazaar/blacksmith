@@ -98,7 +98,7 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		r.Host = fmt.Sprintf("%s:%d", r.Host, b.listenAddr.Port)
 	}
 
-	coreOSVersion, err := machineInterface.GetVariable(datasource.SpecialKeyCoreosVersion)
+	coreOSVersion, err := machineInterface.GetVariable(datasource.SpecialKeyCoreosVersion, true)
 	if err != nil {
 		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Warn(
 			"error in getting coreOSVersion")

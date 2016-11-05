@@ -120,7 +120,8 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 			return nil
 		}
 
-		netConfStr, err := machineInterface.GetVariable(datasource.SpecialKeyNetworkConfiguration)
+		netConfStr, err := machineInterface.GetVariable(
+			datasource.SpecialKeyNetworkConfiguration, true)
 		if err != nil {
 			log.WithField("where", "dhcp.ServeDHCP").WithError(err).Warn(
 				"failed to get network configuration")

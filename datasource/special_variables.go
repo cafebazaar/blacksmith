@@ -73,7 +73,7 @@ func UnmarshalNetworkConfiguration(netConfStr string) (*NetworkConfiguration, er
 	return &netConf, nil
 }
 
-func validateVariable(key, value string) error {
+func validateVariable(key, value string, forMachine bool) error {
 	if key == "" {
 		return errors.New("empty value for key is not permitted")
 	}
@@ -82,6 +82,9 @@ func validateVariable(key, value string) error {
 	}
 	if value == "" && emptyNotAllowed[key] {
 		return fmt.Errorf("empty value for %q is not permitted", key)
+	}
+	if forMachine && key[0] == '#' {
+		return errors.New("hashtagged keys are only permitted for cluster-wide variables")
 	}
 	switch key {
 	case SpecialKeyCoreosVersion:

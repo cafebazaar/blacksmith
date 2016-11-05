@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/dex/pkg/log"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/krolaw/dhcp4"
 	"golang.org/x/net/context"
@@ -64,7 +65,7 @@ func (m *etcdMachineInterface) Machine(createIfNeeded bool,
 		}
 
 		machine := Machine{
-			IP:        createWithIP, // to be assigned automatically
+			IP:        createWithIP,
 			FirstSeen: time.Now().Unix(),
 		}
 		err := m.store(&machine)
@@ -148,6 +149,7 @@ func (m *etcdMachineInterface) store(machine *Machine) error {
 	if err != nil {
 		return fmt.Errorf("error while marshaling the machine: %s", err)
 	}
+	log.Debugf("jsonedStats: %s", string(jsonedStats))
 	err = m.selfSet("_machine", string(jsonedStats))
 	if err != nil {
 		return fmt.Errorf("error while setting the marshaled machine: %s", err)
@@ -202,9 +204,9 @@ func (m *etcdMachineInterface) ListVariables() (map[string]string, error) {
 	return flags, nil
 }
 
-// GetVariable Gets a machine's variable, or the global if it was not
-// set for the machine
-func (m *etcdMachineInterface) GetVariable(key string) (string, error) {
+// GetVariable Gets a variable for the machine, or for the cluster if it was
+// not set for the machine and fallbackToCluster is true
+func (m *etcdMachineInterface) GetVariable(key string, fallbackToCluster bool) (string, error) {
 	value, err := m.selfGet(key)
 
 	if err != nil {
@@ -214,7 +216,10 @@ func (m *etcdMachineInterface) GetVariable(key string) (string, error) {
 				key, m.mac, err)
 		}
 
-		// Key was not found for the machine
+		if !fallbackToCluster {
+			return "", nil // Not set for machine
+		}
+
 		value, err := m.etcdDS.GetClusterVariable(key)
 		if err != nil {
 			if !etcd.IsKeyNotFound(err) {
@@ -223,7 +228,7 @@ func (m *etcdMachineInterface) GetVariable(key string) (string, error) {
 					key, m.mac, err)
 
 			}
-			return "", nil // Not set, not for machine, nor globally
+			return "", nil // Not set for machine, neither globally
 		}
 		return value, nil
 	}
@@ -233,7 +238,7 @@ func (m *etcdMachineInterface) GetVariable(key string) (string, error) {
 
 // SetVariable sets the value of the specified key
 func (m *etcdMachineInterface) SetVariable(key, value string) error {
-	err := validateVariable(key, value)
+	err := validateVariable(key, value, true)
 	if err != nil {
 		return err
 	}

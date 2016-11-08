@@ -106,8 +106,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	KernelURL := "http://" + r.Host + "/f/" + coreOSVersion + "/kernel"
-	InitrdURL := "http://" + r.Host + "/f/" + coreOSVersion + "/initrd"
+	KernelURL := b.datasource.FileServer() + coreOSVersion + "/coreos_production_pxe.vmlinuz"
+	InitrdURL := b.datasource.FileServer() + coreOSVersion + "/coreos_production_pxe_image.cpio.gz"
 
 	host, _, err := net.SplitHostPort(r.Host)
 	if err != nil {
@@ -151,7 +151,7 @@ APPEND initrd=%s %s
 // BootSpec. Additionally returns a pretty name for the blob for
 // logging purposes.
 func (b *HTTPBooter) coreOS(version string, id string) (io.ReadCloser, error) {
-	imagePath := filepath.Join(b.datasource.WorkspacePath(), "images")
+	imagePath := b.datasource.FileServer()
 	switch id {
 	case "kernel":
 		path := filepath.Join(imagePath, version, "coreos_production_pxe.vmlinuz")

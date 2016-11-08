@@ -214,8 +214,8 @@ if [[ "${1:-}" == "init-bootstrappers" ]]; then
     for i in $(seq $BOOTSTRAPPERS); do
         MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
-        setDesiredState $MAC bootstrapper$i
-        setState $MAC init-install-coreos
+        # setDesiredState $MAC bootstrapper$i
+        setState $MAC unknown
         vboxmanage controlvm bootstrapper_$i reset
     done
     exit
@@ -227,7 +227,7 @@ if [[ "${1:-}" == "init-workers" ]]; then
     for i in $(seq $WORKERS); do
         MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress2 | sed 's/macaddress2="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
-        setInternalState $MAC init-worker
+        setInternalState $MAC unknown
         vboxmanage controlvm worker_$i reset
     done
     exit
@@ -277,5 +277,5 @@ then
     touch .vbox_cluster_inited
 fi
 startBootstrapperMachines
-runWithDelay 5 xdg-open http://127.0.0.1:8000/ui &
+# runWithDelay 5 xdg-open http://127.0.0.1:8000/ui &
 runBlacksmith

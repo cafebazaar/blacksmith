@@ -41,6 +41,7 @@ var (
 	listenIFFlag      = flag.String("if", "", "Interface name for DHCP and PXE to listen on")
 	httpListenFlag    = flag.String("http-listen", httpListenFlagDefaultTCPAddress, "IP range to listen on for web requests")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
+	fileServerFlag    = flag.String("file-server", "http://localhost/", "A HTTP server to serve needed files")
 	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
 	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 	dnsAddressesFlag  = flag.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")
@@ -226,7 +227,7 @@ func main() {
 	}
 	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,
 		leaseStart, leaseRange, *clusterNameFlag, *workspacePathFlag,
-		dnsIPStrings, selfInfo)
+		*fileServerFlag, dnsIPStrings, selfInfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)

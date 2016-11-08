@@ -119,6 +119,10 @@ type DataSource interface {
 	// machines are booted up
 	WorkspacePath() string
 
+	// FilesPath returns the path to the files which is used for download
+	// needed files
+	FileServer() string
+
 	// MachineInterfaces returns all the machines in the cluster, as a slice of
 	// MachineInterfaces
 	MachineInterfaces() ([]MachineInterface, error)

@@ -3,7 +3,6 @@ package web // import "github.com/cafebazaar/blacksmith/web"
 import (
 	"net"
 	"net/http"
-	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/handlers"
@@ -42,8 +41,8 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.DelClusterVariables).Methods("DELETE")
 
 	// TODO: returning other files functionalities
-	mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
-		http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "files")))))
+	// mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
+	// http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "files")))))
 
 	mux.Path("/ui").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/ui/", 302)

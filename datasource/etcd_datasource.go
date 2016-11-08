@@ -33,6 +33,7 @@ type EtcdDataSource struct {
 	leaseRange      int
 	clusterName     string
 	workspacePath   string
+	fileServerPath  string
 	dhcpAssignLock  *sync.Mutex
 	instanceEtcdKey string // HA
 	selfInfo        InstanceInfo
@@ -41,6 +42,11 @@ type EtcdDataSource struct {
 // WorkspacePath returns the path to the workspace
 func (ds *EtcdDataSource) WorkspacePath() string {
 	return ds.workspacePath
+}
+
+// FileServer returns the path to the workspace
+func (ds *EtcdDataSource) FileServer() string {
+	return ds.fileServerPath
 }
 
 // MachineInterfaces returns all the machines in the cluster, as a slice of
@@ -193,8 +199,8 @@ func (ds *EtcdDataSource) EtcdMembers() (string, error) {
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, clusterName, workspacePath string, defaultNameServers []string,
-	selfInfo InstanceInfo) (DataSource, error) {
+	leaseRange int, clusterName, workspacePath string, fileServerPath string,
+	defaultNameServers []string, selfInfo InstanceInfo) (DataSource, error) {
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
@@ -214,6 +220,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		leaseStart:      leaseStart,
 		leaseRange:      leaseRange,
 		workspacePath:   workspacePath,
+		fileServerPath:  fileServerPath,
 		dhcpAssignLock:  &sync.Mutex{},
 		instanceEtcdKey: invalidEtcdKey,
 		selfInfo:        selfInfo,

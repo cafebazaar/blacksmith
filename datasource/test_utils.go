@@ -27,6 +27,7 @@ const (
 	forTestDefaultLeaseStart    = "127.0.0.2"
 	forTestDefaultLeaseRange    = 10
 	forTestDefaultWorkspacePath = "/tmp/blacksmith/workspaces/test-workspace"
+	forTestFileServer           = "http://localhost:8080/"
 	forTestDefaultListenIF      = "lo"
 	forTestDNSIPStrings         = "8.8.8.8"
 )
@@ -54,6 +55,7 @@ func ForTest(params *ForTestParams) (DataSource, error) {
 	leaseStart := net.ParseIP(forTestDefaultLeaseStart)
 	leaseRange := forTestDefaultLeaseRange
 	workspacePath := forTestDefaultWorkspacePath
+	fileServer := forTestFileServer
 	listenIF := "lo"
 	dnsIPStrings := strings.Split(forTestDNSIPStrings, ",")
 
@@ -123,6 +125,7 @@ func ForTest(params *ForTestParams) (DataSource, error) {
 		leaseRange,
 		clusterNameFlag,
 		workspacePath,
+		fileServer,
 		dnsIPStrings,
 		selfInfo,
 	)

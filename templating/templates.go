@@ -107,17 +107,19 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 	}
 
 	data := struct {
-		Mac           string
-		IP            string
-		Hostname      string
-		Domain        string
-		WebServerAddr string
-		EtcdEndpoints string
+		Mac            string
+		IP             string
+		Hostname       string
+		Domain         string
+		FileServerAddr string
+		WebServerAddr  string
+		EtcdEndpoints  string
 	}{
 		mac,
 		machine.IP.String(),
 		machineInterface.Hostname(),
 		ds.ClusterName(),
+		ds.FileServer(),
 		webServerAddr,
 		etcdMembers,
 	}

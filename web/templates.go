@@ -30,7 +30,7 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 	}
 
 	cc, err := templating.ExecuteTemplateFolder(
-		path.Join(ws.ds.WorkspacePath(), "config", templateName), ws.ds, machineInterface, r.Host)
+		path.Join(ws.ds.WorkspacePath(), "repo", "config", templateName), ws.ds, machineInterface, r.Host)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err), 500)
 		return ""

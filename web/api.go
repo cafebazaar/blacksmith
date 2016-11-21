@@ -230,3 +230,27 @@ func (ws *webServer) DelClusterVariables(w http.ResponseWriter, r *http.Request)
 
 	io.WriteString(w, `"OK"`)
 }
+
+func (ws *webServer) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
+	ws.ds.UpdateWorkspaceHash()
+	err := ws.ds.UpdateWorkspace()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	io.WriteString(w, `"OK"`)
+}
+
+func (ws *webServer) GetWorkspaceHash(w http.ResponseWriter, r *http.Request) {
+	hashStr, err := ws.ds.GetWorkspaceHash()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	b, _ := json.Marshal(struct {
+		Hash string `json:"hash"`
+	}{
+		Hash: hashStr,
+	})
+	io.WriteString(w, string(b))
+}

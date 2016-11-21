@@ -39,13 +39,28 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 	t := template.New("")
 	t.Delims("<<", ">>")
 	t.Funcs(map[string]interface{}{
-		"V": func(key string) string {
+		"machine_variable": func(key string) string {
+			return ""
+		},
+		"cluster_variable": func(key string) string {
+			return ""
+		},
+		"array_variable": func(key string) string {
 			return ""
 		},
 		"b64": func(text string) string {
 			return ""
 		},
 		"b64template": func(templateName string) string {
+			return ""
+		},
+		"variable": func(key string) string {
+			return ""
+		},
+		"b64file": func(fileName string) string {
+			return ""
+		},
+		"pathSplit": func(pathStr string) string {
 			return ""
 		},
 	})
@@ -76,8 +91,32 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 
 	buf := new(bytes.Buffer)
 	template.Funcs(map[string]interface{}{
-		"V": func(key string) string {
+		"machine_variable": func(key string) string {
 			value, err := machineInterface.GetVariable(key)
+			if err != nil {
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
+					"error while GetVariable")
+			}
+			return value
+		},
+		"cluster_variable": func(key string) string {
+			value, err := ds.GetClusterVariable(key)
+			if err != nil {
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
+					"error while GetVariable")
+			}
+			return value
+		},
+		"array_variable": func(key string) interface{} {
+			value, err := ds.GetArrayVariable(key)
+			if err != nil {
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
+					"error while GetVariable")
+			}
+			return value
+		},
+		"variable": func(key string) string {
+			value, err := ds.GetVariable(key)
 			if err != nil {
 				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
 					"error while GetVariable")
@@ -97,9 +136,21 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 			}
 			return base64.StdEncoding.EncodeToString([]byte(text))
 		},
+		"b64file": func(fileName string) string {
+			text, err := ioutil.ReadFile(path.Join(ds.WorkspacePath(), fileName))
+			if err != nil {
+				return err.Error()
+			}
+			return base64.StdEncoding.EncodeToString([]byte(text))
+		},
+		"pathSplit": func(pathStr string) string {
+			_, file := path.Split(pathStr)
+			return file
+		},
 	})
 
 	etcdMembers, _ := ds.EtcdMembers()
+	etcdEndpoints, _ := ds.EtcdEndpoints()
 
 	machine, err := machineInterface.Machine(false, nil)
 	if err != nil {
@@ -107,13 +158,14 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 	}
 
 	data := struct {
-		Mac            string
-		IP             string
-		Hostname       string
-		Domain         string
-		FileServerAddr string
-		WebServerAddr  string
-		EtcdEndpoints  string
+		Mac              string
+		IP               string
+		Hostname         string
+		Domain           string
+		FileServerAddr   string
+		WebServerAddr    string
+		EtcdEndpoints    string
+		EtcdCtlEndpoints string
 	}{
 		mac,
 		machine.IP.String(),
@@ -122,6 +174,7 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		ds.FileServer(),
 		webServerAddr,
 		etcdMembers,
+		etcdEndpoints,
 	}
 	err = template.ExecuteTemplate(buf, templateName, &data)
 	if err != nil {

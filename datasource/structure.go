@@ -137,14 +137,34 @@ type DataSource interface {
 	// GetClusterVariable returns a cluster variables with the given name
 	GetClusterVariable(key string) (string, error)
 
+	// GetClusterArrayVariable returns a cluster variables with the given name
+	GetArrayVariable(key string) (interface{}, error)
+
 	// SetClusterVariable sets a cluster variable
 	SetClusterVariable(key string, value string) error
 
 	// DeleteClusterVariable delete a cluster variable from etcd.
 	DeleteClusterVariable(key string) error
 
+	// UpdateWorkspace Update workspace
+	UpdateWorkspace() error
+
+	// WorkspaceHash returns workspace hash
+	GetWorkspaceHash() (string, error)
+
+	// WorkspaceHash update workspace hash
+	UpdateWorkspaceHash() error
+
+	// GetVariable get etcd variable
+	GetVariable(string) (string, error)
+
 	// EtcdMembers returns a string suitable for `-initial-cluster`
 	// This is the etcd the Blacksmith instance is using as its datastore
 	// Smelly function to be here! but it's a lot helpful.
 	EtcdMembers() (string, error)
+
+	// EtcdMembers returns a string suitable for etcdctl
+	// This is the etcd the Blacksmith instance is using as its datastore
+	// Smelly function to be here too! but it's a lot helpful.
+	EtcdEndpoints() (string, error)
 }

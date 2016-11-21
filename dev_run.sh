@@ -27,7 +27,7 @@ fi
 
 ####
 # BoB IP
-HostIP="192.168.56.1"
+HostIP="172.19.1.1"
 # hostonly network name, it is "vboxnet0" by default and we have less control for what it should be it seems
 HOSTONLY="vboxnet0"
 if [[ -f ".vbox_network_hostonly_if" ]]; then HOSTONLY=$(cat .vbox_network_hostonly_if); fi
@@ -49,34 +49,35 @@ function createNetwork {
     # usually it installs a hostonly network named "vboxnet0", it would be nice if we could control its name, it seems we can't, however
     HOSTONLY=$(vboxmanage hostonlyif create 2>/dev/null | sed "s/.*'\(.*\)'.*/\1/g")
     echo $HOSTONLY > .vbox_network_hostonly_if
-    # vboxmanage hostonlyif ipconfig $HOSTONLY --ip192.168.56.1
-
-    vboxmanage natnetwork add --netname $NATNAME --dhcp off --network "172.19.1.0/24" --enable
+    vboxmanage hostonlyif ipconfig $HOSTONLY --ip 172.19.1.1 --netmask 255.255.255.0
 }
 
 function create_machine {
+
+    local MAC3=$2
+    local MAC4=$3
+
     vboxmanage createvm --name $1 --ostype "Linux_64"
 
     vboxmanage registervm "$VMDIR/$1/$1.vbox"
 
     vboxmanage modifyvm $1 \
-        --memory 2048 \
+        --memory 4096 \
         --nic1 hostonly \
         --nictype1 82540EM \
         --hostonlyadapter1 $HOSTONLY \
         --nicpromisc1 allow-all \
-        --nic2 natnetwork \
+        --nic2 bridged \
         --nictype2 82540EM \
-        --natnet2 $NATNAME \
+        --bridgeadapter2 $INTERTNETIF \
         --nicpromisc2 allow-all \
-        --nic3 bridged \
-        --nictype3 82540EM \
-        --bridgeadapter3 $INTERTNETIF \
-        --nicpromisc3 allow-all \
         --boot1 disk \
         --boot2 net \
         --boot3 none \
-        --boot4 none
+        --boot4 none \
+        --macaddress1 $MAC3 \
+        --macaddress2 $MAC4
+    
 
     vboxmanage storagectl $1 \
         --name IDE0 \
@@ -86,7 +87,7 @@ function create_machine {
 
     vboxmanage createhd \
         --filename "$VMDIR/$1/$1" \
-        --size 8000
+        --size 20000
 
     vboxmanage storageattach $1 \
         --storagectl IDE0 \
@@ -98,7 +99,9 @@ function create_machine {
 
 function createBootstrappers {
     for i in $(seq $BOOTSTRAPPERS); do
-        create_machine bootstrapper_$i
+        MAC="00027d15be8$((i*2))"
+        MAC1="00027d13be8$((i*2))"
+        create_machine bootstrapper_$i $MAC $MAC1
     done
 }
 
@@ -137,46 +140,21 @@ function initEtcd {
 }
 
 function runBlacksmith {
-    sudo ./blacksmith \
-        -workspace $(pwd)/workspaces/current \
+    sudo docker rm -f blacksmith 2>/dev/null || true
+    sudo docker run --name blacksmith --restart=always --net=host  -v `pwd`/workspaces/current:/workspaces 192.168.101.177:5000/blacksmith:v0.10 \
+        -workspace /workspaces \
         -etcd http://${HostIP}:2379 \
         -if $HOSTONLY \
         -cluster-name cafecluster \
-        -lease-start 192.168.56.20 \
+        -lease-start 172.19.1.11 \
+        -file-server http://${HostIP}/ \
         -lease-range 10 \
         -dns 8.8.8.8 \
         -debug \
-        -http-listen :8000
+        -http-listen :8000 \
+        -workspace-repo git@git.cafebazaar.ir:ali.javadi/blacksmith-kubernetes.git
 }
 
-function setState {
-    # ",," means converting a string to lowercase
-    local MAC=${1,,}
-    local VALUE=$2
-    curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=$VALUE"
-}
-
-function setInternalState {
-    # ",," means converting a string to lowercase
-    local MAC=${1,,}
-    local VALUE=$2
-    for i in $(seq $BOOTSTRAPPERS); do
-        local MASTERMAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
-        local MASTERMAC=$(echo ${MASTERMAC} | sed -e 's/[0-9A-F]\{2\}/&:/g' -e 's/:$//')
-        local IPS=$(ip neighbor | grep -i "${MASTERMAC}" | cut -d" " -f1)
-    
-        for ip in $(echo $IPS); do
-            ssh-keygen -R $ip &> /dev/null
-            ssh -o StrictHostKeyChecking=no core@$ip "curl -X PUT \"http://localhost:2379/v2/keys/cafecluster/machines/$MAC/state?value=$VALUE\" &>/dev/null" &>/dev/null || true
-        done
-    done
-}
-
-function setDesiredState {
-    local MAC=${1,,}
-    local VALUE=$2
-    curl -X PUT "http://localhost:2379/v2/keys/cafecluster/machines/$MAC/desired-state?value=$VALUE"
-}
 
 function runWithDelay {
     sleep $1
@@ -195,12 +173,12 @@ if [[ "${1:-}" == "clean" ]]; then
         fi
     done
 
-    vboxmanage natnetwork remove --netname $NATNAME 2>/dev/null
     rm .vbox_* 2>/dev/null
     rm -rf "$VMDIR"/worker_* 2>/dev/null
     rm -rf "$VMDIR"/bootstrapper_* 2>/dev/null
 
     sudo docker rm -f blacksmith-dev-etcd || true
+    sudo docker rm -f blacksmith || true
 
     rm .vbox_cluster_inited 2>/dev/null || true
 
@@ -215,8 +193,7 @@ if [[ "${1:-}" == "init-bootstrappers" ]]; then
         MAC=$(vboxmanage showvminfo bootstrapper_$i --machinereadable | grep macaddress1 | sed 's/macaddress1="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
         # setDesiredState $MAC bootstrapper$i
-        setState $MAC unknown
-        vboxmanage controlvm bootstrapper_$i reset
+        # vboxmanage controlvm bootstrapper_$i reset
     done
     exit
 fi
@@ -227,8 +204,7 @@ if [[ "${1:-}" == "init-workers" ]]; then
     for i in $(seq $WORKERS); do
         MAC=$(vboxmanage showvminfo worker_$i --machinereadable | grep macaddress2 | sed 's/macaddress2="\(.*\)"/\1/g')
         # FIXME: blacksmith-kubernetes specific thing
-        setInternalState $MAC unknown
-        vboxmanage controlvm worker_$i reset
+        # vboxmanage controlvm worker_$i reset
     done
     exit
 fi
@@ -242,8 +218,10 @@ if [[ "${1:-}" == "worker" ]]; then
     fi
 
     for i in $(seq $WORKERS); do
-        create_machine worker_$i
-        vboxmanage modifyvm worker_$i --nic1 none
+        MAC1="00025d13be8$((i*2))"
+        MAC2="00025d17be8$((i*2))"
+        create_machine worker_$i $MAC1 $MAC2
+
     done
 
     for i in $(seq $WORKERS); do

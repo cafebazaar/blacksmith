@@ -1,6 +1,6 @@
-FROM quay.io/brianredbeard/corebox
+FROM ubuntu:16.10
 
-MAINTAINER Reza Mohammadi "<reza@cafebazaar.ir>"
+RUN apt-get update && apt-get install -y --no-install-recommends libgit2-24
 
 ENTRYPOINT ["/app/blacksmith"]
 WORKDIR /app

@@ -40,6 +40,9 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.SetClusterVariables).Methods("PUT")
 	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.DelClusterVariables).Methods("DELETE")
 
+	mux.PathPrefix("/api/update").HandlerFunc(ws.UpdateWorkspace).Methods("POST")
+	mux.PathPrefix("/api/update").HandlerFunc(ws.GetWorkspaceHash).Methods("GET")
+
 	// TODO: returning other files functionalities
 	// mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
 	// http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "files")))))

@@ -47,7 +47,7 @@ prepare_test_etcd:
 	 -initial-advertise-peer-urls http://127.0.0.1:20380 \
 	 -listen-peer-urls http://0.0.0.0:2380 \
 	 -initial-cluster-token etcd-cluster-1 \
-	 -initial-cluster etcd0=http://127.0.0.1:20380 \
+ 	 -initial-cluster etcd0=http://127.0.0.1:20380 \
 	 -initial-cluster-state new
 
 prepare_test: prepare_test_ws prepare_test_etcd

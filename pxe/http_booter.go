@@ -118,7 +118,7 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params, err := templating.ExecuteTemplateFolder(
-		path.Join(b.datasource.WorkspacePath(), "config", "bootparams"), b.datasource, machineInterface, r.Host)
+		path.Join(b.datasource.WorkspacePath(), "repo", "config", "bootparams"), b.datasource, machineInterface, r.Host)
 	if err != nil {
 		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Warn(
 			"error while executing the template")

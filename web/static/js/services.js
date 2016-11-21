@@ -38,3 +38,12 @@ apiServices.factory('Version', ['$resource',
       query: {method:'GET', params:{}, isArray:false}
     });
 }]);
+
+
+apiServices.factory('Updates', ['$resource',
+  function($resource){
+    return $resource('/api/update', {}, {
+      set: {method:'POST', params:{}, isArray:false},
+      query: {method:'GET', params:{}, isArray:false}
+    });
+}]);

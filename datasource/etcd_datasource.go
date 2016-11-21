@@ -1,19 +1,26 @@
 package datasource
 
 import (
+	"crypto/md5"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	yaml "gopkg.in/yaml.v2"
+
+	"strconv"
+
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
+	git "github.com/libgit2/git2go"
 	"golang.org/x/net/context"
-	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -33,7 +40,8 @@ type EtcdDataSource struct {
 	leaseRange      int
 	clusterName     string
 	workspacePath   string
-	fileServerPath  string
+	workspaceRepo   string
+	fileServer      string
 	dhcpAssignLock  *sync.Mutex
 	instanceEtcdKey string // HA
 	selfInfo        InstanceInfo
@@ -46,7 +54,12 @@ func (ds *EtcdDataSource) WorkspacePath() string {
 
 // FileServer returns the path to the workspace
 func (ds *EtcdDataSource) FileServer() string {
-	return ds.fileServerPath
+	return ds.fileServer
+}
+
+// WorkspaceRepo returns the workspace repository URL
+func (ds *EtcdDataSource) WorkspaceRepo() string {
+	return ds.fileServer
 }
 
 // MachineInterfaces returns all the machines in the cluster, as a slice of
@@ -102,6 +115,19 @@ func (ds *EtcdDataSource) get(keyPath string) (string, error) {
 	return response.Node.Value, nil
 }
 
+// get expects absolute key path
+func (ds *EtcdDataSource) getArray(keyPath string) (interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	ops := &etcd.GetOptions{Recursive: true}
+	response, err := ds.keysAPI.Get(ctx, keyPath, ops)
+	if err != nil {
+		return "", err
+	}
+	return response.Node.Nodes, nil
+}
+
 // set expects absolute key path
 func (ds *EtcdDataSource) set(keyPath string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -121,6 +147,16 @@ func (ds *EtcdDataSource) delete(keyPath string) error {
 // GetClusterVariable returns a cluster variables with the given name
 func (ds *EtcdDataSource) GetClusterVariable(key string) (string, error) {
 	return ds.get(ds.prefixifyForClusterVariables(key))
+}
+
+// GetClusterArrayVariable returns a cluster variables with the given name
+func (ds *EtcdDataSource) GetArrayVariable(key string) (interface{}, error) {
+	return ds.getArray(path.Join(ds.ClusterName(), key))
+}
+
+// GetClusterArrayVariable returns a cluster variables with the given name
+func (ds *EtcdDataSource) GetVariable(key string) (string, error) {
+	return ds.get(path.Join(ds.ClusterName(), key))
 }
 
 func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, error) {
@@ -168,6 +204,88 @@ func (ds *EtcdDataSource) DeleteClusterVariable(key string) error {
 	return ds.delete(ds.prefixifyForClusterVariables(key))
 }
 
+// GetWorkspaceHash returns worspace hash
+func (ds *EtcdDataSource) GetWorkspaceHash() (string, error) {
+	workspaceHash, err := ds.get(path.Join(ds.ClusterName(), "workspace-hash"))
+	return workspaceHash, err
+}
+
+// UpdateWorkspaceHash update worspace hash
+func (ds *EtcdDataSource) UpdateWorkspaceHash() error {
+	h := md5.New()
+	io.WriteString(h, time.Now().String())
+	io.WriteString(h, "00f468d3bde3")
+
+	hashStr := fmt.Sprintf("%x", h.Sum(nil))
+	ds.set(path.Join(ds.ClusterName(), "workspace-hash"), hashStr)
+
+	log.Info(hashStr)
+	return nil
+}
+
+// UpdateWorkspace updates workspace
+func (ds *EtcdDataSource) UpdateWorkspace() error {
+
+	cloneOptions := &git.CloneOptions{}
+	// use FetchOptions instead of directly RemoteCallbacks
+	// https://github.com/libgit2/git2go/commit/36e0a256fe79f87447bb730fda53e5cbc90eb47c
+	cloneOptions.FetchOptions = &git.FetchOptions{
+		RemoteCallbacks: git.RemoteCallbacks{
+			CredentialsCallback: func(url string, username string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
+				ret, cred := git.NewCredSshKey("git", path.Join(ds.workspacePath, "id_rsa.pub"),
+					path.Join(ds.workspacePath, "id_rsa"), "")
+				return git.ErrorCode(ret), &cred
+			},
+			CertificateCheckCallback: func(cert *git.Certificate, valid bool, hostname string) git.ErrorCode {
+				return 0
+			},
+		},
+	}
+
+	val, err := ds.get(path.Join(ds.ClusterName(), "workspace-hash"))
+	if err != nil || len(val) < 1 {
+		ds.UpdateWorkspaceHash()
+	} else {
+		log.Info("Hash is:" + val)
+	}
+
+	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
+	cloned, err := git.Clone(ds.workspaceRepo, path.Join(ds.workspacePath, "repo"), cloneOptions)
+	if err != nil {
+		return err
+	}
+
+	head, err := cloned.Head()
+	if err != nil {
+		return err
+	}
+	localCommit, err := cloned.LookupCommit(head.Target())
+	if err != nil {
+		return err
+	}
+
+	err = ds.set(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-commit-hash"), localCommit.Id().String())
+	if err != nil {
+		return err
+	}
+	rev, err := ds.get(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-revision"))
+	if err != nil {
+		log.Error(err.Error())
+		rev = "0"
+	}
+	revInt, err := strconv.Atoi(rev)
+	revInt += 1
+	if err != nil {
+		log.Error(err.Error())
+	}
+	err = ds.set(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-revision"), strconv.Itoa(revInt))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ClusterName returns the name of the cluster
 func (ds *EtcdDataSource) ClusterName() string {
 	return ds.clusterName
@@ -196,22 +314,83 @@ func (ds *EtcdDataSource) EtcdMembers() (string, error) {
 	return strings.Join(peers, ","), err
 }
 
+// EtcdEndpoints returns a string suitable for etcdctl
+// This is the etcd the Blacksmith instance is using as its datastore
+
+func (ds *EtcdDataSource) EtcdEndpoints() (string, error) {
+	membersAPI := etcd.NewMembersAPI(ds.client)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	members, err := membersAPI.List(ctx)
+
+	if err != nil {
+		return "", fmt.Errorf("Error while checking etcd members: %s", err)
+	}
+
+	var peers []string
+	for _, member := range members {
+		for _, peer := range member.ClientURLs {
+			peers = append(peers, fmt.Sprintf("%s", peer))
+		}
+	}
+
+	return strings.Join(peers, ","), err
+}
+
+func (ds *EtcdDataSource) iterateOverYaml(iVals interface{}, pathStr string) error {
+	switch t := iVals.(type) {
+	default:
+	case string:
+		currentValue, _ := ds.get(pathStr)
+		if len(currentValue) == 0 {
+			err := ds.set(pathStr, t)
+
+			if err != nil {
+				return fmt.Errorf("error while setting initial value (%s: %s): %s",
+					t, t, err)
+			}
+
+		}
+		break
+	case map[interface{}]string:
+		for key, value := range t {
+			currentValue, _ := ds.get(path.Join(pathStr, key.(string)))
+			if len(currentValue) == 0 {
+				err := ds.set(path.Join(pathStr, key.(string)), value)
+
+				if err != nil {
+					return fmt.Errorf("error while setting initial value (%s: %s): %s",
+						t, t, err)
+				}
+
+			}
+
+		}
+		break
+	case map[interface{}]interface{}:
+		for key, value := range t {
+			ds.iterateOverYaml(value, path.Join(pathStr, key.(string)))
+		}
+		break
+	case []interface{}:
+
+		for key, value := range t {
+			ds.iterateOverYaml(value, path.Join(pathStr, string(key)))
+		}
+
+		break
+	}
+
+	return nil
+}
+
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, clusterName, workspacePath string, fileServerPath string,
-	defaultNameServers []string, selfInfo InstanceInfo) (DataSource, error) {
-
-	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
-	if err != nil {
-		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
-	}
-
-	iVals := make(map[string]string)
-	err = yaml.Unmarshal(data, &iVals)
-	if err != nil {
-		return nil, fmt.Errorf("error while reading initial data: %s", err)
-	}
+	leaseRange int, clusterName, workspacePath string, workspaceRepo string,
+	fileServer string, defaultNameServers []string,
+	selfInfo InstanceInfo) (DataSource, error) {
 
 	ds := &EtcdDataSource{
 		keysAPI:         kapi,
@@ -220,32 +399,25 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		leaseStart:      leaseStart,
 		leaseRange:      leaseRange,
 		workspacePath:   workspacePath,
-		fileServerPath:  fileServerPath,
+		workspaceRepo:   workspaceRepo,
+		fileServer:      fileServer,
 		dhcpAssignLock:  &sync.Mutex{},
 		instanceEtcdKey: invalidEtcdKey,
 		selfInfo:        selfInfo,
 	}
 
-	for key, value := range iVals {
-		currentValue, _ := ds.GetClusterVariable(key)
-		if len(currentValue) == 0 {
-			err := ds.SetClusterVariable(key, value)
-
-			if err != nil {
-				return nil,
-					fmt.Errorf("error while setting initial value (%q: %q): %s",
-						key, value, err)
-			}
-
-			currentValue = value
-		}
-		log.WithFields(log.Fields{
-			"where":   "datasource.NewEtcdDataSource",
-			"action":  "debug",
-			"object":  "ClusterVariable",
-			"subject": key,
-		}).Debugf("%s=%q", key, value)
+	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
+	if err != nil {
+		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
 	}
+
+	iVals := make(map[interface{}]interface{})
+	err = yaml.Unmarshal(data, &iVals)
+	if err != nil {
+		return nil, fmt.Errorf("error while reading initial data: %s", err)
+	}
+
+	ds.iterateOverYaml(iVals, ds.ClusterName())
 
 	// TODO: Integrate DNS service into Blacksmith
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)
@@ -270,6 +442,8 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	if err != nil {
 		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
 	}
+
+	ds.UpdateWorkspace()
 
 	return ds, nil
 }

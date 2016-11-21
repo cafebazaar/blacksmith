@@ -443,7 +443,27 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
 	}
 
-	ds.UpdateWorkspace()
+	cloneOptions := &git.CloneOptions{}
+	// use FetchOptions instead of directly RemoteCallbacks
+	// https://github.com/libgit2/git2go/commit/36e0a256fe79f87447bb730fda53e5cbc90eb47c
+	cloneOptions.FetchOptions = &git.FetchOptions{
+		RemoteCallbacks: git.RemoteCallbacks{
+			CredentialsCallback: func(url string, username string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
+				ret, cred := git.NewCredSshKey("git", path.Join(ds.workspacePath, "id_rsa.pub"),
+					path.Join(ds.workspacePath, "id_rsa"), "")
+				return git.ErrorCode(ret), &cred
+			},
+			CertificateCheckCallback: func(cert *git.Certificate, valid bool, hostname string) git.ErrorCode {
+				return 0
+			},
+		},
+	}
+
+	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
+	_, err = git.Clone(ds.workspaceRepo, path.Join(ds.workspacePath, "repo"), cloneOptions)
+	if err != nil {
+		return nil, err
+	}
 
 	return ds, nil
 }

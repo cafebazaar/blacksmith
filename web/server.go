@@ -24,6 +24,7 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/t/bp/").HandlerFunc(ws.Bootparams).Methods("GET")
 
 	mux.HandleFunc("/api/version", ws.Version)
+	mux.HandleFunc("/api/render", ws.Render)
 
 	mux.HandleFunc("/api/machines", ws.MachinesList)
 	mux.HandleFunc("/api/machines/{mac}", ws.MachineDelete).Methods("DELETE")

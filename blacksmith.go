@@ -6,10 +6,13 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
@@ -234,6 +237,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// go func() {
+
+	// 	watcher := kapi.Watcher(path.Join(etcdDataSource.ClusterName(), "workspace-commit-hash"), nil)
+	// 	for {
+	// 		ctx, cancel := context.WithTimeout(context.Background(), 3600*time.Second)
+	// 		defer cancel()
+	// 		resp, _ := watcher.Next(ctx)
+	// 		if resp != nil {
+	// 			etcdDataSource.UpdateWorkspace()
+	// 		}
+	// 	}
+	// }()
 	// serving api
 	go func() {
 		err := web.ServeWeb(etcdDataSource, webAddr)
@@ -262,6 +277,18 @@ func main() {
 		"action": "debug",
 	}).Debug("Now we're the master instance. Starting the services...")
 
+	go func() {
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			watcher := kapi.Watcher(path.Join(etcdDataSource.ClusterName(), "workspace-update"), nil)
+			defer cancel()
+			_, err := watcher.Next(ctx)
+			if err != nil {
+				continue
+			}
+			etcdDataSource.UpdateWorkspace()
+		}
+	}()
 	// serving http booter
 	go func() {
 		err := pxe.ServeHTTPBooter(httpBooterAddr, etcdDataSource, webAddr.Port)

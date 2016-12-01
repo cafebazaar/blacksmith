@@ -152,8 +152,7 @@ type DataSource interface {
 	// WorkspaceHash returns workspace hash
 	GetWorkspaceHash() (string, error)
 
-	// WorkspaceHash update workspace hash
-	UpdateWorkspaceHash() error
+	UpdateSignal() error
 
 	// GetVariable get etcd variable
 	GetVariable(string) (string, error)

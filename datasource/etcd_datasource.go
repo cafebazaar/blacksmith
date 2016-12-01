@@ -15,8 +15,6 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"strconv"
-
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	git "github.com/libgit2/git2go"
@@ -115,6 +113,14 @@ func (ds *EtcdDataSource) get(keyPath string) (string, error) {
 	return response.Node.Value, nil
 }
 
+// create expects absolute key path
+func (ds *EtcdDataSource) create(keyPath string, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := ds.keysAPI.Create(ctx, keyPath, value)
+	return err
+}
+
 // get expects absolute key path
 func (ds *EtcdDataSource) getArray(keyPath string) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -142,6 +148,17 @@ func (ds *EtcdDataSource) delete(keyPath string) error {
 	defer cancel()
 	_, err := ds.keysAPI.Delete(ctx, keyPath, nil)
 	return err
+}
+
+func (ds *EtcdDataSource) watchOnce(keyPath string) (*etcd.Response, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3600*time.Second)
+	watcher := ds.keysAPI.Watcher(keyPath, nil)
+	defer cancel()
+	resp, err := watcher.Next(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // GetClusterVariable returns a cluster variables with the given name
@@ -210,22 +227,27 @@ func (ds *EtcdDataSource) GetWorkspaceHash() (string, error) {
 	return workspaceHash, err
 }
 
-// UpdateWorkspaceHash update worspace hash
-func (ds *EtcdDataSource) UpdateWorkspaceHash() error {
+func (ds *EtcdDataSource) UpdateSignal() error {
+	err := ds.set(path.Join(ds.ClusterName(), "workspace-update"), hashGenerator())
+	return err
+}
+
+func hashGenerator() string {
+
 	h := md5.New()
 	io.WriteString(h, time.Now().String())
 	io.WriteString(h, "00f468d3bde3")
 
 	hashStr := fmt.Sprintf("%x", h.Sum(nil))
-	ds.set(path.Join(ds.ClusterName(), "workspace-hash"), hashStr)
 
-	log.Info(hashStr)
-	return nil
+	return hashStr
 }
 
 // UpdateWorkspace updates workspace
 func (ds *EtcdDataSource) UpdateWorkspace() error {
 
+	var erro error
+	erro = nil
 	cloneOptions := &git.CloneOptions{}
 	// use FetchOptions instead of directly RemoteCallbacks
 	// https://github.com/libgit2/git2go/commit/36e0a256fe79f87447bb730fda53e5cbc90eb47c
@@ -240,13 +262,6 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 				return 0
 			},
 		},
-	}
-
-	val, err := ds.get(path.Join(ds.ClusterName(), "workspace-hash"))
-	if err != nil || len(val) < 1 {
-		ds.UpdateWorkspaceHash()
-	} else {
-		log.Info("Hash is:" + val)
 	}
 
 	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
@@ -264,26 +279,105 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 		return err
 	}
 
-	err = ds.set(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-commit-hash"), localCommit.Id().String())
-	if err != nil {
-		return err
-	}
-	rev, err := ds.get(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-revision"))
-	if err != nil {
-		log.Error(err.Error())
-		rev = "0"
-	}
-	revInt, err := strconv.Atoi(rev)
-	revInt += 1
-	if err != nil {
-		log.Error(err.Error())
-	}
-	err = ds.set(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-revision"), strconv.Itoa(revInt))
+	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonLessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
 	if err != nil {
 		return err
 	}
 
-	return nil
+	err = ds.create(path.Join(ds.ClusterName(), "workspace-lock"), hashGenerator())
+	alreadyExists := false
+	if cErr, ok := err.(etcd.Error); ok {
+		if cErr.Code == etcd.ErrorCodeNodeExist {
+			alreadyExists = true
+		}
+	}
+	if alreadyExists {
+		log.Info("Already locked!")
+		ds.watchOnce(path.Join(ds.ClusterName(), "workspace-lock"))
+		log.Info("Unlocked!")
+	} else {
+		log.Info("Locked!")
+		defer func() {
+			err = ds.delete(path.Join(ds.ClusterName(), "workspace-lock"))
+			if err != nil {
+				erro = err
+			}
+		}()
+	}
+
+	c := make(chan bool)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	ops := &etcd.GetOptions{Recursive: true}
+	response, err := ds.keysAPI.Get(ctx, path.Join(ds.ClusterName(), "blacksmith-instances"), ops)
+	if err != nil {
+		return err
+	}
+
+	for _, node := range response.Node.Nodes {
+		go func(c chan bool, node *etcd.Node) {
+			defer func() { c <- true }()
+			for {
+
+				workspaceCommit, err := ds.get(path.Join(node.Key, "workspace-commit-hash"))
+
+				if err != nil {
+					log.Error(err.Error())
+					continue
+				}
+
+				oid, _ := git.NewOid(workspaceCommit)
+				log.Info("Local commit: ", localCommit.Id())
+				log.Info("Node commit: ", oid)
+
+				log.Info("commit behind HEAD: ", localCommit.Id().Cmp(oid))
+				log.Info("Checking ", path.Join(node.Key, "workspace-commit-hash"))
+
+				if localCommit.Id().Cmp(oid) == -1 {
+					resp, err := ds.watchOnce(path.Join(node.Key, "workspace-commit-hash"))
+					if err != nil {
+						log.Error(err.Error())
+						continue
+					}
+
+					if resp != nil {
+						break
+					}
+				} else {
+					break
+				}
+			}
+
+		}(c, node)
+	}
+
+	for range response.Node.Nodes {
+		<-c
+	}
+
+	err = ds.set(path.Join(ds.ClusterName(), "workspace-hash"), hashGenerator())
+	if err != nil {
+		return err
+	}
+
+	//rev, err := ds.get(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-revision"))
+	//if err != nil {
+	//	log.Error(err.Error())
+	//	rev = "0"
+	//}
+	//revInt, err := strconv.Atoi(rev)
+	//revInt += 1
+	//if err != nil {
+	//	log.Error(err.Error())
+	//}
+	//err = ds.set(path.Join(ds.ClusterName(), "workspace-revision"), strconv.Itoa(revInt))
+	//if err != nil {
+	//	return err
+	//}
+
+	return erro
 }
 
 // ClusterName returns the name of the cluster
@@ -406,6 +500,42 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		selfInfo:        selfInfo,
 	}
 
+	cloneOptions := &git.CloneOptions{}
+	// use FetchOptions instead of directly RemoteCallbacks
+	// https://github.com/libgit2/git2go/commit/36e0a256fe79f87447bb730fda53e5cbc90eb47c
+	cloneOptions.FetchOptions = &git.FetchOptions{
+		RemoteCallbacks: git.RemoteCallbacks{
+			CredentialsCallback: func(url string, username string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
+				ret, cred := git.NewCredSshKey("git", path.Join(ds.workspacePath, "id_rsa.pub"),
+					path.Join(ds.workspacePath, "id_rsa"), "")
+				return git.ErrorCode(ret), &cred
+			},
+			CertificateCheckCallback: func(cert *git.Certificate, valid bool, hostname string) git.ErrorCode {
+				return 0
+			},
+		},
+	}
+
+	os.RemoveAll(path.Join(workspacePath, "repo"))
+	cloned, err := git.Clone(workspaceRepo, path.Join(workspacePath, "repo"), cloneOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	head, err := cloned.Head()
+	if err != nil {
+		return nil, err
+	}
+	localCommit, err := cloned.LookupCommit(head.Target())
+	if err != nil {
+		return nil, err
+	}
+
+	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonLessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
+	if err != nil {
+		return nil, err
+	}
+
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
@@ -443,27 +573,9 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
 	}
 
-	cloneOptions := &git.CloneOptions{}
-	// use FetchOptions instead of directly RemoteCallbacks
-	// https://github.com/libgit2/git2go/commit/36e0a256fe79f87447bb730fda53e5cbc90eb47c
-	cloneOptions.FetchOptions = &git.FetchOptions{
-		RemoteCallbacks: git.RemoteCallbacks{
-			CredentialsCallback: func(url string, username string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
-				ret, cred := git.NewCredSshKey("git", path.Join(ds.workspacePath, "id_rsa.pub"),
-					path.Join(ds.workspacePath, "id_rsa"), "")
-				return git.ErrorCode(ret), &cred
-			},
-			CertificateCheckCallback: func(cert *git.Certificate, valid bool, hostname string) git.ErrorCode {
-				return 0
-			},
-		},
-	}
-
-	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
-	_, err = git.Clone(ds.workspaceRepo, path.Join(ds.workspacePath, "repo"), cloneOptions)
+	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonLessMacToMac(selfInfo.Nic.String()), "ip"), selfInfo.IP.String())
 	if err != nil {
 		return nil, err
 	}
-
 	return ds, nil
 }

@@ -141,7 +141,7 @@ function initEtcd {
 
 function runBlacksmith {
     sudo docker rm -f blacksmith 2>/dev/null || true
-    sudo docker run --name blacksmith --restart=always --net=host  -v `pwd`/workspaces/current:/workspaces 192.168.101.177:5000/blacksmith:v0.10 \
+    sudo docker run --name blacksmith --restart=always --net=host  -v `pwd`/workspaces/current:/workspaces 192.168.101.177:5000/blacksmith:v0.10.3 \
         -workspace /workspaces \
         -etcd http://${HostIP}:2379 \
         -if $HOSTONLY \

@@ -63,6 +63,9 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 		"pathSplit": func(pathStr string) string {
 			return ""
 		},
+		"join": func(str string) string {
+			return ""
+		},
 	})
 
 	for i := range files {
@@ -147,6 +150,9 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 			_, file := path.Split(pathStr)
 			return file
 		},
+		"join": func(str1 string, str2 string) string {
+			return strings.Join([]string{str1, str2}, "")
+		},
 	})
 
 	etcdMembers, _ := ds.EtcdMembers()
@@ -187,7 +193,7 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 
 // ExecuteTemplateFolder returns a string compiled from using the files in the
 // specified directory, starting from `main` file inside the directory.
-func ExecuteTemplateFolder(tmplFolder string,
+func ExecuteTemplateFolder(tmplFolder string, templateFile string,
 	ds datasource.DataSource, machineInterface datasource.MachineInterface,
 	webServerAddr string) (string, error) {
 
@@ -197,5 +203,5 @@ func ExecuteTemplateFolder(tmplFolder string,
 			tmplFolder, err)
 	}
 
-	return executeTemplate(template, "main", ds, machineInterface, webServerAddr)
+	return executeTemplate(template, templateFile, ds, machineInterface, webServerAddr)
 }

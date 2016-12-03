@@ -1,4 +1,4 @@
-.PHONY: help clean docker push test prepare_test prepare_test_ws prepare_test_etcd
+.PHONY: help clean blacksmith docker push test prepare_test prepare_test_ws prepare_test_etcd
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  dependencies to install the dependencies"
@@ -52,20 +52,25 @@ prepare_test_etcd:
 
 prepare_test: prepare_test_ws prepare_test_etcd
 
-test: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
+test: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go 
 	$(GO) get -t -v ./...
 	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -v ./...
 
-dependencies: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
+dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go
 	$(GO) get -v
 	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
-blacksmith: *.go */*.go pxe/pxelinux_autogen.go web/ui_autogen.go
+blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)" -o blacksmith
+
+templating/files_autogen.go:  templating/files
+	$(GO) get github.com/mjibson/esc
+	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
 
 pxe/pxelinux_autogen.go: pxe/pxelinux
 	$(GO) get github.com/mjibson/esc
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
+
 
 EXTERNAL_FILES := web/static/bower_components/angular/angular.min.js web/static/bower_components/angular-route/angular-route.min.js web/static/bower_components/angular-resource/angular-resource.min.js web/static/bower_components/angular-xeditable/dist/js/xeditable.min.js web/static/bower_components/jquery/dist/jquery.min.js web/static/bower_components/bootstrap/dist/js/bootstrap.min.js web/static/bower_components/bootstrap/dist/css/bootstrap.css web/static/bower_components/angular-xeditable/dist/css/xeditable.css
 web/static/external: $(EXTERNAL_FILES)
@@ -82,7 +87,7 @@ web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/stat
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
 
 clean:
-	rm -rf blacksmith pxe/pxelinux_autogen.go web/ui_autogen.go web/static/external web/static/fonts
+	rm -rf blacksmith pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
 
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE):$(VERSION) .

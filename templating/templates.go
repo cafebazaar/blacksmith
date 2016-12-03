@@ -14,86 +14,28 @@ import (
 	"github.com/cafebazaar/blacksmith/datasource"
 )
 
-func findFiles(path string) ([]string, error) {
-	infos, err := ioutil.ReadDir(path)
-	if err != nil {
-		return nil, err
+func templateFuncsDefault() map[string]interface{} {
+
+	emptyStringFunc := func(key string) string {
+		return ""
 	}
 
-	var files []string
-	for i := range infos {
-		if !infos[i].IsDir() && infos[i].Name()[0] != '.' {
-			files = append(files, infos[i].Name())
-		}
+	return map[string]interface{}{
+		"machine_variable": emptyStringFunc,
+		"cluster_variable": emptyStringFunc,
+		"array_variable":   emptyStringFunc,
+		"b64":              emptyStringFunc,
+		"b64template":      emptyStringFunc,
+		"render":           emptyStringFunc,
+		"variable":         emptyStringFunc,
+		"b64file":          emptyStringFunc,
+		"pathSplit":        emptyStringFunc,
+		"join":             emptyStringFunc,
 	}
-	return files, nil
 }
 
-//FromPath creates templates from the files located in the specifed path
-func templateFromPath(tmplPath string) (*template.Template, error) {
-	files, err := findFiles(tmplPath)
-	if err != nil {
-		return nil, fmt.Errorf("error while trying to list files in%s: %s", tmplPath, err)
-	}
-
-	t := template.New("")
-	t.Delims("<<", ">>")
-	t.Funcs(map[string]interface{}{
-		"machine_variable": func(key string) string {
-			return ""
-		},
-		"cluster_variable": func(key string) string {
-			return ""
-		},
-		"array_variable": func(key string) string {
-			return ""
-		},
-		"b64": func(text string) string {
-			return ""
-		},
-		"b64template": func(templateName string) string {
-			return ""
-		},
-		"variable": func(key string) string {
-			return ""
-		},
-		"b64file": func(fileName string) string {
-			return ""
-		},
-		"pathSplit": func(pathStr string) string {
-			return ""
-		},
-		"join": func(str string) string {
-			return ""
-		},
-	})
-
-	for i := range files {
-		files[i] = path.Join(tmplPath, files[i])
-	}
-
-	t, err = t.ParseFiles(files...)
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
-}
-
-func executeTemplate(rootTemplte *template.Template, templateName string,
-	ds datasource.DataSource, machineInterface datasource.MachineInterface,
-	webServerAddr string) (string, error) {
-	template := rootTemplte.Lookup(templateName)
-
-	if template == nil {
-		return "", fmt.Errorf("template with name=%s wasn't found for root=%v",
-			templateName, rootTemplte)
-	}
-
-	mac := machineInterface.Mac().String()
-
-	buf := new(bytes.Buffer)
-	template.Funcs(map[string]interface{}{
+func templateFuncs(rootTemplate *template.Template, ds datasource.DataSource, machineInterface datasource.MachineInterface) map[string]interface{} {
+	return map[string]interface{}{
 		"machine_variable": func(key string) string {
 			value, err := machineInterface.GetVariable(key)
 			if err != nil {
@@ -130,14 +72,24 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 			return base64.StdEncoding.EncodeToString([]byte(text))
 		},
 		"b64template": func(templateName string) string {
-			text, err := executeTemplate(rootTemplte, templateName, ds, machineInterface, webServerAddr)
+			text, err := executeGeneralTemplate(rootTemplate, templateName, ds, machineInterface)
 			if err != nil {
 				log.WithField("where", "templating.executeTemplate").WithError(err).Warnf(
 					"error while executeTemplate(templateName=%s machine=%s)",
-					templateName, mac)
+					templateName, machineInterface.Mac().String())
 				return ""
 			}
 			return base64.StdEncoding.EncodeToString([]byte(text))
+		},
+		"render": func(templateName string) string {
+			text, err := executeGeneralTemplate(rootTemplate, templateName, ds, machineInterface)
+			if err != nil {
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warnf(
+					"error while executeTemplate(templateName=%s machine=%s)",
+					templateName, machineInterface.Mac().String())
+				return ""
+			}
+			return text
 		},
 		"b64file": func(fileName string) string {
 			text, err := ioutil.ReadFile(path.Join(ds.WorkspacePath(), fileName))
@@ -153,7 +105,94 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		"join": func(str1 string, str2 string) string {
 			return strings.Join([]string{str1, str2}, "")
 		},
-	})
+	}
+}
+
+func findFiles(pathStr string) ([]string, error) {
+	infos, err := ioutil.ReadDir(pathStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []string
+	for i := range infos {
+		if !infos[i].IsDir() && infos[i].Name()[0] != '.' {
+			files = append(files, infos[i].Name())
+		}
+	}
+
+	return files, nil
+}
+
+func executeGeneralTemplate(rootTemplate *template.Template, templateName string, ds datasource.DataSource, machineInterface datasource.MachineInterface) (string, error) {
+	text, err := executeTemplate(rootTemplate, templateName, ds, machineInterface)
+	if err != nil {
+		log.WithField("where", "templating.executeTemplate").WithError(err).Warnf(
+			"error while executeTemplate(templateName=%s machine=%s)",
+			templateName, machineInterface.Mac().String())
+		tmpl, err := FSString(false, "/files/"+templateName)
+		if err != nil {
+			log.Error("Ebedded template not found: " + err.Error())
+			return "", err
+		}
+		text, err = ExecuteTemplateFile(tmpl, ds, machineInterface)
+		if err != nil {
+			log.Error("Ebedded template can't be rendered: " + err.Error())
+			return "", err
+		}
+	}
+	return text, nil
+}
+
+//FromPath creates templates from the files located in the specifed path
+func templateFromPath(tmplPath string) (*template.Template, error) {
+	files, err := findFiles(tmplPath)
+	if err != nil {
+		return nil, fmt.Errorf("error while trying to list files in%s: %s", tmplPath, err)
+	}
+
+	t := template.New("")
+	t.Delims("<<", ">>")
+	t.Funcs(templateFuncsDefault())
+
+	for i := range files {
+		files[i] = path.Join(tmplPath, files[i])
+	}
+
+	t, err = t.ParseFiles(files...)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+//FromPath creates templates from the files located in the specifed path
+func templateForFile(tmpl string) (*template.Template, error) {
+
+	t := template.New("")
+	t.Delims("<<", ">>")
+	t.Funcs(templateFuncsDefault())
+
+	t, err := t.Parse(tmpl)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
+func ExecuteTemplateFile(tmpl string,
+	ds datasource.DataSource, machineInterface datasource.MachineInterface) (string, error) {
+
+	mac := machineInterface.Mac().String()
+
+	t := template.New("")
+	t.Delims("<<", ">>")
+	t.Funcs(templateFuncs(t, ds, machineInterface))
+
+	buf := new(bytes.Buffer)
+	t, err := t.Parse(tmpl)
 
 	etcdMembers, _ := ds.EtcdMembers()
 	etcdEndpoints, _ := ds.EtcdEndpoints()
@@ -178,10 +217,63 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 		machineInterface.Hostname(),
 		ds.ClusterName(),
 		ds.FileServer(),
-		webServerAddr,
+		ds.WebServer(),
 		etcdMembers,
 		etcdEndpoints,
 	}
+
+	t.Execute(buf, &data)
+
+	if err != nil {
+		return "", err
+	}
+	str := buf.String()
+	str = strings.Trim(str, "\n")
+	return str, nil
+}
+
+func executeTemplate(rootTemplate *template.Template, templateName string,
+	ds datasource.DataSource, machineInterface datasource.MachineInterface) (string, error) {
+	template := rootTemplate.Lookup(templateName)
+
+	if template == nil {
+		return "", fmt.Errorf("template with name=%s wasn't found for root=%v",
+			templateName, rootTemplate)
+	}
+
+	mac := machineInterface.Mac().String()
+
+	buf := new(bytes.Buffer)
+	template.Funcs(templateFuncs(rootTemplate, ds, machineInterface))
+
+	etcdMembers, _ := ds.EtcdMembers()
+	etcdEndpoints, _ := ds.EtcdEndpoints()
+
+	machine, err := machineInterface.Machine(false, nil)
+	if err != nil {
+		return "", err
+	}
+
+	data := struct {
+		Mac              string
+		IP               string
+		Hostname         string
+		Domain           string
+		FileServerAddr   string
+		WebServerAddr    string
+		EtcdEndpoints    string
+		EtcdCtlEndpoints string
+	}{
+		mac,
+		machine.IP.String(),
+		machineInterface.Hostname(),
+		ds.ClusterName(),
+		ds.FileServer(),
+		ds.WebServer(),
+		etcdMembers,
+		etcdEndpoints,
+	}
+
 	err = template.ExecuteTemplate(buf, templateName, &data)
 	if err != nil {
 		return "", err
@@ -194,8 +286,7 @@ func executeTemplate(rootTemplte *template.Template, templateName string,
 // ExecuteTemplateFolder returns a string compiled from using the files in the
 // specified directory, starting from `main` file inside the directory.
 func ExecuteTemplateFolder(tmplFolder string, templateFile string,
-	ds datasource.DataSource, machineInterface datasource.MachineInterface,
-	webServerAddr string) (string, error) {
+	ds datasource.DataSource, machineInterface datasource.MachineInterface) (string, error) {
 
 	template, err := templateFromPath(tmplFolder)
 	if err != nil {
@@ -203,5 +294,5 @@ func ExecuteTemplateFolder(tmplFolder string, templateFile string,
 			tmplFolder, err)
 	}
 
-	return executeTemplate(template, templateFile, ds, machineInterface, webServerAddr)
+	return executeTemplate(template, templateFile, ds, machineInterface)
 }

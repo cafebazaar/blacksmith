@@ -1,0 +1,1 @@
+<< if (machine_variable "state") | eq "unknown">> coreos.first_boot=1<<end>>

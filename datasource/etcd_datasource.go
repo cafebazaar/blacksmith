@@ -40,6 +40,7 @@ type EtcdDataSource struct {
 	workspacePath   string
 	workspaceRepo   string
 	fileServer      string
+	webServer       string
 	dhcpAssignLock  *sync.Mutex
 	instanceEtcdKey string // HA
 	selfInfo        InstanceInfo
@@ -53,6 +54,14 @@ func (ds *EtcdDataSource) WorkspacePath() string {
 // FileServer returns the path to the workspace
 func (ds *EtcdDataSource) FileServer() string {
 	return ds.fileServer
+}
+
+func (ds *EtcdDataSource) WebServer() string {
+	return ds.webServer
+}
+
+func (ds *EtcdDataSource) SetWebServer(addr string) {
+	ds.webServer = addr
 }
 
 // WorkspaceRepo returns the workspace repository URL
@@ -361,21 +370,6 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 	if err != nil {
 		return err
 	}
-
-	//rev, err := ds.get(path.Join(ds.ClusterName(), "machines", strings.Replace(ds.selfInfo.Nic.String(), ":", "", 6), "workspace-revision"))
-	//if err != nil {
-	//	log.Error(err.Error())
-	//	rev = "0"
-	//}
-	//revInt, err := strconv.Atoi(rev)
-	//revInt += 1
-	//if err != nil {
-	//	log.Error(err.Error())
-	//}
-	//err = ds.set(path.Join(ds.ClusterName(), "workspace-revision"), strconv.Itoa(revInt))
-	//if err != nil {
-	//	return err
-	//}
 
 	return erro
 }

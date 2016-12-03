@@ -128,7 +128,7 @@ function initEtcd {
         -p 4001:4001 \
         -p 2380:2380 \
         -p 2379:2379 \
-        --name blacksmith-dev-etcd quay.io/coreos/etcd:v2.2.4 \
+        --name blacksmith-dev-etcd quay.io/coreos/etcd:v2.2.3 \
         -name etcd0 \
         -advertise-client-urls http://${HostIP}:2379,http://${HostIP}:4001 \
         -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
@@ -141,7 +141,7 @@ function initEtcd {
 
 function runBlacksmith {
     sudo docker rm -f blacksmith 2>/dev/null || true
-    sudo docker run --name blacksmith --restart=always --net=host  -v `pwd`/workspaces/current:/workspaces 192.168.101.177:5000/blacksmith:v0.10.3 \
+    sudo docker run -it --name blacksmith --restart=always --net=host  -v `pwd`/workspaces/current:/workspaces quay.io/cafebazaar/blacksmith:v0.10 \
         -workspace /workspaces \
         -etcd http://${HostIP}:2379 \
         -if $HOSTONLY \
@@ -151,7 +151,7 @@ function runBlacksmith {
         -lease-range 10 \
         -dns 8.8.8.8 \
         -debug \
-        -http-listen :8000 \
+        -http-listen ${HostIP}:8000 \
         -workspace-repo git@git.cafebazaar.ir:ali.javadi/blacksmith-kubernetes.git
 }
 

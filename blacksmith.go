@@ -25,6 +25,7 @@ import (
 
 //go:generate esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
 //go:generate esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/static
+//go:generate esc -o templating/files_autogen.go -prefix=templating -pkg templating templating/files
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
@@ -237,19 +238,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// go func() {
+	webAddrPointer := &(webAddr)
+	etcdDataSource.SetWebServer(webAddrPointer.String())
 
-	// 	watcher := kapi.Watcher(path.Join(etcdDataSource.ClusterName(), "workspace-commit-hash"), nil)
-	// 	for {
-	// 		ctx, cancel := context.WithTimeout(context.Background(), 3600*time.Second)
-	// 		defer cancel()
-	// 		resp, _ := watcher.Next(ctx)
-	// 		if resp != nil {
-	// 			etcdDataSource.UpdateWorkspace()
-	// 		}
-	// 	}
-	// }()
-	// serving api
 	go func() {
 		err := web.ServeWeb(etcdDataSource, webAddr)
 		log.Fatalf("\nError while serving api: %s\n", err)

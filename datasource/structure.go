@@ -154,6 +154,9 @@ type DataSource interface {
 
 	UpdateSignal() error
 
+	WebServer() string
+	SetWebServer(string)
+
 	// GetVariable get etcd variable
 	GetVariable(string) (string, error)
 

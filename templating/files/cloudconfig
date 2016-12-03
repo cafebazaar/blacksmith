@@ -1,0 +1,58 @@
+#cloud-config
+coreos:
+  update:
+    reboot-strategy: etcd-lock
+  units:
+    - name: workspace-updater.service
+      command: start
+      content: |
+        [Unit]
+        Description=Blacksmith Kubernetes Workspace Updater
+        Documentation=https://github.com/cafebazaar/blacksmith-kubernetes
+        [Service]
+        ExecStart=/usr/bin/bash /var/lib/blacksmith/workspace-updater.sh
+        Restart=always
+        RestartSec=10
+        [Install]
+        WantedBy=multi-user.target
+<< if (machine_variable "blacksmith-server") | eq "true">> 
+    - name: install-bootstrapper.service
+      command: start
+      content: |
+        [Unit]
+        Description=Initializes the machine
+        Requires=early-docker.service
+        After=etcd.service etcd2.service early-docker.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/tmp/install-bootstrapper.sh <<(machine_variable "internal_interface_name")>>
+
+        [Install]
+        WantedBy=multi-user.target
+<< end >>
+
+write_files:
+  - path: /var/lib/blacksmith/workspace-updater.sh
+    encoding: "base64"
+    permissions: "0774"
+    owner: "root"
+    content: << b64template "workspace-updater.sh" >>
+<< if (machine_variable "blacksmith-server") | eq "true">>
+  - path: /tmp/install-bootstrapper.sh
+    encoding: "base64"
+    permissions: "0744"
+    owner: "root"
+    content: << b64template "install-bootstrapper.sh" >>
+  - path: /var/lib/blacksmith/workspaces/initial.yaml
+    encoding: "base64"
+    permissions: "0744"
+    owner: "root"
+    content: << b64template "initial.yaml" >>    
+<< end >>
+
+ssh_authorized_keys:
+<< range $index, $element := (array_variable "ssh-keys") >>
+  - << $element.Value >>
+<<end>>
+

@@ -16,3 +16,9 @@
     border-top-width: 0;
     border-bottom: 4px solid #000000;
 }
+td {
+  max-width: 500px
+}
+span {
+  word-wrap: break-word;
+}

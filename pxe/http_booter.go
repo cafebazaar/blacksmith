@@ -117,17 +117,26 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params, err := templating.ExecuteTemplateFolder(
-		path.Join(b.datasource.WorkspacePath(), "repo", "config", "bootparams"), "main", b.datasource, machineInterface, r.Host)
-	if err != nil {
-		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Warn(
-			"error while executing the template")
-		http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err),
-			http.StatusInternalServerError)
-		return
+	var ccuser string
+	_, err = os.Stat(path.Join(b.datasource.WorkspacePath(), "repo", "config", "bootparams", "main"))
+	if !os.IsNotExist(err) {
+		ccuser, err = templating.ExecuteTemplateFolder(
+			path.Join(b.datasource.WorkspacePath(), "repo", "config", "bootparams"), "main", b.datasource, machineInterface)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err), 500)
+		}
 	}
 
-	params = strings.Replace(params, "\n", " ", -1)
+	tmpl, err := templating.FSString(false, "/files/bootparams")
+	if err != nil {
+		http.Error(w, "Ebedded template not found: "+err.Error(), 500)
+	}
+	ccbase, err := templating.ExecuteTemplateFile(tmpl, b.datasource, machineInterface)
+	if err != nil {
+		http.Error(w, "Ebedded template can't be rendered: "+err.Error(), 500)
+	}
+
+	params := strings.Replace(ccbase+ccuser, "\n", " ", -1)
 
 	Cmdline := fmt.Sprintf(
 		"cloud-config-url=http://%s:%d/t/cc/%s "+

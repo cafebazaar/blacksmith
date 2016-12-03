@@ -24,7 +24,6 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/t/bp/").HandlerFunc(ws.Bootparams).Methods("GET")
 
 	mux.HandleFunc("/api/version", ws.Version)
-	mux.HandleFunc("/api/render", ws.Render)
 
 	mux.HandleFunc("/api/machines", ws.MachinesList)
 	mux.HandleFunc("/api/machines/{mac}", ws.MachineDelete).Methods("DELETE")
@@ -70,6 +69,7 @@ func logHandler(h http.Handler) http.Handler {
 
 //ServeWeb serves api of Blacksmith and a ui connected to that api
 func ServeWeb(ds datasource.DataSource, listenAddr net.TCPAddr) error {
+
 	r := &webServer{ds: ds}
 
 	logWriter := log.StandardLogger().Writer()

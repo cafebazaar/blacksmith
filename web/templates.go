@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"path"
 
+	"os"
+
 	"github.com/cafebazaar/blacksmith/templating"
 )
 
@@ -29,17 +31,29 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 		return ""
 	}
 
-	cc, err := templating.ExecuteTemplateFolder(
-		path.Join(ws.ds.WorkspacePath(), "repo", "config", templateName), "main", ws.ds, machineInterface, r.Host)
+	var ccuser string
+	_, err = os.Stat(path.Join(ws.ds.WorkspacePath(), "repo", "config", templateName, "main"))
+	if !os.IsNotExist(err) {
+		ccuser, err = templating.ExecuteTemplateFolder(
+			path.Join(ws.ds.WorkspacePath(), "repo", "config", templateName), "main", ws.ds, machineInterface)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err), 500)
+		}
+	}
+
+	tmpl, err := templating.FSString(false, "/files/"+templateName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err), 500)
-		return ""
+		http.Error(w, "Ebedded template not found: "+err.Error(), 500)
+	}
+	ccbase, err := templating.ExecuteTemplateFile(tmpl, ws.ds, machineInterface)
+	if err != nil {
+		http.Error(w, "Ebedded template can't be rendered: "+err.Error(), 500)
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(cc))
+	w.Write([]byte(ccbase + "\n" + ccuser))
 
-	return cc
+	return ccuser
 }
 
 // Cloudconfig generates and writes cloudconfig for the machine specified by the
@@ -64,29 +78,3 @@ func (ws *webServer) Bootparams(w http.ResponseWriter, r *http.Request) {
 	ws.generateTemplateForMachine("bootparams", w, r)
 }
 
-func (ws *webServer) Render(w http.ResponseWriter, r *http.Request) {
-	macStr := r.URL.Query().Get("mac")
-	pathStr := r.URL.Query().Get("path")
-	mac, err := net.ParseMAC(macStr)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`Error while parsing the mac: %q`, err), 500)
-		return
-	}
-
-	machineInterface := ws.ds.MachineInterface(mac)
-	_, err = machineInterface.Machine(false, nil)
-	if err != nil {
-		http.Error(w, "Machine not found", 404)
-		return
-	}
-
-	cc, err := templating.ExecuteTemplateFolder(
-		path.Join(ws.ds.WorkspacePath()), pathStr, ws.ds, machineInterface, r.Host)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err), 500)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(cc))
-}

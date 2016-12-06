@@ -10,7 +10,8 @@
 ###############################################################################
 ## Begin: Hack, until https://github.com/cafebazaar/blacksmith/issues/30 is fixed
 
-etcdctl set "/skydns/<<(cluster_variable "cluster_name")>>/<<(cluster_variable "<<.Hostname>>")>>" "{\"host\":\"<< (cluster_variable "bootstrapper1_ip") >>\"}"
+etcdctl set "/skydns/<<(cluster_variable "cluster_name")>>/<<(machine_variable "hostname")>>" "{\"host\":\"<<.IP>>\"}"
+etcdctl set "/skydns/<<(cluster_variable "cluster_name")>>/master/<<(machine_variable "hostname")>>" "{\"host\":\"<<.IP>>\"}"
 
 
 ## End: Hack, until https://github.com/cafebazaar/blacksmith/issues/30 is fixed

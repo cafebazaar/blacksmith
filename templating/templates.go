@@ -132,12 +132,12 @@ func executeGeneralTemplate(rootTemplate *template.Template, templateName string
 			templateName, machineInterface.Mac().String())
 		tmpl, err := FSString(false, "/files/"+templateName)
 		if err != nil {
-			log.Error("Ebedded template not found: " + err.Error())
+			log.Info("Ebedded template not found, attempting to use base: " + err.Error())
 			return "", err
 		}
 		text, err = ExecuteTemplateFile(tmpl, ds, machineInterface)
 		if err != nil {
-			log.Error("Ebedded template can't be rendered: " + err.Error())
+			log.Info("Ebedded template can't be rendered, attempting to use base: " + err.Error())
 			return "", err
 		}
 	}

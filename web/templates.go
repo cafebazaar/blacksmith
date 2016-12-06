@@ -53,7 +53,7 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 	w.Header().Set("Content-Type", "text/plain")
 	w.Write([]byte(ccbase + "\n" + ccuser))
 
-	return ccuser
+	return (ccbase + "\n" + ccuser)
 }
 
 // Cloudconfig generates and writes cloudconfig for the machine specified by the
@@ -77,4 +77,3 @@ func (ws *webServer) Ignition(w http.ResponseWriter, r *http.Request) {
 func (ws *webServer) Bootparams(w http.ResponseWriter, r *http.Request) {
 	ws.generateTemplateForMachine("bootparams", w, r)
 }
-

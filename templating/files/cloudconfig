@@ -15,7 +15,7 @@ coreos:
         RestartSec=10
         [Install]
         WantedBy=multi-user.target
-{{ if (machine_variable "blacksmith-server") | eq "true"}} 
+{{ if (machine_variable "blacksmith_server") | eq "true"}} 
     - name: install-bootstrapper.service
       command: start
       content: |
@@ -38,7 +38,7 @@ write_files:
     permissions: "0774"
     owner: "root"
     content: {{ b64template "workspace-updater.sh" }}
-{{ if (machine_variable "blacksmith-server") | eq "true"}}
+{{ if (machine_variable "blacksmith_server") | eq "true"}}
   - path: /tmp/install-bootstrapper.sh
     encoding: "base64"
     permissions: "0744"

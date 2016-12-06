@@ -152,7 +152,7 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 	}
 
 	t := template.New("")
-	t.Delims("<<", ">>")
+	t.Delims("{{", "}}")
 	t.Funcs(templateFuncsDefault())
 
 	for i := range files {
@@ -171,7 +171,7 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 func templateForFile(tmpl string) (*template.Template, error) {
 
 	t := template.New("")
-	t.Delims("<<", ">>")
+	t.Delims("{{", "}}")
 	t.Funcs(templateFuncsDefault())
 
 	t, err := t.Parse(tmpl)
@@ -188,7 +188,7 @@ func ExecuteTemplateFile(tmpl string,
 	mac := machineInterface.Mac().String()
 
 	t := template.New("")
-	t.Delims("<<", ">>")
+	t.Delims("{{", "}}")
 	t.Funcs(templateFuncs(t, ds, machineInterface))
 
 	buf := new(bytes.Buffer)

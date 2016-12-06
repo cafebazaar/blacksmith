@@ -15,7 +15,7 @@ coreos:
         RestartSec=10
         [Install]
         WantedBy=multi-user.target
-<< if (machine_variable "blacksmith-server") | eq "true">> 
+{{ if (machine_variable "blacksmith-server") | eq "true"}} 
     - name: install-bootstrapper.service
       command: start
       content: |
@@ -26,51 +26,51 @@ coreos:
 
         [Service]
         Type=oneshot
-        ExecStart=/tmp/install-bootstrapper.sh <<(machine_variable "internal_interface_name")>>
+        ExecStart=/tmp/install-bootstrapper.sh {{(machine_variable "internal_interface_name")}}
 
         [Install]
         WantedBy=multi-user.target
-<< end >>
+{{ end }}
 
 write_files:
   - path: /var/lib/blacksmith/workspace-updater.sh
     encoding: "base64"
     permissions: "0774"
     owner: "root"
-    content: << b64template "workspace-updater.sh" >>
-<< if (machine_variable "blacksmith-server") | eq "true">>
+    content: {{ b64template "workspace-updater.sh" }}
+{{ if (machine_variable "blacksmith-server") | eq "true"}}
   - path: /tmp/install-bootstrapper.sh
     encoding: "base64"
     permissions: "0744"
     owner: "root"
-    content: << b64template "install-bootstrapper.sh" >>
+    content: {{ b64template "install-bootstrapper.sh" }}
   - path: /var/lib/blacksmith/workspaces/initial.yaml
     encoding: "base64"
     permissions: "0744"
     owner: "root"
-    content: << b64template "initial.yaml" >>    
+    content: {{ b64template "initial.yaml" }}    
 
   - path: /var/lib/blacksmith/workspaces/initial.yaml
     encoding: "base64"
     permissions: "0744"
     owner: "root"
-    content: << b64template "initial.yaml" >>
+    content: {{ b64template "initial.yaml" }}
 
   - path: /var/lib/blacksmith/workspaces/id_rsa
     encoding: "base64"
     permissions: "0744"
     owner: "root"
-    content: << b64file "id_rsa" >>
+    content: {{ b64file "id_rsa" }}
 
   - path: /var/lib/blacksmith/workspaces/id_rsa.pub
     encoding: "base64"
     permissions: "0744"
     owner: "root"
-    content: << b64file "id_rsa.pub" >>
-<< end >>
+    content: {{ b64file "id_rsa.pub" }}
+{{ end }}
 
 ssh_authorized_keys:
-<< range $index, $element := (array_variable "ssh-keys") >>
-  - << $element.Value >>
-<<end>>
+{{ range $index, $element := (array_variable "ssh-keys") }}
+  - {{ $element.Value }}
+{{end}}
 

@@ -33,7 +33,7 @@
         "group": {
             "id": 0
         },
-        "contents": { "source": "data:text/plain;base64,<< b64template "workspace-installer.sh" >>" }
+        "contents": { "source": "data:text/plain;base64,{{ b64template "workspace-installer.sh" }}" }
       }
     ]
   }

@@ -182,7 +182,7 @@ func (ds *EtcdDataSource) GetArrayVariable(key string) (interface{}, error) {
 
 // GetClusterArrayVariable returns a cluster variables with the given name
 func (ds *EtcdDataSource) GetVariable(key string) (string, error) {
-	return ds.get(path.Join(ds.ClusterName(), key))
+	return ds.get(key)
 }
 
 func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, error) {

@@ -49,13 +49,6 @@ write_files:
     permissions: "0744"
     owner: "root"
     content: {{ b64template "initial.yaml" }}    
-
-  - path: /var/lib/blacksmith/workspaces/initial.yaml
-    encoding: "base64"
-    permissions: "0744"
-    owner: "root"
-    content: {{ b64template "initial.yaml" }}
-
   - path: /var/lib/blacksmith/workspaces/id_rsa
     encoding: "base64"
     permissions: "0744"

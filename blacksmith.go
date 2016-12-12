@@ -19,6 +19,7 @@ import (
 
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/dhcp"
+	"github.com/cafebazaar/blacksmith/dns"
 	"github.com/cafebazaar/blacksmith/pxe"
 	"github.com/cafebazaar/blacksmith/web"
 )
@@ -179,6 +180,8 @@ func main() {
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}
 	var tftpAddr = net.UDPAddr{IP: serverIP, Port: 69}
 	var pxeAddr = net.UDPAddr{IP: serverIP, Port: 4011}
+	var dnsUDPAddr = net.UDPAddr{IP: serverIP, Port: 53}
+	var dnsTCPAddr = net.TCPAddr{IP: serverIP, Port: 53}
 	// 67 -> dhcp
 
 	// dhcp setting
@@ -242,6 +245,10 @@ func main() {
 	etcdDataSource.SetWebServer(webAddrPointer.String())
 
 	go func() {
+		dns.ServeDNS(dnsTCPAddr, dnsUDPAddr, etcdDataSource)
+	}()
+
+	go func() {
 		err := web.ServeWeb(etcdDataSource, webAddr)
 		log.Fatalf("\nError while serving api: %s\n", err)
 	}()
@@ -251,6 +258,19 @@ func main() {
 	go func() {
 		for _ = range c {
 			gracefulShutdown(etcdDataSource)
+		}
+	}()
+
+	go func() {
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			watcher := kapi.Watcher(path.Join(etcdDataSource.ClusterName(), "workspace-update"), nil)
+			defer cancel()
+			_, err := watcher.Next(ctx)
+			if err != nil {
+				continue
+			}
+			etcdDataSource.UpdateWorkspace()
 		}
 	}()
 
@@ -268,18 +288,6 @@ func main() {
 		"action": "debug",
 	}).Debug("Now we're the master instance. Starting the services...")
 
-	go func() {
-		for {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			watcher := kapi.Watcher(path.Join(etcdDataSource.ClusterName(), "workspace-update"), nil)
-			defer cancel()
-			_, err := watcher.Next(ctx)
-			if err != nil {
-				continue
-			}
-			etcdDataSource.UpdateWorkspace()
-		}
-	}()
 	// serving http booter
 	go func() {
 		err := pxe.ServeHTTPBooter(httpBooterAddr, etcdDataSource, webAddr.Port)

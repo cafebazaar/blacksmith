@@ -34,7 +34,12 @@ if [[ -f ".vbox_network_hostonly_if" ]]; then HOSTONLY=$(cat .vbox_network_hosto
 # NAT network interface name
 NATNAME="NatNetwork"
 # detects which interface connects us to the Internet, needed for bridge
-INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$')
+INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$' || true)
+if [[ -z "$INTERTNETIF" ]]; then
+    echo "Default route not found"
+    exit 1
+fi
+
 # number of bootstrapper, 3 is good enough usually
 BOOTSTRAPPERS=3
 # number of workers

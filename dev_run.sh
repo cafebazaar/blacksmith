@@ -31,8 +31,6 @@ HostIP="172.19.1.1"
 # hostonly network name, it is "vboxnet0" by default and we have less control for what it should be it seems
 HOSTONLY="vboxnet0"
 if [[ -f ".vbox_network_hostonly_if" ]]; then HOSTONLY=$(cat .vbox_network_hostonly_if); fi
-# NAT network interface name
-NATNAME="NatNetwork"
 # detects which interface connects us to the Internet, needed for bridge
 INTERTNETIF=$(route | grep '^default' | grep -o '[^ ]*$')
 # number of bootstrapper, 3 is good enough usually

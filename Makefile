@@ -18,6 +18,8 @@ OS ?= linux
 ARCH ?= amd64
 VERSION ?= $(shell git describe --tags)
 COMMIT := $(shell git rev-parse HEAD)
+PRIKEY ?= ~/.ssh/id_rsa
+PUBKEY ?= ~/.ssh/id_rsa.pub
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DOCKER_IMAGE ?= quay.io/cafebazaar/blacksmith
 ETCD_ENDPOINT ?= http://127.0.0.1:20379
@@ -32,8 +34,13 @@ ETCD_RELEASE_VERSION ?= v2.3.7
 prepare_test_ws:
 	rm -rf $(DUMMY_WORKSPACE)
 	mkdir -p $(DUMMY_WORKSPACE)
-	echo "coreos-version: 1068.2.0" > $(DUMMY_WORKSPACE)/initial.yaml
-	echo "net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> $(DUMMY_WORKSPACE)/initial.yaml
+	cp $(PUBKEY) $(DUMMY_WORKSPACE)
+	cp $(PRIKEY) $(DUMMY_WORKSPACE)
+	echo "cluster-variables:" > $(DUMMY_WORKSPACE)/initial.yaml
+	echo "  coreos-version: \"1068.2.0\"" >> $(DUMMY_WORKSPACE)/initial.yaml
+	echo "  net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> $(DUMMY_WORKSPACE)/initial.yaml
+	echo "ssh-keys:" >> $(DUMMY_WORKSPACE)/initial.yaml
+	echo "  user: \"$(shell cat $(PUBKEY))\"" >> $(DUMMY_WORKSPACE)/initial.yaml
 
 prepare_test_etcd:
 	docker kill blacksmith-test-etcd || echo "wasn't running"

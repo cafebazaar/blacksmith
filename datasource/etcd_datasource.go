@@ -288,7 +288,7 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 		return err
 	}
 
-	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonLessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
+	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
 	if err != nil {
 		return err
 	}
@@ -525,7 +525,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		return nil, err
 	}
 
-	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonLessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
+	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +567,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
 	}
 
-	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonLessMacToMac(selfInfo.Nic.String()), "ip"), selfInfo.IP.String())
+	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(selfInfo.Nic.String()), "ip"), selfInfo.IP.String())
 	if err != nil {
 		return nil, err
 	}

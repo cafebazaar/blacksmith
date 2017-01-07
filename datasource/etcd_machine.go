@@ -265,20 +265,20 @@ func (m *etcdMachineInterface) selfDelete(key string) error {
 
 func macFromName(name string) (net.HardwareAddr, error) {
 	name = strings.Split(name, ".")[0]
-	return net.ParseMAC(colonLessMacToMac(name))
+	return net.ParseMAC(colonlessMacToMac(name))
 }
 
-func colonLessMacToMac(colonLess string) string {
-	coloned := colonLess
-	if strings.Index(colonLess, ":") == -1 {
-		var tmpmac bytes.Buffer
-		for i := 0; i < 12; i++ { // colon-less mac address length
-			tmpmac.WriteString(colonLess[i : i+1])
-			if i%2 == 1 {
-				tmpmac.WriteString(":")
-			}
-		}
-		coloned = tmpmac.String()[:len(tmpmac.String())-1]
+func colonlessMacToMac(colonless string) string {
+	if strings.Index(colonless, ":") != -1 {
+		return colonless
 	}
-	return coloned
+
+	var buf bytes.Buffer
+	for i, c := range colonless {
+		if i != 0 && i%2 == 0 {
+			buf.WriteString(":")
+		}
+		buf.WriteString(string(c))
+	}
+	return buf.String()
 }

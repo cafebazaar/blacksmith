@@ -178,7 +178,7 @@ func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) 
 	var err error
 	machineInterface.DeleteVariable(name)
 	if err != nil {
-		http.Error(w, `{"error": "Error while delleting value"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error": "Error while deleting value"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -224,7 +224,7 @@ func (ws *webServer) DelClusterVariables(w http.ResponseWriter, r *http.Request)
 	err := ws.ds.DeleteClusterVariable(name)
 
 	if err != nil {
-		http.Error(w, `{"error": "Error while delleting value"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error": "Error while deleting value"}`, http.StatusInternalServerError)
 		return
 	}
 

@@ -115,9 +115,9 @@ func findFiles(pathStr string) ([]string, error) {
 	}
 
 	var files []string
-	for i := range infos {
-		if !infos[i].IsDir() && infos[i].Name()[0] != '.' {
-			files = append(files, infos[i].Name())
+	for _, info := range infos {
+		if !info.IsDir() && info.Name()[0] != '.' {
+			files = append(files, info.Name())
 		}
 	}
 

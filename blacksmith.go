@@ -256,7 +256,7 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		for _ = range c {
+		for range c {
 			gracefulShutdown(etcdDataSource)
 		}
 	}()

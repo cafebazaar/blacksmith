@@ -9,7 +9,7 @@ import (
 )
 
 func TestExecuteTemplate(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		inputTemplteRoot *template.Template
 		templateName     string
 		webServerAddr    string
@@ -27,7 +27,7 @@ func TestExecuteTemplate(t *testing.T) {
 		return
 	}
 
-	for i, tt := range tests {
+	for i, tt := range cases {
 		got, err := executeTemplate(
 			tt.inputTemplteRoot, tt.templateName,
 			ds, ds.MachineInterface(mac1))

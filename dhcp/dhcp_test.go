@@ -9,7 +9,7 @@ import (
 )
 
 func TestDnsAddressesForDHCP(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		input    []datasource.InstanceInfo
 		expected []byte
 	}{
@@ -23,7 +23,7 @@ func TestDnsAddressesForDHCP(t *testing.T) {
 		},
 	}
 
-	for i, tt := range tests {
+	for i, tt := range cases {
 		got := dnsAddressesForDHCP(&tt.input)
 		if res := bytes.Compare(tt.expected, got); res != 0 {
 			t.Errorf(

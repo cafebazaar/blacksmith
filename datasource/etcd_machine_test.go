@@ -129,7 +129,7 @@ func TestLeaseRange(t *testing.T) {
 }
 
 func TestColonlessMacToMac(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		mac       string
 		colonless string
 	}{
@@ -142,7 +142,7 @@ func TestColonlessMacToMac(t *testing.T) {
 		{colonless: "FF:FF:FF:FF:FF:FF", mac: "FF:FF:FF:FF:FF:FF"},
 		{colonless: "01:23:45:67:89:AB", mac: "01:23:45:67:89:AB"},
 	}
-	for _, tt := range tests {
+	for _, tt := range cases {
 		if got, want := colonlessMacToMac(tt.colonless), tt.mac; got != want {
 			t.Errorf("colonlessMacToMac(%q): got %q, want %q", tt.colonless, got, want)
 		}

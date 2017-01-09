@@ -3,7 +3,7 @@ package datasource
 import "testing"
 
 func TestValidateVariable(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		key   string
 		value string
 		err   bool
@@ -30,7 +30,7 @@ func TestValidateVariable(t *testing.T) {
 			`{"netmask":"invalid"}`, true},
 	}
 
-	for i, tt := range tests {
+	for i, tt := range cases {
 		got := validateVariable(tt.key, tt.value)
 		if tt.err && got == nil {
 			t.Errorf("#%d: expected error, got nil", i)

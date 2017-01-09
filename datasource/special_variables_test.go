@@ -21,7 +21,7 @@ func TestValidateVariable(t *testing.T) {
 		// NetworkConfiguration
 		{SpecialKeyNetworkConfiguration,
 			`{"netmask":"255.255.255.0"}`, false},
-		// TODO: This should be invalid becuase the 23th bit of 5.6.7.0 is 1
+		// TODO: This should be invalid because the 23th bit of 5.6.7.0 is 1
 		{SpecialKeyNetworkConfiguration,
 			`{"netmask":"255.255.255.0", "router": "172.19.1.1", "classlessRouteOption": [{"router": "172.19.1.2", "size":23, "destination": "5.6.7.0"}]}`, false},
 

@@ -36,6 +36,6 @@ func TestEtcdMembers(t *testing.T) {
 
 	// It's not easy to know the exact value in all the test environment
 	if !(strings.Contains(got, "etcd0=") && strings.HasSuffix(got, "80")) {
-		t.Error("expecting EtcdMembers result to conatins etcd0= and ends with 80, got:", got)
+		t.Error("expecting EtcdMembers result to contains etcd0= and ends with 80, got:", got)
 	}
 }

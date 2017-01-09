@@ -38,13 +38,13 @@ func ServeTFTP(listenAddr net.UDPAddr) error {
 					"where":   "pxe.ServeTFTP",
 					"action":  "tftp-transfer",
 					"subject": path,
-				}).Warnf("error while transfering to %s", clientAddr.String())
+				}).Warnf("error while transferring to %s", clientAddr.String())
 			} else {
 				log.WithFields(log.Fields{
 					"where":   "pxe.ServeTFTP",
 					"action":  "tftp-transfer",
 					"subject": path,
-				}).Debugf("transfered to %s", clientAddr.String())
+				}).Debugf("transferred to %s", clientAddr.String())
 			}
 		},
 	}

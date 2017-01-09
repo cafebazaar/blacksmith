@@ -144,7 +144,7 @@ func executeGeneralTemplate(rootTemplate *template.Template, templateName string
 	return text, nil
 }
 
-//FromPath creates templates from the files located in the specifed path
+//FromPath creates templates from the files located in the specified path
 func templateFromPath(tmplPath string) (*template.Template, error) {
 	files, err := findFiles(tmplPath)
 	if err != nil {
@@ -167,7 +167,7 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 	return t, nil
 }
 
-//FromPath creates templates from the files located in the specifed path
+//FromPath creates templates from the files located in the specified path
 func templateForFile(tmpl string) (*template.Template, error) {
 
 	t := template.New("")

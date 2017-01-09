@@ -52,7 +52,7 @@ var (
 	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 	dnsAddressesFlag  = flag.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")
 
-	leaseStartFlag = flag.String("lease-start", "", "Begining of lease starting IP")
+	leaseStartFlag = flag.String("lease-start", "", "Beginning of lease starting IP")
 	leaseRangeFlag = flag.Int("lease-range", 0, "Lease range")
 
 	version   string

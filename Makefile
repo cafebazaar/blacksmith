@@ -40,7 +40,7 @@ prepare_test_ws:
 	echo "  coreos-version: \"1068.2.0\"" >> $(DUMMY_WORKSPACE)/initial.yaml
 	echo "  net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> $(DUMMY_WORKSPACE)/initial.yaml
 	echo "ssh-keys:" >> $(DUMMY_WORKSPACE)/initial.yaml
-	echo "  user: \"$(shell cat $(PUBKEY))\"" >> $(DUMMY_WORKSPACE)/initial.yaml
+	echo "  current-user: \"$(shell cat $(PUBKEY))\"" >> $(DUMMY_WORKSPACE)/initial.yaml
 
 prepare_test_etcd:
 	docker kill blacksmith-test-etcd || echo "wasn't running"

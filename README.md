@@ -1,5 +1,6 @@
 # Blacksmith, Bare-Metal CoreOS Cluster Manager
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/cafebazaar/blacksmith)](https://goreportcard.com/report/github.com/cafebazaar/blacksmith)
 [![Travis widget]][Travis] [![wercker widget]][wercker] [![Quay widget]][Quay]
 ![Status](https://img.shields.io/badge/status-under%20development-orange.svg)
 

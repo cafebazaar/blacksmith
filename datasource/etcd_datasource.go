@@ -273,6 +273,10 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 		},
 	}
 
+	if ds.selfInfo.DebugMode == "true" {
+		cloneOptions.CheckoutBranch = "dev"
+	}
+
 	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
 	cloned, err := git.Clone(ds.workspaceRepo, path.Join(ds.workspacePath, "repo"), cloneOptions)
 	if err != nil {

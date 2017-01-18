@@ -58,6 +58,7 @@ var (
 	version   string
 	commit    string
 	buildTime string
+	debugMode string
 )
 
 func init() {
@@ -70,6 +71,9 @@ func init() {
 	}
 	if buildTime == "" {
 		buildTime = "unknown"
+	}
+	if debugMode == "" {
+		debugMode = "false"
 	}
 }
 
@@ -231,6 +235,7 @@ func main() {
 		Version:          version,
 		Commit:           commit,
 		BuildTime:        buildTime,
+		DebugMode:        debugMode,
 		ServiceStartTime: time.Now().UTC().Unix(),
 	}
 	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,

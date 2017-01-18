@@ -79,6 +79,7 @@ type InstanceInfo struct {
 	Version          string           `json:"version"`
 	Commit           string           `json:"commit"`
 	BuildTime        string           `json:"buildTime"`
+	DebugMode        string           `json:"debugMode"`
 	ServiceStartTime int64            `json:"serviceStartTime"`
 }
 

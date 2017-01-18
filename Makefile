@@ -18,9 +18,17 @@ OS ?= linux
 ARCH ?= amd64
 VERSION ?= $(shell git describe --tags)
 COMMIT := $(shell git rev-parse HEAD)
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+DOCKER_TAG := $(shell echo ${BRANCH:-latest}) 
+ifeq ($(BRANCH), "master")
+        DOCKER_TAG := "latest"
+else
+        DOCKER_TAG := $(BRANCH)
+endif
 PRIKEY ?= ~/.ssh/id_rsa
 PUBKEY ?= ~/.ssh/id_rsa.pub
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
+DEV_MODE := false
 DOCKER_IMAGE ?= quay.io/cafebazaar/blacksmith
 ETCD_ENDPOINT ?= http://127.0.0.1:20379
 
@@ -59,16 +67,21 @@ prepare_test_etcd:
 
 prepare_test: prepare_test_ws prepare_test_etcd
 
-test: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go 
+gotest: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go 
 	$(GO) get -t -v ./...
 	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -v ./...
+
+dev: DEV_MODE=true
+dev: blacksmith docker
+
+production: blacksmith docker		
 
 dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go
 	$(GO) get -v
 	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
 blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go
-	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)" -o blacksmith
+	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME) -X main.debugMode=$(DEV_MODE)" -o blacksmith
 
 templating/files_autogen.go:  templating/files
 	$(GO) get github.com/mjibson/esc
@@ -97,9 +110,7 @@ clean:
 	rm -rf blacksmith pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
 
 docker: blacksmith
-	docker build -t $(DOCKER_IMAGE):$(VERSION) .
-	docker tag $(DOCKER_IMAGE):$(VERSION) $(DOCKER_IMAGE)
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 
 push: docker
-	docker push $(DOCKER_IMAGE):$(VERSION)
-	docker push $(DOCKER_IMAGE)
+	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)

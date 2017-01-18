@@ -160,6 +160,7 @@ func main() {
 
 	// web api can be configured to listen on a custom address
 	webAddr := net.TCPAddr{IP: serverIP, Port: 8000}
+	webAddrSwagger := net.TCPAddr{IP: serverIP, Port: 8001}
 	if *httpListenFlag != httpListenFlagDefaultTCPAddress {
 		splitAddress := strings.Split(*httpListenFlag, ":")
 		if len(splitAddress) > 2 {
@@ -256,6 +257,11 @@ func main() {
 	go func() {
 		err := web.ServeWeb(etcdDataSource, webAddr)
 		log.Fatalf("\nError while serving api: %s\n", err)
+	}()
+
+	go func() {
+		err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger)
+		log.Fatalf("\nError while serving swagger api: %s\n", err)
 	}()
 
 	c := make(chan os.Signal, 1)

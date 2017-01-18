@@ -2,13 +2,18 @@ package web // import "github.com/cafebazaar/blacksmith/web"
 
 import (
 	"net"
-	"net/http"
 
 	log "github.com/Sirupsen/logrus"
+
+	"net/http"
+
+	"github.com/go-openapi/loads"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"github.com/cafebazaar/blacksmith/datasource"
+	"github.com/cafebazaar/blacksmith/swagger/restapi"
+	"github.com/cafebazaar/blacksmith/swagger/restapi/operations"
 )
 
 type webServer struct {
@@ -68,21 +73,49 @@ func logHandler(h http.Handler) http.Handler {
 //ServeWeb serves api of Blacksmith and a ui connected to that api
 func ServeWeb(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 
-	r := &webServer{ds: ds}
-
-	logWriter := log.StandardLogger().Writer()
-	defer logWriter.Close()
-
-	loggedRouter := handlers.LoggingHandler(logWriter, r.Handler())
-	s := &http.Server{
-		Addr:    listenAddr.String(),
-		Handler: loggedRouter,
-	}
-
+	ws := &webServer{ds: ds}
 	log.WithFields(log.Fields{
 		"where":  "web.ServeWeb",
 		"action": "announce",
 	}).Infof("Listening on %s", listenAddr.String())
 
+	logWriter := log.StandardLogger().Writer()
+	defer logWriter.Close()
+
+	loggedRouter := handlers.LoggingHandler(logWriter, ws.Handler())
+	s := &http.Server{
+		Addr:    listenAddr.String(),
+		Handler: loggedRouter,
+	}
+
 	return s.ListenAndServe()
+}
+
+func ServeSwaggerAPI(ds datasource.DataSource, listenAddr net.TCPAddr) error {
+
+	ws := &webServer{ds: ds}
+
+	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	api := operations.NewSalesmanAPI(swaggerSpec)
+
+	api.DeleteVariablesClusterKeyHandler = operations.DeleteVariablesClusterKeyHandlerFunc(ws.swaggerDeleteVariablesClusterKeyHandler)
+	api.DeleteVariablesNodesMacKeyHandler = operations.DeleteVariablesNodesMacKeyHandlerFunc(ws.swaggerDeleteVariablesNodesMacKeyHandler)
+	api.GetNodesHandler = operations.GetNodesHandlerFunc(ws.swaggerGetNodesHander)
+	api.GetVariablesClusterHandler = operations.GetVariablesClusterHandlerFunc(ws.swaggerGetVariablesClusterHandler)
+	api.GetVariablesClusterKeyHandler = operations.GetVariablesClusterKeyHandlerFunc(ws.swaggerGetVariablesClusterKeyHandler)
+	api.GetVariablesNodesMacHandler = operations.GetVariablesNodesMacHandlerFunc(ws.swaggerGetVariablesNodesMacHandler)
+	api.GetVariablesNodesMacKeyHandler = operations.GetVariablesNodesMacKeyHandlerFunc(ws.swaggerGetVariablesNodesMacKeyHandler)
+	api.GetWorkspaceHandler = operations.GetWorkspaceHandlerFunc(ws.swaggerGetWorkspaceHandler)
+	api.PostVariablesClusterKeyHandler = operations.PostVariablesClusterKeyHandlerFunc(ws.swaggerPostVariablesClusterKeyHandler)
+	api.PostVariablesNodesMacKeyHandler = operations.PostVariablesNodesMacKeyHandlerFunc(ws.swaggerPostVariablesNodesMacKeyHandler)
+	api.PostWorkspaceHandler = operations.PostWorkspaceHandlerFunc(ws.swaggerPostWorkspaceHandler)
+
+	server := restapi.NewServer(api)
+	server.Port = listenAddr.Port
+	defer server.Shutdown()
+	return server.Serve()
 }

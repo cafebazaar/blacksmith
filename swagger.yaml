@@ -1,0 +1,221 @@
+swagger: '2.0'
+
+info:
+  version: "0.0.0"
+  title: Salesman
+
+schemes:
+  - http
+
+host: localhost
+basePath: /api/v1
+
+definitions:
+  Workspace:
+    properties:
+      commit:
+        type: string
+  Node:
+    properties:
+      ip:
+        type: string
+      mac:
+        type: string
+      status:
+        type: string
+      age:
+        type: integer
+      lastHeartbeat:
+        type: string
+        format: date
+  Variable:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+  Variables:
+    type: array
+    items:
+      $ref: "#/definitions/Variable"
+  Nodes:
+    type: array
+    items:
+      $ref: "#/definitions/Node"
+  Error:
+    properties:
+      message:
+        type: string
+
+# securityDefinitions:
+#   UserSecurity:
+#     type: apiKey
+#     in: header
+#     name: SIMPLE-API-KEY
+#
+# security:
+# - UserSecurity: []
+
+responses:
+  Standard500ErrorResponse:
+    description: An unexpected error occured.
+    schema:
+      $ref: "#/definitions/Error"
+
+parameters:
+  key:
+    name: key
+    in: path
+    required: true
+    description: Variable key
+    type: string
+  value:
+    name: value
+    in: query
+    required: true
+    description: Variable value
+    type: string
+  mac:
+    name: mac
+    in: path
+    description: Node MAC Address
+    required: true
+    type: string
+
+paths:
+  /nodes:
+    get:
+      description: Get node objects.
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Nodes"
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+
+  /workspace:
+    get:
+      description: Get the current workspace.
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Workspace"
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+
+    post:
+      description: Set the current workspace.
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Workspace"
+        404:
+          description: Workspace not found
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+
+  /variables/cluster/{key}:
+    get:
+      description: Get a cluster variable.
+      parameters:
+        - $ref: "#/parameters/key"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Variable"
+        404:
+          description: Cluster variable not found.
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+    delete:
+      description: Delete a cluster variable.
+      parameters:
+        - $ref: "#/parameters/key"
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Cluster variable not found.
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+    post:
+      description: Set a cluster variable.
+      parameters:
+        - $ref: "#/parameters/key"
+        - $ref: "#/parameters/value"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Variable"
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+
+  /variables/cluster:
+    get:
+      description: Set a cluster variable.
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Variables"
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+
+  /variables/nodes/{mac}:
+    get:
+      description: Get node variables.
+      parameters:
+        - $ref: "#/parameters/mac"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Variables"
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+
+  /variables/nodes/{mac}/{key}:
+    get:
+      description: Get a node variable.
+      parameters:
+        - $ref: "#/parameters/mac"
+        - $ref: "#/parameters/key"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Variable"
+        404:
+          description: Node variable not found.
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+    delete:
+      description: Delete a node variable.
+      parameters:
+        - $ref: "#/parameters/mac"
+        - $ref: "#/parameters/key"
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Node variable not found.
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+    post:
+      description: Set a node variable.
+      parameters:
+        - $ref: "#/parameters/mac"
+        - $ref: "#/parameters/key"
+        - $ref: "#/parameters/value"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Variable"
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"

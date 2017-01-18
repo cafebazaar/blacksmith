@@ -15,6 +15,7 @@ templating/files_autogen.go
 web/ui_autogen.go
 web/static/external
 web/static/fonts
+swagger/
 
 # local
 example/example

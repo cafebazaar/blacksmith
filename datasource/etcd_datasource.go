@@ -514,6 +514,10 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		},
 	}
 
+	if ds.selfInfo.DebugMode == "true" {
+		cloneOptions.CheckoutBranch = "dev"
+	}
+
 	os.RemoveAll(path.Join(workspacePath, "repo"))
 	cloned, err := git.Clone(workspaceRepo, path.Join(workspacePath, "repo"), cloneOptions)
 	if err != nil {

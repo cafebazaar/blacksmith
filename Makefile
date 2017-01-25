@@ -126,7 +126,6 @@ blacksmith-agent:
 	@GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -o $@ -ldflags="$(LD_FLAGS)" github.com/cafebazaar/blacksmith/cmd/blacksmith-agent
 
 gofmt.diff: *.go */*.go */*/*.go
-	@mkdir -p build
 	@gofmt -d $^ > $@
 
 golint: $(GOLINT_BIN)

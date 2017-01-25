@@ -112,8 +112,8 @@ clean:
 	rm -rf blacksmith blacksmithctl blacksmith-agent gofmt.diff swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
 
 docker: blacksmith
-	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
-	docker build -t $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG) .
+	docker build -f Dockerfile -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+	docker build -f Dockerfile.agent -t $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG) .
 
 push: docker
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)

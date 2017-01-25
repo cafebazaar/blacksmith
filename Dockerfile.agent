@@ -1,0 +1,8 @@
+FROM ubuntu:latest
+
+RUN apt-get update
+
+ENTRYPOINT ["/app/blacksmith-agent"]
+WORKDIR /app
+
+COPY blacksmith-agent /app/

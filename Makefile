@@ -28,12 +28,15 @@ PRIKEY ?= ~/.ssh/id_rsa
 PUBKEY ?= ~/.ssh/id_rsa.pub
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DEV_MODE := false
-DOCKER_IMAGE ?= quay.io/cafebazaar/blacksmith
+DOCKER_IMAGE       ?= quay.io/cafebazaar/blacksmith
+AGENT_DOCKER_IMAGE ?= quay.io/cafebazaar/blacksmith-agent
 ETCD_ENDPOINT ?= http://127.0.0.1:20379
 
 #  Variables (only used for test)
 DUMMY_WORKSPACE ?= /tmp/blacksmith/workspaces/test-workspace
 ETCD_RELEASE_VERSION ?= v2.3.7
+
+LD_FLAGS := -s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME) -X main.debugMode=$(DEV_MODE)
 
 ################################################################
 #  Tasks
@@ -79,8 +82,8 @@ dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go we
 	$(GO) get -v
 	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
-blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger blacksmithctl
-	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME) -X main.debugMode=$(DEV_MODE)" -o blacksmith
+blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger blacksmithctl blacksmith-agent
+	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags="$(LD_FLAGS)" -o blacksmith
 
 templating/files_autogen.go:  templating/files
 	$(GO) get github.com/mjibson/esc
@@ -106,16 +109,31 @@ web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/stat
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
 
 clean:
-	rm -rf blacksmith blacksmithctl swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
+	rm -rf blacksmith blacksmithctl blacksmith-agent gofmt.diff swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
 
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+	docker build -t $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG) .
 
 push: docker
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
+	docker push $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG)
 
 blacksmithctl:
-	@GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -o blacksmithctl github.com/cafebazaar/blacksmith/cmd/blacksmithctl
+	@GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -o $@ github.com/cafebazaar/blacksmith/cmd/blacksmithctl
+
+blacksmith-agent:
+	@GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -o $@ -ldflags="$(LD_FLAGS)" github.com/cafebazaar/blacksmith/cmd/blacksmith-agent
+
+gofmt.diff: *.go */*.go */*/*.go
+	@mkdir -p build
+	@gofmt -d $^ > $@
+
+golint: $(GOLINT_BIN)
+	@golint -set_exit_status ./...
+
+gofmt: gofmt.diff
+	@if [ -s $< ]; then echo 'gofmt found errors'; false; fi
 
 swagger:
 	$(GO) get github.com/go-swagger/go-swagger/cmd/swagger

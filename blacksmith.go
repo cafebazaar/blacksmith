@@ -260,8 +260,9 @@ func main() {
 	}()
 
 	go func() {
-		err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger)
-		log.Fatalf("\nError while serving swagger api: %s\n", err)
+		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger); err != nil {
+			log.Fatalf("\nError while serving swagger api: %s\n", err)
+		}
 	}()
 
 	c := make(chan os.Signal, 1)

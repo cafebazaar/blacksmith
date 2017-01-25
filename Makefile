@@ -83,7 +83,7 @@ dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go we
 	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
 blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger blacksmithctl blacksmith-agent
-	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags="$(LD_FLAGS)" -o blacksmith
+	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags="$(LD_FLAGS)" -o $@
 
 templating/files_autogen.go:  templating/files
 	$(GO) get github.com/mjibson/esc
@@ -111,7 +111,7 @@ web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/stat
 clean:
 	rm -rf blacksmith blacksmithctl blacksmith-agent gofmt.diff swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
 
-docker: blacksmith
+docker: blacksmith blacksmith-agent
 	docker build -f Dockerfile -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 	docker build -f Dockerfile.agent -t $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG) .
 
@@ -119,7 +119,7 @@ push: docker
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 	docker push $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG)
 
-blacksmithctl:
+blacksmithctl: swagger
 	@GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -o $@ github.com/cafebazaar/blacksmith/cmd/blacksmithctl
 
 blacksmith-agent:

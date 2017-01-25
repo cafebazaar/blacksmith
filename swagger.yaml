@@ -9,6 +9,10 @@ schemes:
 
 host: localhost
 basePath: /api/v1
+produces:
+  - application/json
+consumes:
+  - application/json
 
 definitions:
   Workspace:
@@ -29,6 +33,7 @@ definitions:
         type: string
         format: date
   Variable:
+    type: object
     properties:
       key:
         type: string
@@ -58,7 +63,7 @@ definitions:
 
 responses:
   Standard500ErrorResponse:
-    description: An unexpected error occured.
+    description: An unexpected error occured
     schema:
       $ref: "#/definitions/Error"
 
@@ -81,11 +86,17 @@ parameters:
     description: Node MAC Address
     required: true
     type: string
+  commit:
+    name: commit
+    in: query
+    required: true
+    description: Commit hash
+    type: string
 
 paths:
   /nodes:
     get:
-      description: Get node objects.
+      description: Get node objects
       responses:
         200:
           description: Successful response
@@ -96,7 +107,7 @@ paths:
 
   /workspace:
     get:
-      description: Get the current workspace.
+      description: Get the current workspace
       responses:
         200:
           description: Successful response
@@ -106,7 +117,9 @@ paths:
           $ref: "#/responses/Standard500ErrorResponse"
 
     post:
-      description: Set the current workspace.
+      description: Set the current workspace
+      parameters:
+        - $ref: "#/parameters/commit"
       responses:
         200:
           description: Successful response
@@ -119,7 +132,7 @@ paths:
 
   /variables/cluster/{key}:
     get:
-      description: Get a cluster variable.
+      description: Get a cluster variable
       parameters:
         - $ref: "#/parameters/key"
       responses:
@@ -128,22 +141,22 @@ paths:
           schema:
             $ref: "#/definitions/Variable"
         404:
-          description: Cluster variable not found.
+          description: Cluster variable not found
         500:
           $ref: "#/responses/Standard500ErrorResponse"
     delete:
-      description: Delete a cluster variable.
+      description: Delete a cluster variable
       parameters:
         - $ref: "#/parameters/key"
       responses:
         200:
           description: Successful response
         404:
-          description: Cluster variable not found.
+          description: Cluster variable not found
         500:
           $ref: "#/responses/Standard500ErrorResponse"
     post:
-      description: Set a cluster variable.
+      description: Set a cluster variable
       parameters:
         - $ref: "#/parameters/key"
         - $ref: "#/parameters/value"
@@ -157,7 +170,7 @@ paths:
 
   /variables/cluster:
     get:
-      description: Set a cluster variable.
+      description: Set a cluster variable
       responses:
         200:
           description: Successful response
@@ -168,7 +181,7 @@ paths:
 
   /variables/nodes/{mac}:
     get:
-      description: Get node variables.
+      description: Get node variables
       parameters:
         - $ref: "#/parameters/mac"
       responses:
@@ -181,7 +194,7 @@ paths:
 
   /variables/nodes/{mac}/{key}:
     get:
-      description: Get a node variable.
+      description: Get a node variable
       parameters:
         - $ref: "#/parameters/mac"
         - $ref: "#/parameters/key"
@@ -191,11 +204,11 @@ paths:
           schema:
             $ref: "#/definitions/Variable"
         404:
-          description: Node variable not found.
+          description: Node variable not found
         500:
           $ref: "#/responses/Standard500ErrorResponse"
     delete:
-      description: Delete a node variable.
+      description: Delete a node variable
       parameters:
         - $ref: "#/parameters/mac"
         - $ref: "#/parameters/key"
@@ -203,11 +216,11 @@ paths:
         200:
           description: Successful response
         404:
-          description: Node variable not found.
+          description: Node variable not found
         500:
           $ref: "#/responses/Standard500ErrorResponse"
     post:
-      description: Set a node variable.
+      description: Set a node variable
       parameters:
         - $ref: "#/parameters/mac"
         - $ref: "#/parameters/key"

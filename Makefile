@@ -1,4 +1,4 @@
-.PHONY: help clean blacksmith docker push test prepare_test prepare_test_ws prepare_test_etcd swagger
+.PHONY: help clean blacksmith docker push test prepare_test prepare_test_ws prepare_test_etcd
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  dependencies to install the dependencies"
@@ -79,7 +79,7 @@ dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go we
 	$(GO) get -v
 	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
-blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
+blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger blacksmithctl
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags "-s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME) -X main.debugMode=$(DEV_MODE)" -o blacksmith
 
 templating/files_autogen.go:  templating/files
@@ -106,7 +106,7 @@ web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/stat
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
 
 clean:
-	rm -rf blacksmith swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
+	rm -rf blacksmith blacksmithctl swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
 
 docker: blacksmith
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
@@ -114,8 +114,11 @@ docker: blacksmith
 push: docker
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 
+blacksmithctl:
+	@GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -o blacksmithctl github.com/cafebazaar/blacksmith/cmd/blacksmithctl
+
 swagger:
-	rm -rf swagger
 	$(GO) get github.com/go-swagger/go-swagger/cmd/swagger
-	swagger generate server swagger.yaml --target=swagger --exclude-main 2> /dev/null
+	swagger generate server swagger.yaml --target=swagger --exclude-main
+	swagger generate client swagger.yaml --target=swagger
 	$(GO) get ./swagger/...

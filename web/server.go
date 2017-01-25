@@ -7,7 +7,9 @@ import (
 
 	"net/http"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/loads"
+	"github.com/go-openapi/runtime"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
@@ -93,14 +95,17 @@ func ServeWeb(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 
 func ServeSwaggerAPI(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 
-	ws := &webServer{ds: ds}
-
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	ws := &webServer{ds: ds}
 	api := operations.NewSalesmanAPI(swaggerSpec)
+
+	api.ServeError = errors.ServeError
+	api.JSONConsumer = runtime.JSONConsumer()
+	api.JSONProducer = runtime.JSONProducer()
 
 	api.DeleteVariablesClusterKeyHandler = operations.DeleteVariablesClusterKeyHandlerFunc(ws.swaggerDeleteVariablesClusterKeyHandler)
 	api.DeleteVariablesNodesMacKeyHandler = operations.DeleteVariablesNodesMacKeyHandlerFunc(ws.swaggerDeleteVariablesNodesMacKeyHandler)
@@ -114,8 +119,10 @@ func ServeSwaggerAPI(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 	api.PostVariablesNodesMacKeyHandler = operations.PostVariablesNodesMacKeyHandlerFunc(ws.swaggerPostVariablesNodesMacKeyHandler)
 	api.PostWorkspaceHandler = operations.PostWorkspaceHandlerFunc(ws.swaggerPostWorkspaceHandler)
 
+	api.ServerShutdown = func() {}
+
 	server := restapi.NewServer(api)
-	server.Port = listenAddr.Port
 	defer server.Shutdown()
+	server.Port = listenAddr.Port
 	return server.Serve()
 }

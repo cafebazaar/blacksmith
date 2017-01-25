@@ -217,7 +217,6 @@ func (ws *webServer) swaggerDeleteVariablesClusterKeyHandler(params operations.D
 }
 
 func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.DeleteVariablesNodesMacKeyParams) middleware.Responder {
-	// DeleteVariablesNodesMacKey
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -235,5 +234,5 @@ func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.
 			WithPayload(&models.Error{err.Error()})
 	}
 
-	return operations.NewDeleteVariablesNodesMacKeyNotFound()
+	return operations.NewDeleteVariablesNodesMacKeyOK()
 }

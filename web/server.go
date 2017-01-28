@@ -1,9 +1,13 @@
 package web // import "github.com/cafebazaar/blacksmith/web"
 
 import (
+	"io/ioutil"
 	"net"
+	"os"
+	"path"
 
 	log "github.com/Sirupsen/logrus"
+	flags "github.com/jessevdk/go-flags"
 
 	"net/http"
 
@@ -94,7 +98,6 @@ func ServeWeb(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 }
 
 func ServeSwaggerAPI(ds datasource.DataSource, listenAddr net.TCPAddr) error {
-
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)
@@ -123,6 +126,37 @@ func ServeSwaggerAPI(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 
 	server := restapi.NewServer(api)
 	defer server.Shutdown()
-	server.Port = listenAddr.Port
+	configureTLS(server, ds, listenAddr.Port)
 	return server.Serve()
+}
+
+func configureTLS(s *restapi.Server, ds datasource.DataSource, port int) {
+	cert, err := ds.GetVariable(path.Join(ds.ClusterName(), "tls", "cert"))
+	log.Println(">>>>>>>", cert)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	key, err := ds.GetVariable(path.Join(ds.ClusterName(), "tls", "key"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	s.TLSPort = port
+	s.TLSCertificate = flags.Filename(tmpFile("cert.pem", cert).Name())
+	s.TLSCertificateKey = flags.Filename(tmpFile("key.pem", key).Name())
+}
+
+func tmpFile(name, content string) *os.File {
+	tmpfile, err := ioutil.TempFile("", name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		log.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return tmpfile
 }

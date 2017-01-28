@@ -37,14 +37,14 @@ const (
 		/images/{core-os-version}/coreos_production_pxe.vmlinuz
 		/initial.yaml
 `
-	httpListenFlagDefaultTCPAddress = "interface-ip:8000"
 )
 
 var (
 	versionFlag       = flag.Bool("version", false, "Print version info and exit")
 	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	listenIFFlag      = flag.String("if", "", "Interface name for DHCP and PXE to listen on")
-	httpListenFlag    = flag.String("http-listen", httpListenFlagDefaultTCPAddress, "IP range to listen on for web requests")
+	httpListenFlag    = flag.String("http-listen", "", "IP range to listen on for web UI requests")
+	apiListenFlag     = flag.String("api-listen", "", "IP range to listen on for Swagger API requests")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	workspaceRepo     = flag.String("workspace-repo", "", "Repository of workspace")
 	fileServer        = flag.String("file-server", "http://localhost/", "A HTTP server to serve needed files")
@@ -115,6 +115,25 @@ func gracefulShutdown(etcdDataSource datasource.DataSource) {
 	os.Exit(0)
 }
 
+func parseTCPAddr(addr string) net.TCPAddr {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		fmt.Printf("Incorrect tcp address provided: %s\n", addr)
+		os.Exit(1)
+	}
+
+	port, err := strconv.ParseInt(portStr, 10, 64)
+	if err != nil {
+		fmt.Printf("Incorrect tcp port provided: %s\n", portStr)
+		os.Exit(1)
+	}
+
+	return net.TCPAddr{
+		IP:   net.ParseIP(host),
+		Port: int(port),
+	}
+}
+
 func main() {
 	var err error
 	flag.Parse()
@@ -159,27 +178,8 @@ func main() {
 	}
 
 	// web api can be configured to listen on a custom address
-	webAddr := net.TCPAddr{IP: serverIP, Port: 8000}
-	webAddrSwagger := net.TCPAddr{IP: serverIP, Port: 8001}
-	if *httpListenFlag != httpListenFlagDefaultTCPAddress {
-		splitAddress := strings.Split(*httpListenFlag, ":")
-		if len(splitAddress) > 2 {
-			fmt.Printf("Incorrect tcp address provided: %s\n", *httpListenFlag)
-			os.Exit(1)
-		}
-		if len(splitAddress) == 1 {
-			splitAddress = append(splitAddress, "8000")
-		}
-
-		webAddr.IP = net.ParseIP(splitAddress[0])
-		port, err := strconv.ParseInt(splitAddress[1], 10, 64)
-
-		if err != nil {
-			fmt.Printf("Incorrect tcp address provided: %s\n", *httpListenFlag)
-			os.Exit(1)
-		}
-		webAddr.Port = int(port)
-	}
+	webAddr := parseTCPAddr(*httpListenFlag)
+	webAddrSwagger := parseTCPAddr(*apiListenFlag)
 
 	// other services are exposed just through the given interface, on hard coded ports
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}

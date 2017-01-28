@@ -35,7 +35,7 @@ func parseFlags() Options {
 		etcdEndpointsFlag = flag.String("etcd", "", "Etcd endpoints")
 		clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 		macAddrFlag       = flag.String("mac", "", "mac address")
-		serverFlag        = flag.String("server", "http://localhost:8000", "HTTP Server to send heartbeats and messages to")
+		serverFlag        = flag.String("server", "http://localhost:8080", "HTTP Server to send heartbeats and messages to")
 		versionFlag       = flag.Bool("version", false, "Print version info and exit")
 		debugFlag         = flag.Bool("debug", false, "Log more things")
 		traceFlag         = flag.Bool("trace", false, "[experimental] Enable runtime tracing")

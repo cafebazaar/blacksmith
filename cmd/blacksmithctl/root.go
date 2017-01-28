@@ -1,15 +1,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"net/http"
-	"net/url"
+	"log"
 	"os"
-	"path"
 	"strings"
-	"time"
 
+	httptransport "github.com/go-openapi/runtime/client"
+
+	"github.com/cafebazaar/blacksmith/swagger/client"
+	"github.com/go-openapi/strfmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,27 +25,31 @@ var RootCmd = &cobra.Command{
 	SilenceErrors: true,
 }
 
-func httpRequest(method, p string, values url.Values) (*http.Response, error) {
-	u, err := url.Parse("http://172.19.1.1:8000")
+func newSwaggerClient() *client.Salesman {
+	var host string
+	var ok bool
+
+	if host, ok = viper.Get("host").(string); !ok {
+		log.Fatalf("%q is not set in config", "host")
+	}
+
+	tlsClient, err := httptransport.TLSClient(httptransport.TLSClientOptions{
+		ServerName:  "localhost",
+		Certificate: "./certs/cert.pem",
+		Key:         "./certs/key.pem",
+		CA:          "./certs/cert.pem",
+	})
 	if err != nil {
-		return nil, err
-	}
-	u.Path = path.Join(u.Path, p)
-
-	req, err := http.NewRequest(method, u.String(), nil)
-	if err != nil {
-		return nil, err
+		log.Fatal("Error creating TLSClient:", err)
 	}
 
-	if values != nil {
-		req.URL.RawQuery = values.Encode()
-	}
-
-	timeout, _ := RootCmd.Flags().GetInt("timeout")
-	ctx, _ := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-	req = req.WithContext(ctx)
-	c := http.Client{}
-	return c.Do(req)
+	transport := httptransport.NewWithClient(
+		host,
+		client.DefaultBasePath,
+		client.DefaultSchemes,
+		tlsClient,
+	)
+	return client.New(transport, strfmt.NewFormats())
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.

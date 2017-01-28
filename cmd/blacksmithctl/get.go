@@ -3,35 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/cafebazaar/blacksmith/swagger/client"
 	"github.com/cafebazaar/blacksmith/swagger/client/operations"
-	httptransport "github.com/go-openapi/runtime/client"
-	"github.com/go-openapi/strfmt"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
-
-func newSwaggerClient() *client.Salesman {
-	// create the transport
-	var server string
-	var ok bool
-
-	if server, ok = viper.Get("server").(string); !ok {
-		fmt.Println("%q is not set in config", "server")
-		os.Exit(1)
-	}
-
-	transport := httptransport.New(
-		server,
-		client.DefaultBasePath,
-		client.DefaultSchemes,
-	)
-	return client.New(transport, strfmt.NewFormats())
-}
 
 var getCmd = &cobra.Command{
 	Use: "get",

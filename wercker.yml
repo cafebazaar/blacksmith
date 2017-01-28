@@ -11,6 +11,17 @@ build-and-test:
   steps:
     - setup-go-workspace
 
+    - install-packages:
+        packages: cmake pkg-config libssl-dev # all for libgit
+
+    - script:
+        name: libgit
+        code: |
+          go get -d github.com/libgit2/git2go
+          cd $GOPATH/src/github.com/libgit2/git2go
+          git submodule update --init --depth=1
+          make install
+
     - script:
         name: make clean
         code: |
@@ -32,9 +43,9 @@ build-and-test:
           make prepare_test_ws
 
     - script:
-        name: make test
+        name: make gotest
         code: |
-          ETCD_ENDPOINT=http://${ETCD_PORT_2379_TCP_ADDR}:${ETCD_PORT_2379_TCP_PORT} make test
+          ETCD_ENDPOINT=http://${ETCD_PORT_2379_TCP_ADDR}:${ETCD_PORT_2379_TCP_PORT} make gotest
 
     - script:
         name: copy binary

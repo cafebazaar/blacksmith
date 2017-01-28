@@ -18,6 +18,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	git "github.com/libgit2/git2go"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -521,21 +522,23 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	os.RemoveAll(path.Join(workspacePath, "repo"))
 	cloned, err := git.Clone(workspaceRepo, path.Join(workspacePath, "repo"), cloneOptions)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err,
+			"error while cloning %s to %s with options %+v", workspaceRepo, path.Join(workspacePath, "repo"), cloneOptions,
+		)
 	}
 
 	head, err := cloned.Head()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "error while getting repository head for %s", workspaceRepo)
 	}
 	localCommit, err := cloned.LookupCommit(head.Target())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "error while looking up commit %s for %s", localCommit, workspaceRepo)
 	}
 
-	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
-	if err != nil {
-		return nil, err
+	key := path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash")
+	if err := ds.set(key, localCommit.Id().String()); err != nil {
+		return nil, errors.Wrapf(err, "error while setting ds key %q to %q", "workspace-commit-hash", localCommit.Id().String())
 	}
 
 	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))

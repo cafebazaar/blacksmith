@@ -7,7 +7,6 @@ import (
 	"path"
 
 	log "github.com/Sirupsen/logrus"
-	flags "github.com/jessevdk/go-flags"
 
 	"net/http"
 
@@ -132,7 +131,6 @@ func ServeSwaggerAPI(ds datasource.DataSource, listenAddr net.TCPAddr) error {
 
 func configureTLS(s *restapi.Server, ds datasource.DataSource, port int) {
 	cert, err := ds.GetVariable(path.Join(ds.ClusterName(), "tls", "cert"))
-	log.Println(">>>>>>>", cert)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -143,8 +141,8 @@ func configureTLS(s *restapi.Server, ds datasource.DataSource, port int) {
 	}
 
 	s.TLSPort = port
-	s.TLSCertificate = flags.Filename(tmpFile("cert.pem", cert).Name())
-	s.TLSCertificateKey = flags.Filename(tmpFile("key.pem", key).Name())
+	s.TLSCertificate = tmpFile("cert.pem", cert).Name()
+	s.TLSCertificateKey = tmpFile("key.pem", key).Name()
 }
 
 func tmpFile(name, content string) *os.File {

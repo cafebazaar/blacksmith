@@ -44,8 +44,8 @@ LD_FLAGS := -s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.build
 prepare_test_ws:
 	rm -rf $(DUMMY_WORKSPACE)
 	mkdir -p $(DUMMY_WORKSPACE)
-	cp $(PUBKEY) $(DUMMY_WORKSPACE)
-	cp $(PRIKEY) $(DUMMY_WORKSPACE)
+	cp $(PUBKEY) $(DUMMY_WORKSPACE) || true
+	cp $(PRIKEY) $(DUMMY_WORKSPACE) || true
 	echo "cluster-variables:" > $(DUMMY_WORKSPACE)/initial.yaml
 	echo "  coreos-version: \"1068.2.0\"" >> $(DUMMY_WORKSPACE)/initial.yaml
 	echo "  net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> $(DUMMY_WORKSPACE)/initial.yaml
@@ -69,7 +69,7 @@ prepare_test_etcd:
 
 prepare_test: prepare_test_ws prepare_test_etcd
 
-gotest: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go 
+gotest: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
 	$(GO) get -t -v ./...
 	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -v ./...
 
@@ -78,8 +78,8 @@ dev: blacksmith docker
 
 production: blacksmith docker		
 
-dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go
-	$(GO) get -v
+dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
+	$(GO) get -v ./...
 	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
 blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger blacksmithctl blacksmith-agent
@@ -135,7 +135,7 @@ gofmt: gofmt.diff
 	@if [ -s $< ]; then echo 'gofmt found errors'; false; fi
 
 swagger:
-	$(GO) get github.com/go-swagger/go-swagger/cmd/swagger
-	swagger generate server swagger.yaml --target=swagger --exclude-main
+	$(GO) get -v github.com/go-swagger/go-swagger/cmd/swagger
+	swagger generate server swagger.yaml --target=swagger --flag-strategy=pflag --exclude-main
 	swagger generate client swagger.yaml --target=swagger
-	$(GO) get ./swagger/...
+	$(GO) get -v ./swagger/...

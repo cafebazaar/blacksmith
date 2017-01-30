@@ -155,7 +155,8 @@ function runBlacksmith {
         -dns 8.8.8.8 \
         -debug \
         -http-listen ${HostIP}:8000 \
-        -workspace-repo git@git.cafebazaar.ir:ali.javadi/blacksmith-kubernetes.git
+        -api-listen ${HostIP}:8001 \
+        -workspace-repo git@github.com:cafebazaar/blacksmith-kubernetes.git
 }
 
 

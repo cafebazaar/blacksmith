@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -13,12 +14,17 @@ import (
 	"sync"
 	"time"
 
+	git "gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+
 	yaml "gopkg.in/yaml.v2"
 
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
-	git "github.com/libgit2/git2go"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
@@ -258,42 +264,26 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 
 	var erro error
 	erro = nil
-	cloneOptions := &git.CloneOptions{}
-	// use FetchOptions instead of directly RemoteCallbacks
-	// https://github.com/libgit2/git2go/commit/36e0a256fe79f87447bb730fda53e5cbc90eb47c
-	cloneOptions.FetchOptions = &git.FetchOptions{
-		RemoteCallbacks: git.RemoteCallbacks{
-			CredentialsCallback: func(url string, username string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
-				ret, cred := git.NewCredSshKey("git", path.Join(ds.workspacePath, "id_rsa.pub"),
-					path.Join(ds.workspacePath, "id_rsa"), "")
-				return git.ErrorCode(ret), &cred
-			},
-			CertificateCheckCallback: func(cert *git.Certificate, valid bool, hostname string) git.ErrorCode {
-				return 0
-			},
-		},
-	}
 
+	branch := "refs/heads/master"
 	if ds.selfInfo.DebugMode == "true" {
-		cloneOptions.CheckoutBranch = "dev"
+		branch = "refs/heads/dev"
 	}
-
 	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
-	cloned, err := git.Clone(ds.workspaceRepo, path.Join(ds.workspacePath, "repo"), cloneOptions)
+	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
 	if err != nil {
-		return err
+		return errors.Wrapf(err,
+			"error while cloning %s branch %s to %s",
+			ds.workspaceRepo, branch,
+			path.Join(ds.workspacePath, "repo"),
+		)
+	}
+	head, err := repo.Head()
+	if err != nil {
+		return errors.Wrapf(err, "error while getting repository head for %s", ds.workspaceRepo)
 	}
 
-	head, err := cloned.Head()
-	if err != nil {
-		return err
-	}
-	localCommit, err := cloned.LookupCommit(head.Target())
-	if err != nil {
-		return err
-	}
-
-	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), localCommit.Id().String())
+	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), head.Hash().String())
 	if err != nil {
 		return err
 	}
@@ -334,22 +324,25 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 		go func(c chan bool, node *etcd.Node) {
 			defer func() { c <- true }()
 			for {
-
-				workspaceCommit, err := ds.get(path.Join(node.Key, "workspace-commit-hash"))
-
+				workspaceCommitHash, err := ds.get(path.Join(node.Key, "workspace-commit-hash"))
 				if err != nil {
 					log.Error(err.Error())
 					continue
 				}
 
-				oid, _ := git.NewOid(workspaceCommit)
-				log.Info("Local commit: ", localCommit.Id())
-				log.Info("Node commit: ", oid)
+				workspaceCommit, err := repo.Commit(plumbing.NewHash(workspaceCommitHash))
+				if err != nil {
+					log.Error(err.Error())
+					continue
+				}
 
-				log.Info("commit behind HEAD: ", localCommit.Id().Cmp(oid))
-				log.Info("Checking ", path.Join(node.Key, "workspace-commit-hash"))
+				localCommit, err := repo.Commit(head.Hash())
+				if err != nil {
+					log.Error(err.Error())
+					continue
+				}
 
-				if localCommit.Id().Cmp(oid) == -1 {
+				if localCommit.Author.When.Before(workspaceCommit.Author.When) {
 					resp, err := ds.watchOnce(path.Join(node.Key, "workspace-commit-hash"))
 					if err != nil {
 						log.Error(err.Error())
@@ -445,7 +438,6 @@ func (ds *EtcdDataSource) iterateOverYaml(iVals interface{}, pathStr string) err
 			}
 
 		}
-		break
 	case map[interface{}]string:
 		for key, value := range t {
 			currentValue, _ := ds.get(path.Join(pathStr, key.(string)))
@@ -460,19 +452,14 @@ func (ds *EtcdDataSource) iterateOverYaml(iVals interface{}, pathStr string) err
 			}
 
 		}
-		break
 	case map[interface{}]interface{}:
 		for key, value := range t {
 			ds.iterateOverYaml(value, path.Join(pathStr, key.(string)))
 		}
-		break
 	case []interface{}:
-
 		for key, value := range t {
 			ds.iterateOverYaml(value, path.Join(pathStr, string(key)))
 		}
-
-		break
 	}
 
 	return nil
@@ -499,49 +486,30 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		selfInfo:        selfInfo,
 	}
 
-	cloneOptions := &git.CloneOptions{}
-	// use FetchOptions instead of directly RemoteCallbacks
-	// https://github.com/libgit2/git2go/commit/36e0a256fe79f87447bb730fda53e5cbc90eb47c
-	cloneOptions.FetchOptions = &git.FetchOptions{
-		RemoteCallbacks: git.RemoteCallbacks{
-			CredentialsCallback: func(url string, username string, allowedTypes git.CredType) (git.ErrorCode, *git.Cred) {
-				ret, cred := git.NewCredSshKey("git", path.Join(ds.workspacePath, "id_rsa.pub"),
-					path.Join(ds.workspacePath, "id_rsa"), "")
-				return git.ErrorCode(ret), &cred
-			},
-			CertificateCheckCallback: func(cert *git.Certificate, valid bool, hostname string) git.ErrorCode {
-				return 0
-			},
-		},
-	}
-
+	branch := "refs/heads/master"
 	if ds.selfInfo.DebugMode == "true" {
-		cloneOptions.CheckoutBranch = "dev"
+		branch = "refs/heads/dev"
 	}
-
-	os.RemoveAll(path.Join(workspacePath, "repo"))
-	cloned, err := git.Clone(workspaceRepo, path.Join(workspacePath, "repo"), cloneOptions)
+	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
+	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
 	if err != nil {
 		return nil, errors.Wrapf(err,
-			"error while cloning %s to %s with options %+v", workspaceRepo, path.Join(workspacePath, "repo"), cloneOptions,
+			"error while cloning %s branch %s to %s",
+			ds.workspaceRepo, branch,
+			path.Join(ds.workspacePath, "repo"),
 		)
 	}
-
-	head, err := cloned.Head()
+	head, err := repo.Head()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error while getting repository head for %s", workspaceRepo)
-	}
-	localCommit, err := cloned.LookupCommit(head.Target())
-	if err != nil {
-		return nil, errors.Wrapf(err, "error while looking up commit %s for %s", localCommit, workspaceRepo)
+		return nil, errors.Wrapf(err, "error while getting repository head for %s", ds.workspaceRepo)
 	}
 
 	key := path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash")
-	if err := ds.set(key, localCommit.Id().String()); err != nil {
-		return nil, errors.Wrapf(err, "error while setting ds key %q to %q", "workspace-commit-hash", localCommit.Id().String())
+	if err := ds.set(key, head.Hash().String()); err != nil {
+		return nil, errors.Wrapf(err, "error while setting ds key %q to %q", "workspace-commit-hash", head.Hash().String())
 	}
 
-	data, err := ioutil.ReadFile(filepath.Join(workspacePath, "initial.yaml"))
+	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "repo", "test", "initial.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
 	}
@@ -583,4 +551,114 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		return nil, err
 	}
 	return ds, nil
+}
+
+func clone(path, url, priKeyPath, branch string) (*git.Repository, error) {
+	privateKey, err := ioutil.ReadFile(priKeyPath)
+
+	useKey := true
+	if os.IsNotExist(err) {
+		useKey = false
+	} else if err != nil {
+		return nil, err
+	}
+
+	r := git.NewMemoryRepository()
+	opts := git.CloneOptions{
+		URL:           url,
+		ReferenceName: plumbing.ReferenceName(branch),
+		SingleBranch:  true,
+		Depth:         1,
+	}
+
+	if useKey {
+		signer, err := ssh.ParsePrivateKey(privateKey)
+		if err != nil {
+			return nil, err
+		}
+		opts.Auth = &gitssh.PublicKeys{
+			User:   "git",
+			Signer: signer,
+		}
+	}
+	r.Progress = os.Stdout
+	err = r.Clone(&opts)
+	if err != nil {
+		return nil, err
+	}
+
+	err = checkoutRepo(r, path)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+func checkoutRepo(r *git.Repository, path string) error {
+	ref, err := r.Head()
+	if err != nil {
+		return err
+	}
+
+	commit, err := r.Commit(ref.Hash())
+	if err != nil {
+		return err
+	}
+
+	tree, err := commit.Tree()
+	if err != nil {
+		return err
+	}
+
+	tree.Files().ForEach(func(f *object.File) error {
+		contents, err := fileContents(f)
+		if err != nil {
+			return err
+		}
+
+		name := filepath.Join(path, f.Name)
+		err = os.MkdirAll(filepath.Dir(name), 0755)
+		if err != nil {
+			return err
+		}
+
+		err = ioutil.WriteFile(name, []byte(contents), f.Mode)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// --
+	fileList := []string{}
+	err = filepath.Walk(path, func(path string, f os.FileInfo, err error) error {
+		fileList = append(fileList, path)
+		return nil
+	})
+	for _, file := range fileList {
+		log.Info(file)
+	}
+	// --
+
+	return nil
+}
+
+func fileContents(f *object.File) (content []byte, err error) {
+	reader, err := f.Reader()
+	if err != nil {
+		return []byte(""), err
+	}
+	defer func(c io.Closer, err *error) {
+		if cerr := reader.Close(); cerr != nil && *err == nil {
+			*err = cerr
+		}
+	}(reader, &err)
+
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(reader); err != nil {
+		return []byte(""), err
+	}
+
+	return buf.Bytes(), nil
 }

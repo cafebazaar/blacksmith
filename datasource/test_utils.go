@@ -2,7 +2,6 @@ package datasource
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -27,8 +26,8 @@ type ForTestParams struct {
 const (
 	forTestDefaultLeaseStart    = "127.0.0.2"
 	forTestDefaultLeaseRange    = 10
-	forTestDefaultWorkspacePath = "/tmp/blacksmith/workspaces/test-workspace"
-	forTestDefaultWorkspaceRepo = "git@git.cafebazaar.ir:ali.javadi/blacksmith-kubernetes.git"
+	forTestDefaultWorkspacePath = "./"
+	forTestDefaultWorkspaceRepo = "https://github.com/cafebazaar/blacksmith-kubernetes.git"
 	forTestFileServer           = "http://localhost:8080/"
 	forTestDefaultListenIF      = "lo"
 	forTestDNSIPStrings         = "8.8.8.8"
@@ -134,19 +133,6 @@ func ForTest(params *ForTestParams) (DataSource, error) {
 		selfInfo,
 	)
 
-	log.Println(">>>>>",
-		err,
-		kapi,
-		etcdClient,
-		leaseStart,
-		leaseRange,
-		clusterNameFlag,
-		workspacePath,
-		workspaceRepo,
-		fileServer,
-		dnsIPStrings,
-		selfInfo,
-	)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create runtime configuration: %s", err)
 	}

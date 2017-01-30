@@ -1,6 +1,7 @@
 package datasource
 
 import (
+	"log"
 	"strings"
 	"testing"
 )
@@ -12,13 +13,19 @@ func TestCoreOSVersion(t *testing.T) {
 		return
 	}
 
+	ds.SetClusterVariable("testing", "it works!")
+	log.Println(ds.GetClusterVariable("testing"))
+	log.Println(ds.GetClusterVariable("workspace-repo"))
+	log.Println(ds.GetClusterVariable("coreos-version"))
+
 	version, err := ds.GetClusterVariable("coreos-version")
 	if err != nil {
 		t.Error("error while getting coreos version:", err)
+		return
 	}
 
-	if version != "1068.2.0" {
-		t.Error("invalid coreos version")
+	if want := "1068.2.0"; version != want {
+		t.Error("invalid coreos version; want %q, got %q", want, version)
 	}
 }
 

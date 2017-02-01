@@ -14,10 +14,12 @@ import (
 	"sync"
 	"time"
 
-	git "gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/object"
-	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+	"srcd.works/go-git.v4/storage/memory"
+
+	git "srcd.works/go-git.v4"
+	"srcd.works/go-git.v4/plumbing"
+	"srcd.works/go-git.v4/plumbing/object"
+	gitssh "srcd.works/go-git.v4/plumbing/transport/ssh"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -563,12 +565,12 @@ func clone(path, url, priKeyPath, branch string) (*git.Repository, error) {
 		return nil, err
 	}
 
-	r := git.NewMemoryRepository()
 	opts := git.CloneOptions{
 		URL:           url,
 		ReferenceName: plumbing.ReferenceName(branch),
 		SingleBranch:  true,
 		Depth:         1,
+		Progress:      os.Stdout,
 	}
 
 	if useKey {
@@ -581,8 +583,7 @@ func clone(path, url, priKeyPath, branch string) (*git.Repository, error) {
 			Signer: signer,
 		}
 	}
-	r.Progress = os.Stdout
-	err = r.Clone(&opts)
+	r, err := git.Clone(memory.NewStorage(), nil, &opts)
 	if err != nil {
 		return nil, err
 	}

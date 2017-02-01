@@ -14,8 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"srcd.works/go-git.v4/storage/memory"
-
 	git "srcd.works/go-git.v4"
 	"srcd.works/go-git.v4/plumbing"
 	"srcd.works/go-git.v4/plumbing/object"
@@ -275,7 +273,7 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
 	if err != nil {
 		return errors.Wrapf(err,
-			"error while cloning %s branch %s to %s",
+			"cloning %s branch %s to %s failed",
 			ds.workspaceRepo, branch,
 			path.Join(ds.workspacePath, "repo"),
 		)
@@ -496,7 +494,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
 	if err != nil {
 		return nil, errors.Wrapf(err,
-			"error while cloning %s branch %s to %s",
+			"cloning %s branch %s to %s failed",
 			ds.workspaceRepo, branch,
 			path.Join(ds.workspacePath, "repo"),
 		)
@@ -574,6 +572,7 @@ func clone(path, url, priKeyPath, branch string) (*git.Repository, error) {
 	}
 
 	if useKey {
+		log.Infof("clone: using SSH key %s", priKeyPath)
 		signer, err := ssh.ParsePrivateKey(privateKey)
 		if err != nil {
 			return nil, err
@@ -583,12 +582,7 @@ func clone(path, url, priKeyPath, branch string) (*git.Repository, error) {
 			Signer: signer,
 		}
 	}
-	r, err := git.Clone(memory.NewStorage(), nil, &opts)
-	if err != nil {
-		return nil, err
-	}
-
-	err = checkoutRepo(r, path)
+	r, err := git.PlainClone(path, false, &opts)
 	if err != nil {
 		return nil, err
 	}
@@ -630,17 +624,6 @@ func checkoutRepo(r *git.Repository, path string) error {
 		}
 		return nil
 	})
-
-	// --
-	fileList := []string{}
-	err = filepath.Walk(path, func(path string, f os.FileInfo, err error) error {
-		fileList = append(fileList, path)
-		return nil
-	})
-	for _, file := range fileList {
-		log.Info(file)
-	}
-	// --
 
 	return nil
 }

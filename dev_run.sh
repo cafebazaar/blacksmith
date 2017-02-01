@@ -144,8 +144,12 @@ function initEtcd {
 
 function runBlacksmith {
     docker rm -f blacksmith 2>/dev/null || true
-    docker run -it --name blacksmith --restart=always --net=host  -v $current_workspace:/workspaces quay.io/siadat/blacksmith:dev-sina \
-        -workspace /workspaces \
+    docker run -it --name blacksmith --restart=always --net=host \
+      -v $current_workspace:/workspace \
+      -v $(pwd)/certs/:/certs/ \
+      -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt \
+      quay.io/cafebazaar/blacksmith:v0.10 \
+        -workspace /workspace \
         -etcd http://${HostIP}:2379 \
         -if $HOSTONLY \
         -cluster-name cafecluster \
@@ -156,7 +160,10 @@ function runBlacksmith {
         -debug \
         -http-listen ${HostIP}:8000 \
         -api-listen ${HostIP}:8001 \
-        -workspace-repo git@github.com:cafebazaar/blacksmith-kubernetes.git
+        -tls-cert /certs/server.crt \
+        -tls-key /certs/server.key \
+        -tls-ca /certs/ca.crt \
+        -workspace-repo https://github.com/cafebazaar/blacksmith-kubernetes
 }
 
 

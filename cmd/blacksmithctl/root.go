@@ -26,25 +26,44 @@ var RootCmd = &cobra.Command{
 }
 
 func newSwaggerClient() *client.Salesman {
-	var host string
-	var ok bool
+	ca, ok := viper.GetStringMapString("cluster")["certificate-authority"]
+	if !ok {
+		log.Fatalf("%s is not set in config", "cluster.certificate-authority")
+	}
 
-	if host, ok = viper.Get("host").(string); !ok {
-		log.Fatalf("%q is not set in config", "host")
+	caServerName, ok := viper.GetStringMapString("cluster")["ca-server-name"]
+	if !ok {
+		log.Fatalf("%s is not set in config", "cluster.ca-server-name")
+	}
+
+	server, ok := viper.GetStringMapString("cluster")["server"]
+	if !ok {
+		log.Fatalf("%s is not set in config", "cluster.server")
+	}
+
+	clientCert, ok := viper.GetStringMapString("auth")["client-certificate"]
+	if !ok {
+		log.Fatalf("%s is not set in config", "auth.client-certificate")
+	}
+
+	clientKey, ok := viper.GetStringMapString("auth")["client-key"]
+	if !ok {
+		log.Fatalf("%s is not set in config", "auth.client-key")
 	}
 
 	tlsClient, err := httptransport.TLSClient(httptransport.TLSClientOptions{
-		ServerName:  "localhost",
-		Certificate: "./certs/cert.pem",
-		Key:         "./certs/key.pem",
-		CA:          "./certs/cert.pem",
+		ServerName:         caServerName,
+		Certificate:        clientCert,
+		Key:                clientKey,
+		CA:                 ca,
+		InsecureSkipVerify: false,
 	})
 	if err != nil {
 		log.Fatal("Error creating TLSClient:", err)
 	}
 
 	transport := httptransport.NewWithClient(
-		host,
+		server,
 		client.DefaultBasePath,
 		client.DefaultSchemes,
 		tlsClient,

@@ -27,9 +27,9 @@ build-and-test:
           make blacksmith
 
     - script:
-        name: make prepare_test_ws gotest
+        name: make test
         code: |
-          ETCD_ENDPOINT=http://${ETCD_PORT_2379_TCP_ADDR}:${ETCD_PORT_2379_TCP_PORT} make gotest
+          ETCD_ENDPOINT=http://${ETCD_PORT_2379_TCP_ADDR}:${ETCD_PORT_2379_TCP_PORT} make test
 
     - script:
         name: copy binary

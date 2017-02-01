@@ -41,17 +41,6 @@ LD_FLAGS := -s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.build
 ################################################################
 #  Tasks
 
-prepare_test_ws:
-	rm -rf $(DUMMY_WORKSPACE)
-	mkdir -p $(DUMMY_WORKSPACE)
-	cp $(PUBKEY) $(DUMMY_WORKSPACE) || true
-	cp $(PRIKEY) $(DUMMY_WORKSPACE) || true
-	echo "cluster-variables:" > $(DUMMY_WORKSPACE)/initial.yaml
-	echo "  coreos-version: \"1068.2.0\"" >> $(DUMMY_WORKSPACE)/initial.yaml
-	echo "  net-conf: '{\"netmask\": \"255.255.255.0\"}'" >> $(DUMMY_WORKSPACE)/initial.yaml
-	echo "ssh-keys:" >> $(DUMMY_WORKSPACE)/initial.yaml
-	echo "  current-user: \"$(shell cat $(PUBKEY))\"" >> $(DUMMY_WORKSPACE)/initial.yaml
-
 prepare_test_etcd:
 	docker kill blacksmith-test-etcd || echo "wasn't running"
 	docker rm blacksmith-test-etcd || echo "didn't exist'"
@@ -67,9 +56,9 @@ prepare_test_etcd:
  	 -initial-cluster etcd0=http://127.0.0.1:20380 \
 	 -initial-cluster-state new
 
-prepare_test: prepare_test_ws prepare_test_etcd
+prepare_test: prepare_test_etcd
 
-gotest: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
+test: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
 	$(GO) get -t -v ./...
 	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -v ./...
 

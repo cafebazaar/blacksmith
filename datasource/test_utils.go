@@ -27,7 +27,7 @@ const (
 	forTestDefaultLeaseStart    = "127.0.0.2"
 	forTestDefaultLeaseRange    = 10
 	forTestDefaultWorkspacePath = "./"
-	forTestDefaultWorkspaceRepo = "https://github.com/cafebazaar/blacksmith-kubernetes.git"
+	forTestDefaultWorkspaceRepo = "https://github.com/cafebazaar/blacksmith-kubernetes"
 	forTestFileServer           = "http://localhost:8080/"
 	forTestDefaultListenIF      = "lo"
 	forTestDNSIPStrings         = "8.8.8.8"

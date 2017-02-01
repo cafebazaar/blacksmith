@@ -45,6 +45,9 @@ var (
 	listenIFFlag      = flag.String("if", "", "Interface name for DHCP and PXE to listen on")
 	httpListenFlag    = flag.String("http-listen", "", "IP range to listen on for web UI requests")
 	apiListenFlag     = flag.String("api-listen", "", "IP range to listen on for Swagger API requests")
+	tlsCertFlag       = flag.String("tls-cert", "", "API server TLS certificate filename")
+	tlsKeyFlag        = flag.String("tls-key", "", "API server TLS key filename")
+	tlsCaFlag         = flag.String("tls-ca", "", "API server TLS certificate authority filename")
 	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
 	workspaceRepo     = flag.String("workspace-repo", "", "Repository of workspace")
 	fileServer        = flag.String("file-server", "http://localhost/", "A HTTP server to serve needed files")
@@ -260,7 +263,8 @@ func main() {
 	}()
 
 	go func() {
-		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger); err != nil {
+		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger,
+			*tlsCertFlag, *tlsKeyFlag, *tlsCaFlag); err != nil {
 			log.Fatalf("\nError while serving swagger api: %s\n", err)
 		}
 	}()

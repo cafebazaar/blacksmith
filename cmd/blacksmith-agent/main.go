@@ -13,13 +13,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cafebazaar/blacksmith/agent"
 	"github.com/coreos/coreos-cloudinit/config/validate"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
 
 	"github.com/Sirupsen/logrus"
-
-	"github.com/cafebazaar/blacksmith-agent/agent"
 )
 
 func main() {

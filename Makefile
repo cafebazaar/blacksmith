@@ -79,7 +79,7 @@ dev: blacksmith docker
 production: blacksmith docker		
 
 dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
-	$(GO) get -v ./...
+	$(GO) get ./...
 	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
 blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger blacksmithctl blacksmith-agent
@@ -138,4 +138,4 @@ swagger:
 	$(GO) get -v github.com/go-swagger/go-swagger/cmd/swagger
 	swagger generate server swagger.yaml --target=swagger --flag-strategy=pflag --exclude-main
 	swagger generate client swagger.yaml --target=swagger
-	$(GO) get -v ./swagger/...
+	$(GO) get ./swagger/...

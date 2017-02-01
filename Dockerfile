@@ -1,4 +1,4 @@
-FROM scratch
+FROM quay.io/brianredbeard/corebox
 
 ENTRYPOINT ["/app/blacksmith"]
 WORKDIR /app

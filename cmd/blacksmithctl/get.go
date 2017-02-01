@@ -1,10 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/cafebazaar/blacksmith/swagger/client/operations"
 	"github.com/spf13/cobra"

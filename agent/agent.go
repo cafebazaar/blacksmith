@@ -2,12 +2,13 @@ package agent
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"

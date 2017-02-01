@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"runtime/trace"
 	"strings"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/cafebazaar/blacksmith/agent"
 	etcd "github.com/coreos/etcd/client"

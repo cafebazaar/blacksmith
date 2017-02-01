@@ -1,6 +1,4 @@
-FROM ubuntu:16.10
-
-RUN apt-get update && apt-get install -y --no-install-recommends libgit2-24
+FROM scratch
 
 ENTRYPOINT ["/app/blacksmith"]
 WORKDIR /app

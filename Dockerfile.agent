@@ -1,6 +1,4 @@
-FROM ubuntu:latest
-
-RUN apt-get update
+FROM scratch
 
 ENTRYPOINT ["/app/blacksmith-agent"]
 WORKDIR /app

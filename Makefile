@@ -1,4 +1,4 @@
-.PHONY: help clean blacksmith docker push test prepare_test prepare_test_ws prepare_test_etcd
+.PHONY: help clean docker push test prepare_test prepare_test_ws prepare_test_etcd
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  dependencies to install the dependencies"
@@ -115,7 +115,7 @@ docker: blacksmith blacksmith-agent
 	docker build -f Dockerfile -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 	docker build -f Dockerfile.agent -t $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG) .
 
-push: docker
+push:
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 	docker push $(AGENT_DOCKER_IMAGE):$(DOCKER_TAG)
 

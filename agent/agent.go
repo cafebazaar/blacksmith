@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -11,6 +12,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/coreos-cloudinit/config"
+	"github.com/coreos/coreos-cloudinit/datasource"
+	"github.com/coreos/coreos-cloudinit/initialize"
+	"github.com/coreos/coreos-cloudinit/network"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
 )
@@ -197,4 +202,50 @@ func WatchCommand(ctx context.Context, kapi etcd.KeysAPI, key string, opts Watch
 			time.Sleep(time.Second)
 		}
 	}
+}
+
+func GetCloudConfig(url string) ([]byte, error) {
+	httpClient := http.Client{
+		Timeout: time.Second,
+	}
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, errors.Wrap(err, "cloudconfig fetch failed")
+	}
+	defer resp.Body.Close()
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "ReadAll for cloudconfig response failed")
+	}
+	return buf, nil
+}
+
+func ApplyCloudconfig(cloudconfig []byte) error {
+	var (
+		configRoot     = ""
+		flagWorkspace  = "/var/lib/coreos-cloudinit"
+		flagSshKeyName = "coreos-cloudinit"
+	)
+
+	var ccu *config.CloudConfig
+	switch ud, err := initialize.ParseUserData(string(cloudconfig)); err {
+	case initialize.ErrIgnitionConfig:
+		return errors.Wrap(err, "Detected an Ignition config")
+	case nil:
+		switch t := ud.(type) {
+		case *config.CloudConfig:
+			ccu = t
+		default:
+			return fmt.Errorf("Only CloudConfig user-data is supported")
+		}
+	default:
+		return errors.Wrap(err, "Failed to parse user-data")
+	}
+
+	env := initialize.NewEnvironment("/", configRoot, flagWorkspace, flagSshKeyName, datasource.Metadata{})
+	if err := initialize.Apply(*ccu, []network.InterfaceGenerator{}, env); err != nil {
+		return errors.Wrap(err, "Failed to apply cloud-config")
+	}
+
+	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"github.com/cafebazaar/blacksmith/agent"
+	"github.com/coreos/coreos-cloudinit/config/validate"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
 
 	"github.com/Sirupsen/logrus"
+
+	"github.com/cafebazaar/blacksmith-agent/agent"
 )
 
 func main() {
@@ -63,8 +64,32 @@ func main() {
 		path.Join(opts.ClusterName, "machines", opts.HardwareAddr.String(), "agent", "command"),
 		agent.WatchOptions{
 			UpdateCallback: func() {
+				// Fetch cloudconfig
 				u := fmt.Sprintf("%s/t/cc/%s", opts.Server, opts.HardwareAddr.String())
-				execCmd("/usr/bin/coreos-cloudinit", "-validate", "-from-url", u)
+				cloudconfig, err := agent.GetCloudConfig(u)
+				if err != nil {
+					logrus.Error(err)
+					return
+				}
+
+				// Validate
+				if report, err := validate.Validate(cloudconfig); err != nil || len(report.Entries()) != 0 {
+					entries := report.Entries()
+					for i := range entries {
+						logrus.Infof("Cloudconfig validation report [%d/%d]: %s",
+							i+1, len(entries), entries[i].String())
+					}
+					if err != nil {
+						logrus.Error(err)
+						return
+					}
+				}
+
+				// Apply cloudconfig
+				if err := agent.ApplyCloudconfig(cloudconfig); err != nil {
+					logrus.Error(err)
+					return
+				}
 			},
 			RebootCallback: func() {
 				if ok := execCmd("/usr/bin/locksmithctl", "reboot"); ok {

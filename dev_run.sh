@@ -126,8 +126,8 @@ function startBootstrapperMachines {
 }
 
 function initEtcd {
-    sudo docker rm -f blacksmith-dev-etcd 2>/dev/null || true
-    sudo docker run -d \
+    docker rm -f blacksmith-dev-etcd 2>/dev/null || true
+    docker run -d \
         -p 4001:4001 \
         -p 2380:2380 \
         -p 2379:2379 \
@@ -143,8 +143,8 @@ function initEtcd {
 }
 
 function runBlacksmith {
-    sudo docker rm -f blacksmith 2>/dev/null || true
-    sudo docker run -it --name blacksmith --restart=always --net=host  -v `pwd`/workspaces/current:/workspaces quay.io/cafebazaar/blacksmith:v0.10 \
+    docker rm -f blacksmith 2>/dev/null || true
+    docker run -it --name blacksmith --restart=always --net=host  -v $current_workspace:/workspaces quay.io/siadat/blacksmith:dev-sina \
         -workspace /workspaces \
         -etcd http://${HostIP}:2379 \
         -if $HOSTONLY \
@@ -181,8 +181,8 @@ if [[ "${1:-}" == "clean" ]]; then
     rm -rf "$VMDIR"/worker_* 2>/dev/null
     rm -rf "$VMDIR"/bootstrapper_* 2>/dev/null
 
-    sudo docker rm -f blacksmith-dev-etcd || true
-    sudo docker rm -f blacksmith || true
+    docker rm -f blacksmith-dev-etcd || true
+    docker rm -f blacksmith || true
 
     rm .vbox_cluster_inited 2>/dev/null || true
 
@@ -246,9 +246,6 @@ if [[ ! -z $(netstat -lnt | awk '$6 == "LISTEN" && $4 ~ ".8000"') ]]; then
     echo "blacksmith port is already busy, perhaps another instance of it is open"
     exit 1
 fi
-
-# dummy command to make sure next sudo will be ran without delay
-sudo echo
 
 if [[ ! -e ".vbox_cluster_inited" ]]
 then

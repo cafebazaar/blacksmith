@@ -1,4 +1,4 @@
-.PHONY: help clean docker push test prepare_test prepare_test_ws prepare_test_etcd
+.PHONY: help clean docker push test prepare_test_etcd
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  dependencies to install the dependencies"
@@ -6,7 +6,6 @@ help:
 	@echo "  docker       to build the docker image"
 	@echo "  push         to push the built docker to docker hub"
 	@echo "  test         to run unittests"
-	@echo "  prepare_test to prepare a workspace and an etcd instance for testing"
 	@echo "  clean        to remove generated files"
 
 ################################################################
@@ -40,12 +39,11 @@ LD_FLAGS := -s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.build
 
 ################################################################
 #  Tasks
-
 prepare_test_etcd:
-	docker kill blacksmith-test-etcd || echo "wasn't running"
-	docker rm blacksmith-test-etcd || echo "didn't exist'"
-	docker pull quay.io/coreos/etcd:$(ETCD_RELEASE_VERSION)
-	docker run -d -p 127.0.0.1:20380:2380 -p 127.0.0.1:20379:2379 \
+	@docker kill blacksmith-test-etcd || echo "wasn't running"
+	@docker rm blacksmith-test-etcd || echo "didn't exist'"
+	@docker pull quay.io/coreos/etcd:$(ETCD_RELEASE_VERSION)
+	@docker run -d -p 127.0.0.1:20380:2380 -p 127.0.0.1:20379:2379 \
 	 --name blacksmith-test-etcd quay.io/coreos/etcd:$(ETCD_RELEASE_VERSION) \
 	 -name etcd0 \
 	 -advertise-client-urls http://127.0.0.1:20379 \
@@ -56,11 +54,9 @@ prepare_test_etcd:
  	 -initial-cluster etcd0=http://127.0.0.1:20380 \
 	 -initial-cluster-state new
 
-prepare_test: prepare_test_etcd
-
-test: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
+test: dependencies
 	$(GO) get -t -v ./...
-	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -v ./...
+	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test ./...
 
 dev: DEV_MODE=true
 dev: blacksmith docker
@@ -69,9 +65,8 @@ production: blacksmith docker
 
 dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger
 	$(GO) get ./...
-	$(GO) list -f=$(FORMAT) $(TARGET) | xargs $(GO) install
 
-blacksmith: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go swagger blacksmithctl blacksmith-agent
+blacksmith: dependencies blacksmithctl blacksmith-agent
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags="$(LD_FLAGS)" -o $@
 
 templating/files_autogen.go:  templating/files

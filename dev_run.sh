@@ -147,7 +147,7 @@ function runBlacksmith {
     docker run -it --name blacksmith --restart=always --net=host \
       -v $current_workspace:/workspace \
       -v $(pwd)/certs/:/certs/ \
-      -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt \
+      -v /etc/ssl/certs:/etc/ssl/certs \
       quay.io/cafebazaar/blacksmith:v0.10 \
         --workspace /workspace \
         --etcd http://${HostIP}:2379 \

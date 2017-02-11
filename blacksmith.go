@@ -1,7 +1,6 @@
 package main // import "github.com/cafebazaar/blacksmith"
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -12,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
+	"github.com/spf13/viper"
 
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/cafebazaar/blacksmith/dhcp"
@@ -30,39 +31,71 @@ import (
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
-		/config/bootparams/main
-		/config/cloudconfig/main
-		/config/ignition/main
-		/images/{core-os-version}/coreos_production_pxe_image.cpio.gz
-		/images/{core-os-version}/coreos_production_pxe.vmlinuz
-		/initial.yaml
+				/config/bootparams/main
+				/config/cloudconfig/main
+				/config/ignition/main
+				/images/{core-os-version}/coreos_production_pxe_image.cpio.gz
+				/images/{core-os-version}/coreos_production_pxe.vmlinuz
+				/initial.yaml
 `
 )
 
 var (
-	versionFlag       = flag.Bool("version", false, "Print version info and exit")
-	debugFlag         = flag.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
-	listenIFFlag      = flag.String("if", "", "Interface name for DHCP and PXE to listen on")
-	httpListenFlag    = flag.String("http-listen", "", "IP range to listen on for web UI requests")
-	apiListenFlag     = flag.String("api-listen", "", "IP range to listen on for Swagger API requests")
-	tlsCertFlag       = flag.String("tls-cert", "", "API server TLS certificate filename")
-	tlsKeyFlag        = flag.String("tls-key", "", "API server TLS key filename")
-	tlsCaFlag         = flag.String("tls-ca", "", "API server TLS certificate authority filename")
-	workspacePathFlag = flag.String("workspace", "/workspace", workspacePathHelp)
-	workspaceRepo     = flag.String("workspace-repo", "", "Repository of workspace")
-	fileServer        = flag.String("file-server", "http://localhost/", "A HTTP server to serve needed files")
-	etcdFlag          = flag.String("etcd", "", "Etcd endpoints")
-	clusterNameFlag   = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
-	dnsAddressesFlag  = flag.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")
-
-	leaseStartFlag = flag.String("lease-start", "", "Beginning of lease starting IP")
-	leaseRangeFlag = flag.Int("lease-range", 0, "Lease range")
-
+	// Build variables
 	version   string
 	commit    string
 	buildTime string
 	debugMode string
 )
+
+func initConfig() {
+	flagset := pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
+	flagset.BoolP("verbose", "v", false, "Enable verbose mode")
+	flagset.String("config", "", "Set config file")
+	flagset.Bool("version", false, "Print version info and exit")
+	flagset.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
+	flagset.String("if", "", "Interface name for DHCP and PXE to listen on")
+	flagset.String("http-listen", "", "IP range to listen on for web UI requests")
+	flagset.String("api-listen", "", "IP range to listen on for Swagger API requests")
+	flagset.String("tls-cert", "", "API server TLS certificate filename")
+	flagset.String("tls-key", "", "API server TLS key filename")
+	flagset.String("tls-ca", "", "API server TLS certificate authority filename")
+	flagset.String("workspace", "/workspace", workspacePathHelp)
+	flagset.String("workspace-repo", "", "Repository of workspace")
+	flagset.String("file-server", "http://localhost/", "A HTTP server to serve needed files")
+	flagset.String("etcd", "", "Etcd endpoints")
+	flagset.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
+	flagset.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")
+	flagset.String("lease-start", "", "Beginning of lease starting IP")
+	flagset.Int("lease-range", 0, "Lease range")
+	flagset.Parse(os.Args)
+
+	viper.BindPFlags(flagset)
+	viper.SetConfigName("config")             // name of config file (without extension)
+	viper.AddConfigPath("$HOME/.blacksmith/") // adding home directory as first search path
+	viper.AutomaticEnv()                      // read in environment variables that match
+
+	configFilepath := flagset.Lookup("config").Value.String()
+	if configFilepath != "" {
+		viper.SetConfigFile(configFilepath)
+	}
+
+	if err := viper.ReadInConfig(); err != nil {
+		if configFilepath != "" {
+			log.Fatal("could not load given config", err)
+		}
+	}
+
+	if viper.GetBool("debug") {
+		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		for a, b := range viper.AllSettings() {
+			log.WithFields(log.Fields{
+				"name":  a,
+				"value": b,
+			}).Info("config")
+		}
+	}
+}
 
 func init() {
 	// If version, commit, or build time are not set, make that clear.
@@ -139,34 +172,35 @@ func parseTCPAddr(addr string) net.TCPAddr {
 
 func main() {
 	var err error
-	flag.Parse()
+
+	initConfig()
 
 	fmt.Printf("Blacksmith (%s)\n", version)
 	fmt.Printf("  Commit:        %s\n", commit)
 	fmt.Printf("  Build Time:    %s\n", buildTime)
 
-	if *versionFlag {
+	if viper.GetBool("version") {
 		os.Exit(0)
 	}
 
-	if *debugFlag {
+	if viper.GetBool("debug") {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
 
 	// etcd config
-	if etcdFlag == nil || clusterNameFlag == nil {
+	if viper.GetString("etcd") == "" || viper.GetString("cluster-name") == "" {
 		fmt.Fprint(os.Stderr, "\nPlease specify the etcd endpoints\n")
 		os.Exit(1)
 	}
 
 	// finding interface by interface name
 	var dhcpIF *net.Interface
-	if *listenIFFlag != "" {
-		dhcpIF, err = net.InterfaceByName(*listenIFFlag)
+	if viper.GetString("if") != "" {
+		dhcpIF, err = net.InterfaceByName(viper.GetString("if"))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s): %s\n", *listenIFFlag, err)
+			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s): %s\n", viper.GetString("if"), err)
 			os.Exit(1)
 		}
 	} else {
@@ -181,8 +215,8 @@ func main() {
 	}
 
 	// web api can be configured to listen on a custom address
-	webAddr := parseTCPAddr(*httpListenFlag)
-	webAddrSwagger := parseTCPAddr(*apiListenFlag)
+	webAddr := parseTCPAddr(viper.GetString("http-listen"))
+	webAddrSwagger := parseTCPAddr(viper.GetString("api-listen"))
 
 	// other services are exposed just through the given interface, on hard coded ports
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}
@@ -193,10 +227,10 @@ func main() {
 	// 67 -> dhcp
 
 	// dhcp setting
-	leaseStart := net.ParseIP(*leaseStartFlag)
-	leaseRange := *leaseRangeFlag
+	leaseStart := net.ParseIP(viper.GetString("lease-start"))
+	leaseRange := viper.GetInt("lease-range")
 
-	dnsIPStrings := strings.Split(*dnsAddressesFlag, ",")
+	dnsIPStrings := strings.Split(viper.GetString("dns"), ",")
 	if len(dnsIPStrings) == 0 {
 		fmt.Fprint(os.Stderr, "\nPlease specify an DNS server\n")
 		os.Exit(1)
@@ -223,7 +257,7 @@ func main() {
 
 	// datasources
 	etcdClient, err := etcd.New(etcd.Config{
-		Endpoints:               strings.Split(*etcdFlag, ","),
+		Endpoints:               strings.Split(viper.GetString("etcd"), ","),
 		HeaderTimeoutPerRequest: 5 * time.Second,
 	})
 	if err != nil {
@@ -243,8 +277,8 @@ func main() {
 		ServiceStartTime: time.Now().UTC().Unix(),
 	}
 	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,
-		leaseStart, leaseRange, *clusterNameFlag, *workspacePathFlag,
-		*workspaceRepo, *fileServer, dnsIPStrings, selfInfo)
+		leaseStart, leaseRange, viper.GetString("cluster-name"), viper.GetString("workspace"),
+		viper.GetString("workspace-repo"), viper.GetString("file-server"), dnsIPStrings, selfInfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
@@ -264,7 +298,7 @@ func main() {
 
 	go func() {
 		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger,
-			*tlsCertFlag, *tlsKeyFlag, *tlsCaFlag); err != nil {
+			viper.GetString("tls-cert"), viper.GetString("tls-key"), viper.GetString("tls-ca")); err != nil {
 			log.Fatalf("\nError while serving swagger api: %s\n", err)
 		}
 	}()

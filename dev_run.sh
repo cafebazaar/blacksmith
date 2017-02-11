@@ -149,23 +149,22 @@ function runBlacksmith {
       -v $(pwd)/certs/:/certs/ \
       -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt \
       quay.io/cafebazaar/blacksmith:v0.10 \
-        -workspace /workspace \
-        -etcd http://${HostIP}:2379 \
-        -if $HOSTONLY \
-        -cluster-name cafecluster \
-        -lease-start 172.19.1.11 \
-        -file-server http://${HostIP}/ \
-        -lease-range 10 \
-        -dns 8.8.8.8 \
-        -debug \
-        -http-listen ${HostIP}:8000 \
-        -api-listen ${HostIP}:8001 \
-        -tls-cert /certs/server.crt \
-        -tls-key /certs/server.key \
-        -tls-ca /certs/ca.crt \
-        -workspace-repo https://github.com/cafebazaar/blacksmith-kubernetes
+        --workspace /workspace \
+        --etcd http://${HostIP}:2379 \
+        --if $HOSTONLY \
+        --cluster-name cafecluster \
+        --lease-start 172.19.1.11 \
+        --file-server http://${HostIP}/ \
+        --lease-range 10 \
+        --dns 8.8.8.8 \
+        --debug \
+        --http-listen ${HostIP}:8000 \
+        --api-listen ${HostIP}:8001 \
+        --tls-cert /certs/server.crt \
+        --tls-key /certs/server.key \
+        --tls-ca /certs/ca.crt \
+        --workspace-repo https://github.com/cafebazaar/blacksmith-kubernetes
 }
-
 
 function runWithDelay {
     sleep $1

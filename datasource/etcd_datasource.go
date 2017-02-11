@@ -553,7 +553,12 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	return ds, nil
 }
 
-func clone(path, url, priKeyPath, branch string) (*git.Repository, error) {
+func clone(path, url, priKeyPath, ref string) (*git.Repository, error) {
+	log.WithFields(log.Fields{
+		"url":  url,
+		"path": path,
+		"ref":  ref,
+	}).Info("cloning")
 	privateKey, err := ioutil.ReadFile(priKeyPath)
 
 	useKey := true
@@ -565,7 +570,7 @@ func clone(path, url, priKeyPath, branch string) (*git.Repository, error) {
 
 	opts := git.CloneOptions{
 		URL:           url,
-		ReferenceName: plumbing.ReferenceName(branch),
+		ReferenceName: plumbing.ReferenceName(ref),
 		SingleBranch:  true,
 		Depth:         1,
 		Progress:      os.Stdout,

@@ -31,7 +31,7 @@ type machineDetails struct {
 	LastAssigned  int64                  `json:"lastAssigned"`
 }
 
-func machineToDetails(machineInterface datasource.MachineInterface) (*machineDetails, error) {
+func machineToDetails(machineInterface datasource.EtcdMachineInterface) (*machineDetails, error) {
 
 	name := machineInterface.Hostname()
 	mac := machineInterface.Mac()
@@ -135,7 +135,7 @@ func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) 
 	name := vars["name"]
 	value := r.FormValue("value")
 
-	var machineInterface datasource.MachineInterface
+	var machineInterface datasource.EtcdMachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)
 		if err != nil {
@@ -164,7 +164,7 @@ func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) 
 	macStr := vars["mac"]
 	name := vars["name"]
 
-	var machineInterface datasource.MachineInterface
+	var machineInterface datasource.EtcdMachineInterface
 	if macStr != "" {
 		mac, err := net.ParseMAC(macStr)
 		if err != nil {

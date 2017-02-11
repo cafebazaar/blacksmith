@@ -78,11 +78,11 @@ func (ds *EtcdDataSource) WorkspaceRepo() string {
 
 // MachineInterfaces returns all the machines in the cluster, as a slice of
 // MachineInterfaces
-func (ds *EtcdDataSource) MachineInterfaces() ([]MachineInterface, error) {
+func (ds *EtcdDataSource) MachineInterfaces() ([]EtcdMachineInterface, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var ret []MachineInterface
+	var ret []EtcdMachineInterface
 
 	response, err := ds.keysAPI.Get(ctx, path.Join(ds.clusterName, etcdMachinesDirName), &etcd.GetOptions{Recursive: false})
 	if err != nil {
@@ -103,9 +103,9 @@ func (ds *EtcdDataSource) MachineInterfaces() ([]MachineInterface, error) {
 	return ret, nil
 }
 
-// GetMachineInterface returns the MachineInterface associated with the given mac
-func (ds *EtcdDataSource) GetMachineInterface(mac net.HardwareAddr) MachineInterface {
-	return &etcdMachineInterface{
+// GetMachineInterface returns the EtcdMachineInterface associated with the given mac
+func (ds *EtcdDataSource) GetMachineInterface(mac net.HardwareAddr) EtcdMachineInterface {
+	return EtcdMachineInterface{
 		mac:     mac,
 		etcdDS:  ds,
 		keysAPI: ds.keysAPI,

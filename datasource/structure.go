@@ -25,52 +25,6 @@ type Machine struct {
 	Type      MachineType `json:"type"`
 }
 
-// MachineInterface provides the interface for querying/altering
-// Machine entries in the datasource
-type MachineInterface interface {
-	// Mac returns the hardware address of the associated machine
-	Mac() net.HardwareAddr
-
-	// Hostname returns the mac address formatted as a string suitable for hostname
-	Hostname() string
-
-	// Machine creates a record for the associated mac if needed
-	// and asked for, and returns a Machine with the stored values.
-	// If createIfNeeded is true, and there is no machine associated to
-	// this mac, the machine will be created, stored, and returned.
-	// In this case, if createWithIP is empty, the IP will be assigned
-	// automatically, otherwise the given will be used. An error will be
-	// raised if createWithIP is currently assigned to another mac. Also
-	// the Type will be automatically set to MTNormal if createWithIP is
-	// nil, otherwise to MTStatic.
-	// If createIfNeeded is false, the createWithIP is expected to be nil.
-	// Note: if the machine exists, createWithIP is ignored. It's possible
-	// for the returned Machine to have an IP different from createWithIP.
-	Machine(createIfNeeded bool, createWithIP net.IP) (Machine, error)
-
-	// LastSeen returns the last time the machine has been seen
-	LastSeen() (int64, error)
-
-	// DeleteMachine deletes a machine from the store entirely
-	DeleteMachine() error
-
-	// CheckIn updates the _last_seen field of the machine
-	CheckIn()
-
-	// ListVariables returns the list of all the flgas of a machine from Etcd
-	ListVariables() (map[string]string, error)
-
-	// GetVariable Gets a machine's variable, or the global if it was not
-	// set for the machine
-	GetVariable(key string) (string, error)
-
-	// SetVariable sets the value of the specified key
-	SetVariable(key string, value string) error
-
-	// DeleteVariable erases the entry specified by key
-	DeleteVariable(key string) error
-}
-
 // InstanceInfo describes an active instance of blacksmith running on some machine
 type InstanceInfo struct {
 	IP               net.IP           `json:"ip"`
@@ -126,11 +80,11 @@ type DataSource interface {
 
 	// MachineInterfaces returns all the machines in the cluster, as a slice of
 	// MachineInterfaces
-	MachineInterfaces() ([]MachineInterface, error)
+	MachineInterfaces() ([]EtcdMachineInterface, error)
 
-	// MachineInterface returns the MachineInterface associated with the given
+	// EtcdMachineInterface returns the EtcdMachineInterface associated with the given
 	// mac
-	GetMachineInterface(mac net.HardwareAddr) MachineInterface
+	GetMachineInterface(mac net.HardwareAddr) EtcdMachineInterface
 
 	// ListClusterVariables returns the list of all the cluster variables
 	ListClusterVariables() (map[string]string, error)

@@ -31,7 +31,7 @@ func (dnsServ *dnsServer) clusterDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	log.Info("DNS request: " + m.Question[0].Name)
 
-	masterMachines := make([]datasource.MachineInterface, 0)
+	masterMachines := make([]datasource.EtcdMachineInterface, 0)
 	machines, err := dnsServ.ds.MachineInterfaces()
 	if err != nil {
 		log.Error("can't retrieve machines interfaces")

@@ -30,7 +30,7 @@ func TestExecuteTemplate(t *testing.T) {
 	for i, tt := range cases {
 		got, err := executeTemplate(
 			tt.inputTemplteRoot, tt.templateName,
-			ds, ds.MachineInterface(mac1))
+			ds, ds.GetMachineInterface(mac1))
 
 		if tt.err && err == nil {
 			t.Errorf("#%d: expected error, got nil", i)

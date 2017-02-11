@@ -130,7 +130,7 @@ type DataSource interface {
 
 	// MachineInterface returns the MachineInterface associated with the given
 	// mac
-	MachineInterface(mac net.HardwareAddr) MachineInterface
+	GetMachineInterface(mac net.HardwareAddr) MachineInterface
 
 	// ListClusterVariables returns the list of all the cluster variables
 	ListClusterVariables() (map[string]string, error)

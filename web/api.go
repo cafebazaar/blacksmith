@@ -51,7 +51,7 @@ func machineToDetails(machineInterface *datasource.EtcdMachine) (*machineDetails
 // MachinesList creates a list of the currently known machines based on the etcd
 // entries
 func (ws *webServer) MachinesList(w http.ResponseWriter, r *http.Request) {
-	machines, err := ws.ds.EtcdMachines()
+	machines, err := ws.ds.GetEtcdMachines()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
 		return

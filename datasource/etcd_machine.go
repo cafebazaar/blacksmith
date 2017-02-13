@@ -16,21 +16,21 @@ import (
 	"golang.org/x/net/context"
 )
 
-// EtcdMachineInterface implements datasource.EtcdMachineInterface
+// EtcdMachine implements datasource.EtcdMachine
 // interface using etcd as it's datasource
-type EtcdMachineInterface struct {
+type EtcdMachine struct {
 	mac     net.HardwareAddr
 	etcdDS  *EtcdDatasource
 	keysAPI etcd.KeysAPI
 }
 
 // Mac returns the hardware address of the associated machine
-func (m *EtcdMachineInterface) Mac() net.HardwareAddr {
+func (m *EtcdMachine) Mac() net.HardwareAddr {
 	return m.mac
 }
 
 // Hostname returns the mac address formatted as a string suitable for hostname
-func (m *EtcdMachineInterface) Hostname() string {
+func (m *EtcdMachine) Hostname() string {
 	return strings.Replace(m.mac.String(), ":", "", -1)
 }
 
@@ -46,7 +46,7 @@ func (m *EtcdMachineInterface) Hostname() string {
 // If createIfNeeded is false, the createWithIP is expected to be nil.
 // Note: if the machine exists, createWithIP is ignored. It's possible
 // for the returned Machine to have an IP different from createWithIP.
-func (m *EtcdMachineInterface) Machine(createIfNeeded bool,
+func (m *EtcdMachine) Machine(createIfNeeded bool,
 	createWithIP net.IP) (Machine, error) {
 	var machine Machine
 
@@ -77,7 +77,7 @@ func (m *EtcdMachineInterface) Machine(createIfNeeded bool,
 	return machine, nil
 }
 
-func (m *EtcdMachineInterface) store(machine *Machine) error {
+func (m *EtcdMachine) store(machine *Machine) error {
 	if machine.Type == 0 {
 		if machine.IP == nil {
 			machine.Type = MTNormal
@@ -157,12 +157,12 @@ func (m *EtcdMachineInterface) store(machine *Machine) error {
 }
 
 // CheckIn updates the _last_seen field of the machine
-func (m *EtcdMachineInterface) CheckIn() {
+func (m *EtcdMachine) CheckIn() {
 	m.selfSet("_last_seen", strconv.FormatInt(time.Now().Unix(), 10))
 }
 
 // LastSeen returns the last time the machine has been seen, 0 for never
-func (m *EtcdMachineInterface) LastSeen() (int64, error) {
+func (m *EtcdMachine) LastSeen() (int64, error) {
 	unixString, err := m.selfGet("_last_seen")
 	if err != nil {
 		return 0, err
@@ -172,7 +172,7 @@ func (m *EtcdMachineInterface) LastSeen() (int64, error) {
 }
 
 // DeleteMachine deletes associated etcd folder of a machine entirely
-func (m *EtcdMachineInterface) DeleteMachine() error {
+func (m *EtcdMachine) DeleteMachine() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := m.etcdDS.keysAPI.Delete(ctx,
@@ -183,7 +183,7 @@ func (m *EtcdMachineInterface) DeleteMachine() error {
 
 // ListFlags returns the list of all the flgas of a machine from Etcd
 // etcd and machine prefix will be added to the path
-func (m *EtcdMachineInterface) ListVariables() (map[string]string, error) {
+func (m *EtcdMachine) ListVariables() (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -204,7 +204,7 @@ func (m *EtcdMachineInterface) ListVariables() (map[string]string, error) {
 
 // GetVariable Gets a machine's variable, or the global if it was not
 // set for the machine
-func (m *EtcdMachineInterface) GetVariable(key string) (string, error) {
+func (m *EtcdMachine) GetVariable(key string) (string, error) {
 	value, err := m.selfGet(key)
 
 	if err != nil {
@@ -232,7 +232,7 @@ func (m *EtcdMachineInterface) GetVariable(key string) (string, error) {
 }
 
 // SetVariable sets the value of the specified key
-func (m *EtcdMachineInterface) SetVariable(key, value string) error {
+func (m *EtcdMachine) SetVariable(key, value string) error {
 	err := validateVariable(key, value)
 	if err != nil {
 		return err
@@ -241,24 +241,24 @@ func (m *EtcdMachineInterface) SetVariable(key, value string) error {
 }
 
 // DeleteVariable erases the entry specified by key
-func (m *EtcdMachineInterface) DeleteVariable(key string) error {
+func (m *EtcdMachine) DeleteVariable(key string) error {
 	return m.selfDelete(key)
 }
 
-func (m *EtcdMachineInterface) prefixifyForMachine(key string) string {
+func (m *EtcdMachine) prefixifyForMachine(key string) string {
 	return path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname(),
 		key)
 }
 
-func (m *EtcdMachineInterface) selfGet(key string) (string, error) {
+func (m *EtcdMachine) selfGet(key string) (string, error) {
 	return m.etcdDS.get(m.prefixifyForMachine(key))
 }
 
-func (m *EtcdMachineInterface) selfSet(key, value string) error {
+func (m *EtcdMachine) selfSet(key, value string) error {
 	return m.etcdDS.set(m.prefixifyForMachine(key), value)
 }
 
-func (m *EtcdMachineInterface) selfDelete(key string) error {
+func (m *EtcdMachine) selfDelete(key string) error {
 	err := m.etcdDS.delete(m.prefixifyForMachine(key))
 	return err
 }

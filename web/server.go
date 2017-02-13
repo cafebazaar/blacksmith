@@ -19,7 +19,7 @@ import (
 )
 
 type webServer struct {
-	ds *datasource.EtcdDataSource
+	ds *datasource.EtcdDatasource
 }
 
 // Handler uses a multiplexing router to route http requests
@@ -73,7 +73,7 @@ func logHandler(h http.Handler) http.Handler {
 }
 
 //ServeWeb serves api of Blacksmith and a ui connected to that api
-func ServeWeb(ds *datasource.EtcdDataSource, listenAddr net.TCPAddr) error {
+func ServeWeb(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr) error {
 
 	ws := &webServer{ds: ds}
 	log.WithFields(log.Fields{
@@ -93,7 +93,7 @@ func ServeWeb(ds *datasource.EtcdDataSource, listenAddr net.TCPAddr) error {
 	return s.ListenAndServe()
 }
 
-func ServeSwaggerAPI(ds *datasource.EtcdDataSource, listenAddr net.TCPAddr, tlsCertFlag string, tlsKeyFlag string, tlsCaFlag string) error {
+func ServeSwaggerAPI(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr, tlsCertFlag string, tlsKeyFlag string, tlsCaFlag string) error {
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)

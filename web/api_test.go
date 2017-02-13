@@ -16,7 +16,7 @@ func TestMachineVariablesAPI(t *testing.T) {
 
 	ds, err := datasource.ForTest(nil)
 	if err != nil {
-		t.Error("error in getting a EtcdDataSource instance for our test:", err)
+		t.Error("error in getting a EtcdDatasource instance for our test:", err)
 		return
 	}
 

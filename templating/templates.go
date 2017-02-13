@@ -34,7 +34,7 @@ func templateFuncsDefault() map[string]interface{} {
 	}
 }
 
-func templateFuncs(rootTemplate *template.Template, ds *datasource.EtcdDataSource, machineInterface *datasource.EtcdMachineInterface) map[string]interface{} {
+func templateFuncs(rootTemplate *template.Template, ds *datasource.EtcdDatasource, machineInterface *datasource.EtcdMachineInterface) map[string]interface{} {
 	return map[string]interface{}{
 		"machine_variable": func(key string) string {
 			value, err := machineInterface.GetVariable(key)
@@ -124,7 +124,7 @@ func findFiles(pathStr string) ([]string, error) {
 	return files, nil
 }
 
-func executeGeneralTemplate(rootTemplate *template.Template, templateName string, ds *datasource.EtcdDataSource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
+func executeGeneralTemplate(rootTemplate *template.Template, templateName string, ds *datasource.EtcdDatasource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
 	text, err := executeTemplate(rootTemplate, templateName, ds, machineInterface)
 	if err != nil {
 		log.WithField("where", "templating.executeTemplate").WithError(err).Warnf(
@@ -183,7 +183,7 @@ func templateForFile(tmpl string) (*template.Template, error) {
 }
 
 func ExecuteTemplateFile(tmpl string,
-	ds *datasource.EtcdDataSource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
+	ds *datasource.EtcdDatasource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
 
 	mac := machineInterface.Mac().String()
 
@@ -233,7 +233,7 @@ func ExecuteTemplateFile(tmpl string,
 }
 
 func executeTemplate(rootTemplate *template.Template, templateName string,
-	ds *datasource.EtcdDataSource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
+	ds *datasource.EtcdDatasource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
 	template := rootTemplate.Lookup(templateName)
 
 	if template == nil {
@@ -286,7 +286,7 @@ func executeTemplate(rootTemplate *template.Template, templateName string,
 // ExecuteTemplateFolder returns a string compiled from using the files in the
 // specified directory, starting from `main` file inside the directory.
 func ExecuteTemplateFolder(tmplFolder string, templateFile string,
-	ds *datasource.EtcdDataSource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
+	ds *datasource.EtcdDatasource, machineInterface *datasource.EtcdMachineInterface) (string, error) {
 
 	template, err := templateFromPath(tmplFolder)
 	if err != nil {

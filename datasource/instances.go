@@ -22,7 +22,7 @@ const (
 	etcdTimeout      = 5 * time.Second
 )
 
-func (ds *EtcdDataSource) registerOnEtcd() error {
+func (ds *EtcdDatasource) registerOnEtcd() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	masterOrderOption := etcd.CreateInOrderOptions{
@@ -38,7 +38,7 @@ func (ds *EtcdDataSource) registerOnEtcd() error {
 	return nil
 }
 
-func (ds *EtcdDataSource) etcdHeartbeat() error {
+func (ds *EtcdDatasource) etcdHeartbeat() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	masterSetOption := etcd.SetOptions{
@@ -50,7 +50,7 @@ func (ds *EtcdDataSource) etcdHeartbeat() error {
 }
 
 // IsMaster checks for being master
-func (ds *EtcdDataSource) IsMaster() error {
+func (ds *EtcdDatasource) IsMaster() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	masterGetOptions := etcd.GetOptions{
@@ -72,7 +72,7 @@ func (ds *EtcdDataSource) IsMaster() error {
 }
 
 // WhileMaster makes a heartbeat and returns IsMaster()
-func (ds *EtcdDataSource) WhileMaster() error {
+func (ds *EtcdDatasource) WhileMaster() error {
 	var err error
 	if ds.instanceEtcdKey == invalidEtcdKey {
 		err = ds.registerOnEtcd()
@@ -92,7 +92,7 @@ func (ds *EtcdDataSource) WhileMaster() error {
 
 // Shutdown removes the instance key from the list of instances, used to
 // gracefully shutdown the instance
-func (ds *EtcdDataSource) Shutdown() error {
+func (ds *EtcdDatasource) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), etcdTimeout)
 	defer cancel()
 	_, err := ds.keysAPI.Delete(ctx, ds.instanceEtcdKey, nil)
@@ -101,7 +101,7 @@ func (ds *EtcdDataSource) Shutdown() error {
 
 // Instances returns the InstanceInfo of all the present instances of
 // blacksmith in our cluster
-func (ds *EtcdDataSource) Instances() ([]InstanceInfo, error) {
+func (ds *EtcdDatasource) Instances() ([]InstanceInfo, error) {
 	var instances []InstanceInfo
 
 	// These values are set by hacluster.registerOnEtcd
@@ -128,7 +128,7 @@ func (ds *EtcdDataSource) Instances() ([]InstanceInfo, error) {
 }
 
 // SelfInfo return InstanceInfo of this instance of blacksmith
-func (ds *EtcdDataSource) SelfInfo() InstanceInfo {
+func (ds *EtcdDatasource) SelfInfo() InstanceInfo {
 	return ds.selfInfo
 }
 

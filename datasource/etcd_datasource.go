@@ -35,10 +35,10 @@ const (
 	etcdFilesDirName         = "files"
 )
 
-// EtcdDataSource implements MasterDataSource interface using etcd as it's
+// EtcdDatasource implements MasterDataSource interface using etcd as it's
 // datasource
 // Implements MasterDataSource interface
-type EtcdDataSource struct {
+type EtcdDatasource struct {
 	keysAPI         etcd.KeysAPI
 	client          etcd.Client
 	leaseStart      net.IP
@@ -54,31 +54,31 @@ type EtcdDataSource struct {
 }
 
 // WorkspacePath returns the path to the workspace
-func (ds *EtcdDataSource) WorkspacePath() string {
+func (ds *EtcdDatasource) WorkspacePath() string {
 	return ds.workspacePath
 }
 
 // FileServer returns the path to the workspace
-func (ds *EtcdDataSource) FileServer() string {
+func (ds *EtcdDatasource) FileServer() string {
 	return ds.fileServer
 }
 
-func (ds *EtcdDataSource) WebServer() string {
+func (ds *EtcdDatasource) WebServer() string {
 	return ds.webServer
 }
 
-func (ds *EtcdDataSource) SetWebServer(addr string) {
+func (ds *EtcdDatasource) SetWebServer(addr string) {
 	ds.webServer = addr
 }
 
 // WorkspaceRepo returns the workspace repository URL
-func (ds *EtcdDataSource) WorkspaceRepo() string {
+func (ds *EtcdDatasource) WorkspaceRepo() string {
 	return ds.fileServer
 }
 
 // MachineInterfaces returns all the machines in the cluster, as a slice of
 // MachineInterfaces
-func (ds *EtcdDataSource) MachineInterfaces() ([]*EtcdMachineInterface, error) {
+func (ds *EtcdDatasource) MachineInterfaces() ([]*EtcdMachineInterface, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -104,7 +104,7 @@ func (ds *EtcdDataSource) MachineInterfaces() ([]*EtcdMachineInterface, error) {
 }
 
 // GetMachineInterface returns the EtcdMachineInterface associated with the given mac
-func (ds *EtcdDataSource) GetMachineInterface(mac net.HardwareAddr) *EtcdMachineInterface {
+func (ds *EtcdDatasource) GetMachineInterface(mac net.HardwareAddr) *EtcdMachineInterface {
 	return &EtcdMachineInterface{
 		mac:     mac,
 		etcdDS:  ds,
@@ -113,12 +113,12 @@ func (ds *EtcdDataSource) GetMachineInterface(mac net.HardwareAddr) *EtcdMachine
 }
 
 // Add prefix for cluster variable keys
-func (ds *EtcdDataSource) prefixifyForClusterVariables(key string) string {
+func (ds *EtcdDatasource) prefixifyForClusterVariables(key string) string {
 	return path.Join(ds.ClusterName(), etcdCluserVarsDirName, key)
 }
 
 // get expects absolute key path
-func (ds *EtcdDataSource) get(keyPath string) (string, error) {
+func (ds *EtcdDatasource) get(keyPath string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -130,7 +130,7 @@ func (ds *EtcdDataSource) get(keyPath string) (string, error) {
 }
 
 // create expects absolute key path
-func (ds *EtcdDataSource) create(keyPath string, value string) error {
+func (ds *EtcdDatasource) create(keyPath string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := ds.keysAPI.Create(ctx, keyPath, value)
@@ -138,7 +138,7 @@ func (ds *EtcdDataSource) create(keyPath string, value string) error {
 }
 
 // get expects absolute key path
-func (ds *EtcdDataSource) getArray(keyPath string) (interface{}, error) {
+func (ds *EtcdDatasource) getArray(keyPath string) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -151,7 +151,7 @@ func (ds *EtcdDataSource) getArray(keyPath string) (interface{}, error) {
 }
 
 // set expects absolute key path
-func (ds *EtcdDataSource) set(keyPath string, value string) error {
+func (ds *EtcdDatasource) set(keyPath string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := ds.keysAPI.Set(ctx, keyPath, value, nil)
@@ -159,14 +159,14 @@ func (ds *EtcdDataSource) set(keyPath string, value string) error {
 }
 
 // delete expects absolute key path
-func (ds *EtcdDataSource) delete(keyPath string) error {
+func (ds *EtcdDatasource) delete(keyPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	_, err := ds.keysAPI.Delete(ctx, keyPath, nil)
 	return err
 }
 
-func (ds *EtcdDataSource) watchOnce(keyPath string) (*etcd.Response, error) {
+func (ds *EtcdDatasource) watchOnce(keyPath string) (*etcd.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3600*time.Second)
 	watcher := ds.keysAPI.Watcher(keyPath, nil)
 	defer cancel()
@@ -178,21 +178,21 @@ func (ds *EtcdDataSource) watchOnce(keyPath string) (*etcd.Response, error) {
 }
 
 // GetClusterVariable returns a cluster variables with the given name
-func (ds *EtcdDataSource) GetClusterVariable(key string) (string, error) {
+func (ds *EtcdDatasource) GetClusterVariable(key string) (string, error) {
 	return ds.get(ds.prefixifyForClusterVariables(key))
 }
 
 // GetClusterArrayVariable returns a cluster variables with the given name
-func (ds *EtcdDataSource) GetArrayVariable(key string) (interface{}, error) {
+func (ds *EtcdDatasource) GetArrayVariable(key string) (interface{}, error) {
 	return ds.getArray(path.Join(ds.ClusterName(), key))
 }
 
 // GetClusterArrayVariable returns a cluster variables with the given name
-func (ds *EtcdDataSource) GetVariable(key string) (string, error) {
+func (ds *EtcdDatasource) GetVariable(key string) (string, error) {
 	return ds.get(key)
 }
 
-func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, error) {
+func (ds *EtcdDatasource) listNonDirKeyValues(dir string) (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -214,17 +214,17 @@ func (ds *EtcdDataSource) listNonDirKeyValues(dir string) (map[string]string, er
 }
 
 // ListClusterVariables returns the list of all the cluster variables from etcd
-func (ds *EtcdDataSource) ListClusterVariables() (map[string]string, error) {
+func (ds *EtcdDatasource) ListClusterVariables() (map[string]string, error) {
 	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdCluserVarsDirName))
 }
 
 // ListConfigurations returns the list of all the configuration variables from etcd
-func (ds *EtcdDataSource) ListConfigurations() (map[string]string, error) {
+func (ds *EtcdDatasource) ListConfigurations() (map[string]string, error) {
 	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdConfigurationDirName))
 }
 
 // SetClusterVariable sets a cluster variable inside etcd
-func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
+func (ds *EtcdDatasource) SetClusterVariable(key string, value string) error {
 	err := validateVariable(key, value)
 	if err != nil {
 		return err
@@ -233,17 +233,17 @@ func (ds *EtcdDataSource) SetClusterVariable(key string, value string) error {
 }
 
 // DeleteClusterVariable deletes a cluster variable
-func (ds *EtcdDataSource) DeleteClusterVariable(key string) error {
+func (ds *EtcdDatasource) DeleteClusterVariable(key string) error {
 	return ds.delete(ds.prefixifyForClusterVariables(key))
 }
 
 // GetWorkspaceHash returns worspace hash
-func (ds *EtcdDataSource) GetWorkspaceHash() (string, error) {
+func (ds *EtcdDatasource) GetWorkspaceHash() (string, error) {
 	workspaceHash, err := ds.get(path.Join(ds.ClusterName(), "workspace-hash"))
 	return workspaceHash, err
 }
 
-func (ds *EtcdDataSource) UpdateSignal() error {
+func (ds *EtcdDatasource) UpdateSignal() error {
 	err := ds.set(path.Join(ds.ClusterName(), "workspace-update"), hashGenerator())
 	return err
 }
@@ -260,7 +260,7 @@ func hashGenerator() string {
 }
 
 // UpdateWorkspace updates workspace
-func (ds *EtcdDataSource) UpdateWorkspace() error {
+func (ds *EtcdDatasource) UpdateWorkspace() error {
 
 	var erro error
 	erro = nil
@@ -373,13 +373,13 @@ func (ds *EtcdDataSource) UpdateWorkspace() error {
 }
 
 // ClusterName returns the name of the cluster
-func (ds *EtcdDataSource) ClusterName() string {
+func (ds *EtcdDatasource) ClusterName() string {
 	return ds.clusterName
 }
 
 // EtcdMembers returns a string suitable for `-initial-cluster`
 // This is the etcd the Blacksmith instance is using as its datastore
-func (ds *EtcdDataSource) EtcdMembers() (string, error) {
+func (ds *EtcdDatasource) EtcdMembers() (string, error) {
 	membersAPI := etcd.NewMembersAPI(ds.client)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -403,7 +403,7 @@ func (ds *EtcdDataSource) EtcdMembers() (string, error) {
 // EtcdEndpoints returns a string suitable for etcdctl
 // This is the etcd the Blacksmith instance is using as its datastore
 
-func (ds *EtcdDataSource) EtcdEndpoints() (string, error) {
+func (ds *EtcdDatasource) EtcdEndpoints() (string, error) {
 	membersAPI := etcd.NewMembersAPI(ds.client)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -424,7 +424,7 @@ func (ds *EtcdDataSource) EtcdEndpoints() (string, error) {
 	return strings.Join(peers, ","), err
 }
 
-func (ds *EtcdDataSource) iterateOverYaml(iVals interface{}, pathStr string) error {
+func (ds *EtcdDatasource) iterateOverYaml(iVals interface{}, pathStr string) error {
 	switch t := iVals.(type) {
 	default:
 	case string:
@@ -470,9 +470,9 @@ func (ds *EtcdDataSource) iterateOverYaml(iVals interface{}, pathStr string) err
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	leaseRange int, clusterName, workspacePath string, workspaceRepo string,
 	fileServer string, defaultNameServers []string,
-	selfInfo InstanceInfo) (*EtcdDataSource, error) {
+	selfInfo InstanceInfo) (*EtcdDatasource, error) {
 
-	ds := &EtcdDataSource{
+	ds := &EtcdDatasource{
 		keysAPI:         kapi,
 		client:          client,
 		clusterName:     clusterName,

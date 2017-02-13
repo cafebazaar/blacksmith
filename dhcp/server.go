@@ -112,7 +112,7 @@ func (h *Handler) ServeDHCP(p dhcp4.Packet, msgType dhcp4.MessageType, options d
 			return nil // this message is not ours
 		}
 
-		machineInterface := h.datasource.GetMachine(p.CHAddr())
+		machineInterface := h.datasource.GetEtcdMachine(p.CHAddr())
 		machine, err := machineInterface.Machine(true, nil)
 		if err != nil {
 			log.WithField("where", "dhcp.ServeDHCP").WithError(err).Warn(

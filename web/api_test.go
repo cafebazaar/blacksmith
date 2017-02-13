@@ -33,7 +33,7 @@ func TestMachineVariablesAPI(t *testing.T) {
 	r := &webServer{ds: ds}
 	h := r.Handler()
 
-	mi := ds.GetMachine(mac1)
+	mi := ds.GetEtcdMachine(mac1)
 	_, err = mi.Machine(true, nil)
 	if err != nil {
 		t.Error("error while creating machine:", err)

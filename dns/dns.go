@@ -15,7 +15,7 @@ import (
 )
 
 type dnsServer struct {
-	ds         datasource.DataSource
+	ds         *datasource.EtcdDataSource
 	roundRobin int
 }
 
@@ -118,7 +118,7 @@ func (dnsServ *dnsServer) generalDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 }
 
-func ServeDNS(tcpServerIP net.TCPAddr, udpServerIP net.UDPAddr, ds datasource.DataSource) error {
+func ServeDNS(tcpServerIP net.TCPAddr, udpServerIP net.UDPAddr, ds *datasource.EtcdDataSource) error {
 
 	dnsServer := &dnsServer{ds: ds}
 	dnsServer.roundRobin = 0

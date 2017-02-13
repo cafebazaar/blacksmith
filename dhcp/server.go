@@ -25,7 +25,7 @@ func randLeaseDuration() time.Duration {
 
 // StartDHCP ListenAndServe for dhcp on port 67, binds on interface=ifName if it's
 // not empty
-func StartDHCP(ifName string, serverIP net.IP, datasource datasource.DataSource) error {
+func StartDHCP(ifName string, serverIP net.IP, datasource *datasource.EtcdDataSource) error {
 	handler := &Handler{
 		ifName:      ifName,
 		serverIP:    serverIP,
@@ -60,7 +60,7 @@ func StartDHCP(ifName string, serverIP net.IP, datasource datasource.DataSource)
 type Handler struct {
 	ifName      string
 	serverIP    net.IP
-	datasource  datasource.DataSource
+	datasource  *datasource.EtcdDataSource
 	dhcpOptions dhcp4.Options
 	bootMessage string
 }

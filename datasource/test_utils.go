@@ -13,7 +13,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 )
 
-// ForTestParams is the way to create a customized DataSource to be
+// ForTestParams is the way to create a customized EtcdDataSource to be
 // used in a test. Fields with value=nil will be ignored.
 type ForTestParams struct {
 	leaseStart    *net.IP
@@ -49,8 +49,8 @@ func etcdClietForTest() (etcd.Client, error) {
 	return etcdClient, err
 }
 
-// ForTest constructs a DataSource to be used in tests
-func ForTest(params *ForTestParams) (DataSource, error) {
+// ForTest constructs a EtcdDataSource to be used in tests
+func ForTest(params *ForTestParams) (*EtcdDataSource, error) {
 	var err error
 
 	leaseStart := net.ParseIP(forTestDefaultLeaseStart)

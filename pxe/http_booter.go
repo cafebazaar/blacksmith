@@ -32,14 +32,14 @@ type nodeContext struct {
 type HTTPBooter struct {
 	listenAddr          net.TCPAddr
 	ldlinux             []byte
-	datasource          datasource.DataSource
+	datasource          *datasource.EtcdDataSource
 	bootParamsTemplates *template.Template
 	webPort             int
 	bootMessageTemplate string
 }
 
 func NewHTTPBooter(listenAddr net.TCPAddr, ldlinux []byte,
-	ds datasource.DataSource, webPort int) (*HTTPBooter, error) {
+	ds *datasource.EtcdDataSource, webPort int) (*HTTPBooter, error) {
 	bootMessageVersionedTemplate := strings.Replace(bootMessageTemplate,
 		"$VERSION", ds.SelfInfo().Version, -1)
 	bootMessageVersionedTemplate = strings.Replace(bootMessageTemplate,
@@ -202,7 +202,7 @@ func (b *HTTPBooter) fileHandler(w http.ResponseWriter, r *http.Request) {
 	utils.LogAccess(r).WithField("where", "pxe.fileHandler").Infof("written=%d", written)
 }
 
-func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int) (*http.ServeMux, error) {
+func HTTPBooterMux(listenAddr net.TCPAddr, ds *datasource.EtcdDataSource, webPort int) (*http.ServeMux, error) {
 	ldlinux, err := FSByte(false, "/pxelinux/ldlinux.c32")
 	if err != nil {
 		return nil, err
@@ -214,7 +214,7 @@ func HTTPBooterMux(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int
 	return booter.Mux(), nil
 }
 
-func ServeHTTPBooter(listenAddr net.TCPAddr, ds datasource.DataSource, webPort int) error {
+func ServeHTTPBooter(listenAddr net.TCPAddr, ds *datasource.EtcdDataSource, webPort int) error {
 	mux, err := HTTPBooterMux(listenAddr, ds, webPort)
 	if err != nil {
 		return err

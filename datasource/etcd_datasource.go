@@ -470,7 +470,7 @@ func (ds *EtcdDataSource) iterateOverYaml(iVals interface{}, pathStr string) err
 func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	leaseRange int, clusterName, workspacePath string, workspaceRepo string,
 	fileServer string, defaultNameServers []string,
-	selfInfo InstanceInfo) (DataSource, error) {
+	selfInfo InstanceInfo) (*EtcdDataSource, error) {
 
 	ds := &EtcdDataSource{
 		keysAPI:         kapi,

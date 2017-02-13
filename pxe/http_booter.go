@@ -85,7 +85,7 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	machineInterface := b.datasource.GetMachineInterface(mac)
+	machineInterface := b.datasource.GetMachine(mac)
 	_, err = machineInterface.Machine(false, nil)
 	if err != nil {
 		utils.LogAccess(r).WithError(err).WithField("where", "pxe.pxelinuxConfig").Debug(

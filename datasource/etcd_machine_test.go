@@ -24,13 +24,13 @@ func TestAssign(t *testing.T) {
 	mac1, _ := net.ParseMAC("FF:FF:FF:FF:FF:FF")
 	mac2, _ := net.ParseMAC("FF:FF:FF:FF:FF:FE")
 
-	machine1, err := ds.GetMachineInterface(mac1).Machine(true, nil)
+	machine1, err := ds.GetMachine(mac1).Machine(true, nil)
 	if err != nil {
 		t.Error("error in creating first machine:", err)
 		return
 	}
 
-	machine2, err := ds.GetMachineInterface(mac2).Machine(true, nil)
+	machine2, err := ds.GetMachine(mac2).Machine(true, nil)
 	if err != nil {
 		t.Error("error in creating second machine:", err)
 		return
@@ -56,7 +56,7 @@ func TestAssign(t *testing.T) {
 		return
 	}
 
-	machine3, err := ds.GetMachineInterface(mac2).Machine(true, nil)
+	machine3, err := ds.GetMachine(mac2).Machine(true, nil)
 	if err != nil {
 		t.Error("error in creating third machine:", err)
 		return
@@ -68,7 +68,7 @@ func TestAssign(t *testing.T) {
 	}
 
 	anIP := net.IPv4(127, 0, 0, 10)
-	machine4, err := ds.GetMachineInterface(mac2).Machine(true, anIP)
+	machine4, err := ds.GetMachine(mac2).Machine(true, anIP)
 	if err != nil {
 		t.Error("error in creating fourth machine:", err)
 		return
@@ -79,14 +79,14 @@ func TestAssign(t *testing.T) {
 		return
 	}
 
-	_, err = ds.GetMachineInterface(mac2).Machine(false, anIP)
+	_, err = ds.GetMachine(mac2).Machine(false, anIP)
 	if err == nil {
 		t.Error("expecting 'if createIfNeeded is false, the createWithIP is expected to be nil' error")
 		return
 	}
 
 	mac3, _ := net.ParseMAC("FF:FF:FF:FF:FF:FD")
-	_, err = ds.GetMachineInterface(mac3).Machine(true, machine1.IP)
+	_, err = ds.GetMachine(mac3).Machine(true, machine1.IP)
 	if err == nil {
 		t.Error("expecting 'the requested IP is already assigned' error")
 		return
@@ -112,7 +112,7 @@ func TestLeaseRange(t *testing.T) {
 
 	for i := 1; i <= testLeaseRange; i++ {
 		mac := net.HardwareAddr{1, 1, 1, 1, 1, byte(i)}
-		_, err := ds.GetMachineInterface(mac).Machine(true, nil)
+		_, err := ds.GetMachine(mac).Machine(true, nil)
 		// TODO: check if the given IP is valid
 		if err != nil {
 			t.Error("error in creating machine:", err)
@@ -121,7 +121,7 @@ func TestLeaseRange(t *testing.T) {
 	}
 
 	mac := net.HardwareAddr{1, 1, 1, 1, 1, 11}
-	_, err = ds.GetMachineInterface(mac).Machine(true, nil)
+	_, err = ds.GetMachine(mac).Machine(true, nil)
 	if err == nil {
 		t.Error("expecting 'no unassigned IP was found' error")
 		return

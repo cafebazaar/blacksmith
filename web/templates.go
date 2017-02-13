@@ -24,7 +24,7 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 		return ""
 	}
 
-	machineInterface := ws.ds.GetMachineInterface(mac)
+	machineInterface := ws.ds.GetMachine(mac)
 	_, err = machineInterface.Machine(false, nil)
 	if err != nil {
 		http.Error(w, "Machine not found", 404)

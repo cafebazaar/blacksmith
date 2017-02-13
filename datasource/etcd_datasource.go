@@ -96,13 +96,13 @@ func (ds *EtcdDatasource) EtcdMachines() ([]*EtcdMachine, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error while converting name to mac: %s", err)
 		}
-		ret = append(ret, ds.GetMachineInterface(macAddr))
+		ret = append(ret, ds.GetMachine(macAddr))
 	}
 	return ret, nil
 }
 
-// GetMachineInterface returns the EtcdMachine associated with the given mac
-func (ds *EtcdDatasource) GetMachineInterface(mac net.HardwareAddr) *EtcdMachine {
+// GetMachine returns the EtcdMachine associated with the given mac
+func (ds *EtcdDatasource) GetMachine(mac net.HardwareAddr) *EtcdMachine {
 	return &EtcdMachine{
 		mac:     mac,
 		etcdDS:  ds,
@@ -539,7 +539,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	defer cancel4()
 	ds.keysAPI.Set(ctx4, "skydns/config", skydnsconfig, nil)
 
-	_, err = ds.GetMachineInterface(selfInfo.Nic).Machine(true, selfInfo.IP)
+	_, err = ds.GetMachine(selfInfo.Nic).Machine(true, selfInfo.IP)
 	if err != nil {
 		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
 	}

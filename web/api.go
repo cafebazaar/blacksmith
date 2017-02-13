@@ -91,7 +91,7 @@ func (ws *webServer) MachineDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	machineInterface := ws.ds.GetMachineInterface(mac)
+	machineInterface := ws.ds.GetMachine(mac)
 	err = machineInterface.DeleteMachine()
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": %q}`, err), http.StatusInternalServerError)
@@ -112,7 +112,7 @@ func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	machineInterface := ws.ds.GetMachineInterface(mac)
+	machineInterface := ws.ds.GetMachine(mac)
 
 	flags, err := machineInterface.ListVariables()
 	if err != nil {
@@ -143,7 +143,7 @@ func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		machineInterface = ws.ds.GetMachineInterface(mac)
+		machineInterface = ws.ds.GetMachine(mac)
 	}
 
 	var err error
@@ -172,7 +172,7 @@ func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		machineInterface = ws.ds.GetMachineInterface(mac)
+		machineInterface = ws.ds.GetMachine(mac)
 	}
 
 	var err error

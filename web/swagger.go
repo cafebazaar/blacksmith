@@ -113,7 +113,7 @@ func (ws *webServer) swaggerGetVariablesNodesMacHandler(params operations.GetVar
 			NewGetVariablesNodesMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	vars, err := ws.ds.GetMachineInterface(mac).ListVariables()
+	vars, err := ws.ds.GetMachine(mac).ListVariables()
 	if err != nil {
 		return operations.
 			NewGetVariablesNodesMacInternalServerError().
@@ -138,7 +138,7 @@ func (ws *webServer) swaggerGetVariablesNodesMacKeyHandler(params operations.Get
 			NewGetVariablesNodesMacKeyInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	value, err := ws.ds.GetMachineInterface(mac).GetVariable(params.Key)
+	value, err := ws.ds.GetMachine(mac).GetVariable(params.Key)
 	if client.IsKeyNotFound(err) {
 		return operations.
 			NewGetVariablesNodesMacKeyNotFound()
@@ -188,7 +188,7 @@ func (ws *webServer) swaggerPostVariablesNodesMacKeyHandler(params operations.Po
 			WithPayload(&models.Error{err.Error()})
 	}
 
-	if err := ws.ds.GetMachineInterface(mac).SetVariable(params.Key, params.Value); err != nil {
+	if err := ws.ds.GetMachine(mac).SetVariable(params.Key, params.Value); err != nil {
 		return operations.
 			NewPostVariablesNodesMacKeyInternalServerError().
 			WithPayload(&models.Error{err.Error()})
@@ -223,7 +223,7 @@ func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.
 			NewDeleteVariablesNodesMacKeyInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	err = ws.ds.GetMachineInterface(mac).DeleteVariable(params.Key)
+	err = ws.ds.GetMachine(mac).DeleteVariable(params.Key)
 	if client.IsKeyNotFound(err) {
 		return operations.
 			NewDeleteVariablesNodesMacKeyNotFound()

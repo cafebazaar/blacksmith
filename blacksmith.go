@@ -283,8 +283,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	webAddrPointer := &(webAddr)
-	etcdDataSource.SetWebServer(webAddrPointer.String())
+	etcdDataSource.SetWebServer((&webAddr).String())
 
 	go func() {
 		dns.ServeDNS(dnsTCPAddr, dnsUDPAddr, etcdDataSource)

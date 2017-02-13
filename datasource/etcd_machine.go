@@ -89,7 +89,7 @@ func (m *EtcdMachine) store(machine *Machine) error {
 	m.etcdDS.dhcpAssignLock.Lock()
 	defer m.etcdDS.dhcpAssignLock.Unlock()
 
-	machineInterfaces, err := m.etcdDS.MachineInterfaces()
+	machineInterfaces, err := m.etcdDS.EtcdMachines()
 	if err != nil {
 		return fmt.Errorf("error while getting the machine interfaces: %s", err)
 	}

@@ -21,7 +21,7 @@ func (ws *webServer) swaggerPostWorkspaceHandler(params operations.PostWorkspace
 }
 
 func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) middleware.Responder {
-	machines, err := ws.ds.MachineInterfaces()
+	machines, err := ws.ds.EtcdMachines()
 	if err != nil {
 		return operations.
 			NewGetNodesInternalServerError().

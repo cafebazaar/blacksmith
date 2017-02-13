@@ -74,9 +74,9 @@ func (ds *EtcdDatasource) WorkspaceRepo() string {
 	return ds.fileServer
 }
 
-// MachineInterfaces returns all the machines in the cluster, as a slice of
-// MachineInterfaces
-func (ds *EtcdDatasource) MachineInterfaces() ([]*EtcdMachine, error) {
+// EtcdMachines returns all the machines in the cluster, as a slice of
+// EtcdMachines
+func (ds *EtcdDatasource) EtcdMachines() ([]*EtcdMachine, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

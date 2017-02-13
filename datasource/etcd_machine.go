@@ -55,9 +55,7 @@ func (m *EtcdMachine) Machine(createIfNeeded bool,
 
 	resp, err := m.etcdDS.get(m.prefixifyForMachine("_machine"))
 	if err != nil {
-		errorIsKeyNotFound := etcd.IsKeyNotFound(err)
-
-		if !(errorIsKeyNotFound && createIfNeeded) {
+		if !(etcd.IsKeyNotFound(err) && createIfNeeded) {
 			return machine, fmt.Errorf("error while retrieving _machine: %s", err)
 		}
 
@@ -223,10 +221,10 @@ func (m *EtcdMachine) GetVariable(key string) (string, error) {
 
 // SetVariable sets the value of the specified key
 func (m *EtcdMachine) SetVariable(key, value string) error {
-	err := validateVariable(key, value)
-	if err != nil {
-		return err
-	}
+	// err := validateVariable(key, value)
+	// if err != nil {
+	// 	return err
+	// }
 	return m.etcdDS.set(m.prefixifyForMachine(key), value)
 }
 

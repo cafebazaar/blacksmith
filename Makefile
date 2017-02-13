@@ -15,7 +15,7 @@ GIT ?= git
 GO ?= go
 OS ?= linux
 ARCH ?= amd64
-VERSION ?= $(shell git describe --tags)
+VERSION := refactoring
 COMMIT := $(shell git rev-parse HEAD)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 ifeq ($(BRANCH), "master")
@@ -23,12 +23,13 @@ ifeq ($(BRANCH), "master")
 else
         DOCKER_TAG := $(BRANCH)
 endif
+DOCKER_TAG := dev-sina
+DOCKER_TAG := refactoring
 PRIKEY ?= ~/.ssh/id_rsa
 PUBKEY ?= ~/.ssh/id_rsa.pub
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
-DEV_MODE := false
-DOCKER_IMAGE       ?= quay.io/cafebazaar/blacksmith
-AGENT_DOCKER_IMAGE ?= quay.io/cafebazaar/blacksmith-agent
+DOCKER_IMAGE ?= localhost:5000/blacksmith
+AGENT_DOCKER_IMAGE ?= localhost:5000/blacksmith-agent
 ETCD_ENDPOINT ?= http://127.0.0.1:20379
 
 #  Variables (only used for test)

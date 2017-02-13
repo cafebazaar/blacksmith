@@ -110,7 +110,7 @@ func (dnsServ *dnsServer) clusterDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 func (dnsServ *dnsServer) generalDNS(w dns.ResponseWriter, r *dns.Msg) {
 
-	pp := proxy.NewLookup([]string{"8.8.4.4:53", "8.8.8.8:53"})
+	pp := proxy.New([]string{"8.8.4.4:53", "8.8.8.8:53"})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

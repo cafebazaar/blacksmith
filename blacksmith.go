@@ -82,11 +82,14 @@ func initConfig() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if configFilepath != "" {
-			log.Fatal("could not load given config", err)
+			log.WithFields(log.Fields{
+				"err":         err,
+				"config-flag": configFilepath,
+			}).Fatal("could not load given config")
 		}
 	}
 
-	if viper.GetBool("debug") {
+	if viper.GetBool("conf.verbose") {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 		for a, b := range viper.AllSettings() {
 			log.WithFields(log.Fields{
@@ -179,28 +182,28 @@ func main() {
 	fmt.Printf("  Commit:        %s\n", commit)
 	fmt.Printf("  Build Time:    %s\n", buildTime)
 
-	if viper.GetBool("version") {
+	if viper.GetBool("conf.version") {
 		os.Exit(0)
 	}
 
-	if viper.GetBool("debug") {
+	if viper.GetBool("conf.debug") {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
 
 	// etcd config
-	if viper.GetString("etcd") == "" || viper.GetString("cluster-name") == "" {
+	if viper.GetString("conf.etcd") == "" || viper.GetString("conf.cluster-name") == "" {
 		fmt.Fprint(os.Stderr, "\nPlease specify the etcd endpoints\n")
 		os.Exit(1)
 	}
 
 	// finding interface by interface name
 	var dhcpIF *net.Interface
-	if viper.GetString("if") != "" {
-		dhcpIF, err = net.InterfaceByName(viper.GetString("if"))
+	if viper.GetString("conf.if") != "" {
+		dhcpIF, err = net.InterfaceByName(viper.GetString("conf.if"))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s): %s\n", viper.GetString("if"), err)
+			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s): %s\n", viper.GetString("conf.if"), err)
 			os.Exit(1)
 		}
 	} else {
@@ -215,8 +218,8 @@ func main() {
 	}
 
 	// web api can be configured to listen on a custom address
-	webAddr := parseTCPAddr(viper.GetString("http-listen"))
-	webAddrSwagger := parseTCPAddr(viper.GetString("api-listen"))
+	webAddr := parseTCPAddr(viper.GetString("conf.http-listen"))
+	webAddrSwagger := parseTCPAddr(viper.GetString("conf.api-listen"))
 
 	// other services are exposed just through the given interface, on hard coded ports
 	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}
@@ -227,9 +230,9 @@ func main() {
 	// 67 -> dhcp
 
 	// dhcp setting
-	leaseStart := net.ParseIP(viper.GetString("lease-start"))
+	leaseStart := net.ParseIP(viper.GetString("conf.lease-start"))
 
-	dnsIPStrings := strings.Split(viper.GetString("dns"), ",")
+	dnsIPStrings := strings.Split(viper.GetString("conf.dns"), ",")
 	if len(dnsIPStrings) == 0 {
 		fmt.Fprint(os.Stderr, "\nPlease specify an DNS server\n")
 		os.Exit(1)
@@ -246,7 +249,7 @@ func main() {
 		fmt.Fprint(os.Stderr, "\nPlease specify the lease start ip\n")
 		os.Exit(1)
 	}
-	if viper.GetInt("lease-range") <= 1 {
+	if viper.GetInt("conf.lease-range") <= 1 {
 		fmt.Fprint(os.Stderr, "\nLease range should be greater that 1\n")
 		os.Exit(1)
 	}
@@ -256,7 +259,7 @@ func main() {
 
 	// datasources
 	etcdClient, err := etcd.New(etcd.Config{
-		Endpoints:               strings.Split(viper.GetString("etcd"), ","),
+		Endpoints:               strings.Split(viper.GetString("conf.etcd"), ","),
 		HeaderTimeoutPerRequest: 5 * time.Second,
 	})
 	if err != nil {
@@ -276,14 +279,34 @@ func main() {
 		ServiceStartTime: time.Now().UTC().Unix(),
 	}
 	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,
-		leaseStart, viper.GetInt("lease-range"), viper.GetString("cluster-name"), viper.GetString("workspace"),
-		viper.GetString("workspace-repo"), viper.GetString("file-server"), dnsIPStrings, selfInfo)
+		leaseStart, viper.GetInt("conf.lease-range"), viper.GetString("conf.cluster-name"), viper.GetString("conf.workspace"),
+		viper.GetString("conf.workspace-repo"), viper.GetString("conf.file-server"), dnsIPStrings, selfInfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
 	}
 
 	etcdDataSource.SetWebServer((&webAddr).String())
+
+	etcdDataSource.SetBlacksmithVariable("verbose", fmt.Sprintf("%v", viper.GetBool("conf.verbose")))
+	etcdDataSource.SetBlacksmithVariable("config", viper.GetString("conf.config"))
+	etcdDataSource.SetBlacksmithVariable("version", fmt.Sprintf("%v", viper.GetBool("conf.version")))
+	etcdDataSource.SetBlacksmithVariable("debug", fmt.Sprintf("%v", viper.GetBool("conf.debug")))
+	etcdDataSource.SetBlacksmithVariable("if", viper.GetString("conf.if"))
+	etcdDataSource.SetBlacksmithVariable("http-listen", viper.GetString("conf.http-listen"))
+	etcdDataSource.SetBlacksmithVariable("api-listen", viper.GetString("conf.api-listen"))
+	etcdDataSource.SetBlacksmithVariable("tls-cert", viper.GetString("conf.tls-cert"))
+	etcdDataSource.SetBlacksmithVariable("tls-key", viper.GetString("conf.tls-key"))
+	etcdDataSource.SetBlacksmithVariable("tls-ca", viper.GetString("conf.tls-ca"))
+	etcdDataSource.SetBlacksmithVariable("workspace", viper.GetString("conf.workspace"))
+	etcdDataSource.SetBlacksmithVariable("workspace-repo", viper.GetString("conf.workspace-repo"))
+	etcdDataSource.SetBlacksmithVariable("file-server", viper.GetString("conf.file-server"))
+	etcdDataSource.SetBlacksmithVariable("etcd", viper.GetString("conf.etcd"))
+	etcdDataSource.SetBlacksmithVariable("cluster-name", viper.GetString("conf.cluster-name"))
+	etcdDataSource.SetBlacksmithVariable("dns", viper.GetString("conf.dns"))
+	etcdDataSource.SetBlacksmithVariable("lease-start", viper.GetString("conf.lease-start"))
+	etcdDataSource.SetBlacksmithVariable("lease-range", fmt.Sprintf("%v", viper.GetInt("conf.lease-range")))
+	etcdDataSource.SetArrayVariable("ssh-keys", viper.GetStringSlice("ssh-keys"))
 
 	go func() {
 		dns.ServeDNS(dnsTCPAddr, dnsUDPAddr, etcdDataSource)
@@ -296,7 +319,7 @@ func main() {
 
 	go func() {
 		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger,
-			viper.GetString("tls-cert"), viper.GetString("tls-key"), viper.GetString("tls-ca")); err != nil {
+			viper.GetString("conf.tls-cert"), viper.GetString("conf.tls-key"), viper.GetString("conf.tls-ca")); err != nil {
 			log.Fatalf("\nError while serving swagger api: %s\n", err)
 		}
 	}()

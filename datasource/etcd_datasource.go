@@ -17,22 +17,21 @@ import (
 	git "srcd.works/go-git.v4"
 	"srcd.works/go-git.v4/plumbing"
 	"srcd.works/go-git.v4/plumbing/object"
-	gitssh "srcd.works/go-git.v4/plumbing/transport/ssh"
 
 	yaml "gopkg.in/yaml.v2"
 
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
 const (
-	etcdMachinesDirName      = "machines"
-	etcdCluserVarsDirName    = "cluster-variables"
-	etcdConfigurationDirName = "configuration"
-	etcdFilesDirName         = "files"
+	etcdMachinesDirName           = "machines"
+	etcdCluserVarsDirName         = "cluster-variables"
+	etcdBlacksmithConfVarsDirName = "blacksmith-variables"
+	etcdConfigurationDirName      = "configuration"
+	etcdFilesDirName              = "files"
 )
 
 // EtcdDatasource provides the interface for querying general information
@@ -113,6 +112,10 @@ func (ds *EtcdDatasource) prefixifyForClusterVariables(key string) string {
 	return path.Join(ds.ClusterName(), etcdCluserVarsDirName, key)
 }
 
+func (ds *EtcdDatasource) prefixifyForBlacksmithVariables(key string) string {
+	return path.Join(ds.ClusterName(), etcdBlacksmithConfVarsDirName, key)
+}
+
 // get expects absolute key path
 func (ds *EtcdDatasource) get(keyPath string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -146,6 +149,18 @@ func (ds *EtcdDatasource) getArray(keyPath string) (etcd.Nodes, error) {
 	return response.Node.Nodes, nil
 }
 
+func (ds *EtcdDatasource) setArray(keyPath string, values []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	for i, v := range values {
+		_, err := ds.keysAPI.Set(ctx, path.Join(keyPath, fmt.Sprintf("item-%d", i)), v, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // set expects absolute key path
 func (ds *EtcdDatasource) set(keyPath string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -176,6 +191,10 @@ func (ds *EtcdDatasource) watchOnce(keyPath string) (*etcd.Response, error) {
 // GetClusterVariable returns a cluster variables with the given name
 func (ds *EtcdDatasource) GetClusterVariable(key string) (string, error) {
 	return ds.get(ds.prefixifyForClusterVariables(key))
+}
+
+func (ds *EtcdDatasource) SetArrayVariable(key string, values []string) error {
+	return ds.setArray(path.Join(ds.ClusterName(), key), values)
 }
 
 // GetClusterArrayVariable returns a cluster variables with the given name
@@ -217,6 +236,15 @@ func (ds *EtcdDatasource) ListClusterVariables() (map[string]string, error) {
 // ListConfigurations returns the list of all the configuration variables from etcd
 func (ds *EtcdDatasource) ListConfigurations() (map[string]string, error) {
 	return ds.listNonDirKeyValues(path.Join(ds.clusterName, etcdConfigurationDirName))
+}
+
+// SetBlacksmithVariable sets a blacksmith config variable inside etcd
+func (ds *EtcdDatasource) SetBlacksmithVariable(key string, value string) error {
+	err := validateVariable(key, value)
+	if err != nil {
+		return err
+	}
+	return ds.set(ds.prefixifyForBlacksmithVariables(key), value)
 }
 
 // SetClusterVariable sets a cluster variable inside etcd
@@ -505,7 +533,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		return nil, errors.Wrapf(err, "error while setting ds key %q to %q", "workspace-commit-hash", head.Hash().String())
 	}
 
-	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "repo", "test", "initial.yaml"))
+	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "initial.yaml"))
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
 	}
@@ -555,14 +583,6 @@ func clone(path, url, priKeyPath, ref string) (*git.Repository, error) {
 		"path": path,
 		"ref":  ref,
 	}).Info("cloning")
-	privateKey, err := ioutil.ReadFile(priKeyPath)
-
-	useKey := true
-	if os.IsNotExist(err) {
-		useKey = false
-	} else if err != nil {
-		return nil, err
-	}
 
 	opts := git.CloneOptions{
 		URL:           url,
@@ -572,17 +592,6 @@ func clone(path, url, priKeyPath, ref string) (*git.Repository, error) {
 		Progress:      os.Stdout,
 	}
 
-	if useKey {
-		log.Infof("clone: using SSH key %s", priKeyPath)
-		signer, err := ssh.ParsePrivateKey(privateKey)
-		if err != nil {
-			return nil, err
-		}
-		opts.Auth = &gitssh.PublicKeys{
-			User:   "git",
-			Signer: signer,
-		}
-	}
 	r, err := git.PlainClone(path, false, &opts)
 	if err != nil {
 		return nil, err

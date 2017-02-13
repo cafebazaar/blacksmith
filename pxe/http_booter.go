@@ -106,8 +106,8 @@ func (b *HTTPBooter) pxelinuxConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	KernelURL := b.datasource.FileServer() + coreOSVersion + "/coreos_production_pxe.vmlinuz"
-	InitrdURL := b.datasource.FileServer() + coreOSVersion + "/coreos_production_pxe_image.cpio.gz"
+	KernelURL := b.datasource.FileServer() + filepath.Join(coreOSVersion, "coreos_production_pxe.vmlinuz")
+	InitrdURL := b.datasource.FileServer() + filepath.Join(coreOSVersion, "coreos_production_pxe_image.cpio.gz")
 
 	host, _, err := net.SplitHostPort(r.Host)
 	if err != nil {

@@ -1,0 +1,13 @@
+conf:
+  {{ range $index, $element := (array_variable "blacksmith-variables") }}  {{ $element.Key | pathSplit }}: '{{$element.Value}}'
+  {{end}}
+
+machines:
+  {{ range $index, $element := (array_variable "machines") }}  {{$element.Key | pathSplit}}:
+    {{ range $index1, $element1 := $element.Nodes }}    {{ $element1.Key | pathSplit }}: '{{$element1.Value}}'
+    {{end}}    _machine: '{{ (variable (join $element.Key "/_machine")) }}'
+  {{end}}
+
+ssh-keys:
+  {{ range $index, $element := (array_variable "ssh-keys") }}  {{ $element.Key | pathSplit }}: '{{$element.Value}}'
+  {{end}}

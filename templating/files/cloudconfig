@@ -60,6 +60,22 @@ write_files:
     permissions: "0744"
     owner: "root"
     content: {{ b64file "id_rsa.pub" }}
+
+  - path: /var/lib/blacksmith/certs/server.crt
+    encoding: "base64"
+    permissions: "0744"
+    owner: "root"
+    content: {{ b64file "certs/server.crt" }}
+  - path: /var/lib/blacksmith/certs/server.key
+    encoding: "base64"
+    permissions: "0744"
+    owner: "root"
+    content: {{ b64file "certs/server.key" }}
+  - path: /var/lib/blacksmith/certs/ca.crt
+    encoding: "base64"
+    permissions: "0744"
+    owner: "root"
+    content: {{ b64file "certs/ca.crt" }}
 {{ end }}
 
 ssh_authorized_keys:

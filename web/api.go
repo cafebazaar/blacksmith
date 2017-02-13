@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/cafebazaar/blacksmith/datasource"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 // Version returns json encoded version details
@@ -38,7 +38,7 @@ func machineToDetails(machineInterface *datasource.EtcdMachine) (*machineDetails
 
 	machine, err := machineInterface.Machine(false, nil)
 	if err != nil {
-		return nil, errors.New("error in retrieving machine details")
+		return nil, errors.Wrap(err, "error in retrieving machine details")
 	}
 	last, _ := machineInterface.LastSeen()
 

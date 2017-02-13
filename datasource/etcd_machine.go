@@ -16,8 +16,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// EtcdMachine implements datasource.EtcdMachine
-// interface using etcd as it's datasource
+// EtcdMachine provides the interface for querying/altering
+// Machine entries in the datasource
 type EtcdMachine struct {
 	mac     net.HardwareAddr
 	etcdDS  *EtcdDatasource

@@ -35,9 +35,7 @@ const (
 	etcdFilesDirName         = "files"
 )
 
-// EtcdDatasource implements MasterDataSource interface using etcd as it's
-// datasource
-// Implements MasterDataSource interface
+// EtcdDatasource provides the interface for querying general information
 type EtcdDatasource struct {
 	keysAPI         etcd.KeysAPI
 	client          etcd.Client

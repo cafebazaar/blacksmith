@@ -55,7 +55,7 @@ func (m *EtcdMachine) Machine(createIfNeeded bool,
 			"if createIfNeeded is false, the createWithIP is expected to be nil")
 	}
 
-	resp, err := m.selfGet("_machine")
+	resp, err := m.etcdDS.get(m.prefixifyForMachine("_machine"))
 	if err != nil {
 		errorIsKeyNotFound := etcd.IsKeyNotFound(err)
 
@@ -148,7 +148,7 @@ func (m *EtcdMachine) store(machine *Machine) error {
 	if err != nil {
 		return fmt.Errorf("error while marshaling the machine: %s", err)
 	}
-	err = m.selfSet("_machine", string(jsonedStats))
+	err = m.etcdDS.set(m.prefixifyForMachine("_machine"), string(jsonedStats))
 	if err != nil {
 		return fmt.Errorf("error while setting the marshaled machine: %s", err)
 	}
@@ -158,12 +158,12 @@ func (m *EtcdMachine) store(machine *Machine) error {
 
 // CheckIn updates the _last_seen field of the machine
 func (m *EtcdMachine) CheckIn() {
-	m.selfSet("_last_seen", strconv.FormatInt(time.Now().Unix(), 10))
+	m.etcdDS.set(m.prefixifyForMachine("_last_seen"), strconv.FormatInt(time.Now().Unix(), 10))
 }
 
 // LastSeen returns the last time the machine has been seen, 0 for never
 func (m *EtcdMachine) LastSeen() (int64, error) {
-	unixString, err := m.selfGet("_last_seen")
+	unixString, err := m.etcdDS.get(m.prefixifyForMachine("_last_seen"))
 	if err != nil {
 		return 0, err
 	}
@@ -205,7 +205,7 @@ func (m *EtcdMachine) ListVariables() (map[string]string, error) {
 // GetVariable Gets a machine's variable, or the global if it was not
 // set for the machine
 func (m *EtcdMachine) GetVariable(key string) (string, error) {
-	value, err := m.selfGet(key)
+	value, err := m.etcdDS.get(m.prefixifyForMachine(key))
 
 	if err != nil {
 		if !etcd.IsKeyNotFound(err) {
@@ -237,30 +237,17 @@ func (m *EtcdMachine) SetVariable(key, value string) error {
 	if err != nil {
 		return err
 	}
-	return m.selfSet(key, value)
+	return m.etcdDS.set(m.prefixifyForMachine(key), value)
 }
 
 // DeleteVariable erases the entry specified by key
 func (m *EtcdMachine) DeleteVariable(key string) error {
-	return m.selfDelete(key)
+	return m.etcdDS.delete(m.prefixifyForMachine(key))
 }
 
 func (m *EtcdMachine) prefixifyForMachine(key string) string {
 	return path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname(),
 		key)
-}
-
-func (m *EtcdMachine) selfGet(key string) (string, error) {
-	return m.etcdDS.get(m.prefixifyForMachine(key))
-}
-
-func (m *EtcdMachine) selfSet(key, value string) error {
-	return m.etcdDS.set(m.prefixifyForMachine(key), value)
-}
-
-func (m *EtcdMachine) selfDelete(key string) error {
-	err := m.etcdDS.delete(m.prefixifyForMachine(key))
-	return err
 }
 
 func macFromName(name string) (net.HardwareAddr, error) {

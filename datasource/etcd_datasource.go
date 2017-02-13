@@ -74,8 +74,7 @@ func (ds *EtcdDatasource) WorkspaceRepo() string {
 	return ds.fileServer
 }
 
-// EtcdMachines returns all the machines in the cluster, as a slice of
-// EtcdMachines
+// EtcdMachines returns all the machines in the cluster
 func (ds *EtcdDatasource) EtcdMachines() ([]*EtcdMachine, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

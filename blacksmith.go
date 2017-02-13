@@ -228,7 +228,6 @@ func main() {
 
 	// dhcp setting
 	leaseStart := net.ParseIP(viper.GetString("lease-start"))
-	leaseRange := viper.GetInt("lease-range")
 
 	dnsIPStrings := strings.Split(viper.GetString("dns"), ",")
 	if len(dnsIPStrings) == 0 {
@@ -247,7 +246,7 @@ func main() {
 		fmt.Fprint(os.Stderr, "\nPlease specify the lease start ip\n")
 		os.Exit(1)
 	}
-	if leaseRange <= 1 {
+	if viper.GetInt("lease-range") <= 1 {
 		fmt.Fprint(os.Stderr, "\nLease range should be greater that 1\n")
 		os.Exit(1)
 	}
@@ -277,7 +276,7 @@ func main() {
 		ServiceStartTime: time.Now().UTC().Unix(),
 	}
 	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,
-		leaseStart, leaseRange, viper.GetString("cluster-name"), viper.GetString("workspace"),
+		leaseStart, viper.GetInt("lease-range"), viper.GetString("cluster-name"), viper.GetString("workspace"),
 		viper.GetString("workspace-repo"), viper.GetString("file-server"), dnsIPStrings, selfInfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)

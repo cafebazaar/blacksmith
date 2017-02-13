@@ -103,9 +103,8 @@ func (ds *EtcdDatasource) GetEtcdMachines() ([]*EtcdMachine, error) {
 // GetEtcdMachine returns the EtcdMachine associated with the given mac
 func (ds *EtcdDatasource) GetEtcdMachine(mac net.HardwareAddr) *EtcdMachine {
 	return &EtcdMachine{
-		mac:     mac,
-		etcdDS:  ds,
-		keysAPI: ds.keysAPI,
+		mac:    mac,
+		etcdDS: ds,
 	}
 }
 
@@ -135,14 +134,14 @@ func (ds *EtcdDatasource) create(keyPath string, value string) error {
 }
 
 // get expects absolute key path
-func (ds *EtcdDatasource) getArray(keyPath string) (interface{}, error) {
+func (ds *EtcdDatasource) getArray(keyPath string) (etcd.Nodes, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	ops := &etcd.GetOptions{Recursive: true}
 	response, err := ds.keysAPI.Get(ctx, keyPath, ops)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return response.Node.Nodes, nil
 }
@@ -156,10 +155,10 @@ func (ds *EtcdDatasource) set(keyPath string, value string) error {
 }
 
 // delete expects absolute key path
-func (ds *EtcdDatasource) delete(keyPath string) error {
+func (ds *EtcdDatasource) delete(keyPath string, opts *etcd.DeleteOptions) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_, err := ds.keysAPI.Delete(ctx, keyPath, nil)
+	_, err := ds.keysAPI.Delete(ctx, keyPath, opts)
 	return err
 }
 
@@ -180,7 +179,7 @@ func (ds *EtcdDatasource) GetClusterVariable(key string) (string, error) {
 }
 
 // GetClusterArrayVariable returns a cluster variables with the given name
-func (ds *EtcdDatasource) GetArrayVariable(key string) (interface{}, error) {
+func (ds *EtcdDatasource) GetArrayVariable(key string) (etcd.Nodes, error) {
 	return ds.getArray(path.Join(ds.ClusterName(), key))
 }
 
@@ -231,7 +230,7 @@ func (ds *EtcdDatasource) SetClusterVariable(key string, value string) error {
 
 // DeleteClusterVariable deletes a cluster variable
 func (ds *EtcdDatasource) DeleteClusterVariable(key string) error {
-	return ds.delete(ds.prefixifyForClusterVariables(key))
+	return ds.delete(ds.prefixifyForClusterVariables(key), nil)
 }
 
 // GetWorkspaceHash returns worspace hash
@@ -299,7 +298,7 @@ func (ds *EtcdDatasource) UpdateWorkspace() error {
 	} else {
 		log.Info("Locked!")
 		defer func() {
-			err = ds.delete(path.Join(ds.ClusterName(), "workspace-lock"))
+			err = ds.delete(path.Join(ds.ClusterName(), "workspace-lock"), nil)
 			if err != nil {
 				erro = err
 			}

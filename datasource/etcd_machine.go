@@ -13,15 +13,13 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/krolaw/dhcp4"
-	"golang.org/x/net/context"
 )
 
 // EtcdMachine provides the interface for querying/altering
 // Machine entries in the datasource
 type EtcdMachine struct {
-	mac     net.HardwareAddr
-	etcdDS  *EtcdDatasource
-	keysAPI etcd.KeysAPI
+	mac    net.HardwareAddr
+	etcdDS *EtcdDatasource
 }
 
 // Mac returns the hardware address of the associated machine
@@ -173,30 +171,22 @@ func (m *EtcdMachine) LastSeen() (int64, error) {
 
 // DeleteMachine deletes associated etcd folder of a machine entirely
 func (m *EtcdMachine) DeleteMachine() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := m.etcdDS.keysAPI.Delete(ctx,
-		path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname()),
+	return m.etcdDS.delete(path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname()),
 		&etcd.DeleteOptions{Dir: true, Recursive: true})
-	return err
 }
 
 // ListFlags returns the list of all the flgas of a machine from Etcd
 // etcd and machine prefix will be added to the path
 func (m *EtcdMachine) ListVariables() (map[string]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	response, err := m.keysAPI.Get(ctx, path.Join(m.etcdDS.ClusterName(),
-		"machines", m.Hostname()), nil)
+	nodes, err := m.etcdDS.GetArrayVariable(path.Join("machines", m.Hostname()))
 	if err != nil {
 		return nil, err
 	}
 
 	flags := make(map[string]string)
-	for i := range response.Node.Nodes {
-		_, k := path.Split(response.Node.Nodes[i].Key)
-		flags[k] = response.Node.Nodes[i].Value
+	for i := range nodes {
+		_, k := path.Split(nodes[i].Key)
+		flags[k] = nodes[i].Value
 	}
 
 	return flags, nil
@@ -242,7 +232,7 @@ func (m *EtcdMachine) SetVariable(key, value string) error {
 
 // DeleteVariable erases the entry specified by key
 func (m *EtcdMachine) DeleteVariable(key string) error {
-	return m.etcdDS.delete(m.prefixifyForMachine(key))
+	return m.etcdDS.delete(m.prefixifyForMachine(key), nil)
 }
 
 func (m *EtcdMachine) prefixifyForMachine(key string) string {

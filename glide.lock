@@ -1,0 +1,279 @@
+hash: 9320f348b26411af463ee6d092f5a75f72fefb64c888e47f787798facf465e78
+updated: 2017-02-20T17:18:37.838696952+03:30
+imports:
+- name: github.com/asaskevich/govalidator
+  version: fdf19785fd3558d619ef81212f5edf1d6c2a5911
+- name: github.com/beorn7/perks
+  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  subpackages:
+  - quantile
+- name: github.com/coreos/coreos-cloudinit
+  version: 759217189da3c4daa94f3f50c5fd88e8f4483121
+  subpackages:
+  - config
+  - config/validate
+  - datasource
+  - datasource/metadata
+  - datasource/metadata/packet
+  - initialize
+  - network
+  - pkg
+  - system
+- name: github.com/coreos/etcd
+  version: 2533c2a50c4b6114ad6fd4c0000175fac3b6ee06
+  subpackages:
+  - client
+  - pkg/pathutil
+  - pkg/types
+  - version
+- name: github.com/coreos/go-semver
+  version: 568e959cd89871e61434c1143528d9162da89ef2
+  subpackages:
+  - semver
+- name: github.com/coreos/go-systemd
+  version: 48702e0da86bd25e76cfef347e2adeb434a0d0a6
+  subpackages:
+  - daemon
+  - dbus
+  - journal
+  - util
+- name: github.com/coreos/yaml
+  version: 6b16a5714269b2f70720a45406b1babd947a17ef
+- name: github.com/docker/go-units
+  version: 0dadbb0345b35ec7ef35e228dabb8de89a65bf52
+- name: github.com/dotcloud/docker
+  version: 55d41c3e21e1593b944c06196ffb2ac57ab7f653
+  subpackages:
+  - pkg/netlink
+- name: github.com/flynn/go-shlex
+  version: 3f9db97f856818214da2e1057f8ad84803971cff
+- name: github.com/fsnotify/fsnotify
+  version: a904159b9206978bb6d53fcc7a769e5cd726c737
+- name: github.com/go-openapi/analysis
+  version: d5a75b7d751ca3f11ad5d93cfe97405f2c3f6a47
+- name: github.com/go-openapi/errors
+  version: fc3f73a224499b047eda7191e5d22e1e9631e86f
+- name: github.com/go-openapi/jsonpointer
+  version: 779f45308c19820f1a69e9a4cd965f496e0da10f
+- name: github.com/go-openapi/jsonreference
+  version: 36d33bfe519efae5632669801b180bf1a245da3b
+- name: github.com/go-openapi/loads
+  version: 6bb6486231e079ea125c0f39994ed3d0c53399ed
+  subpackages:
+  - fmts
+- name: github.com/go-openapi/runtime
+  version: 76cda4f2f90d26d9b4fa56447e6c85cd7b60a371
+  subpackages:
+  - client
+  - flagext
+  - middleware
+  - middleware/denco
+  - middleware/header
+  - middleware/untyped
+  - security
+- name: github.com/go-openapi/spec
+  version: 02fb9cd3430ed0581e0ceb4804d5d4b3cc702694
+- name: github.com/go-openapi/strfmt
+  version: bf5b18a89572c3ae2474b537f0c3d92bc78ababa
+- name: github.com/go-openapi/swag
+  version: d5f8ebc3b1c55a4cf6489eeae7354f338cfe299e
+- name: github.com/go-openapi/validate
+  version: 035dcd74f1f61e83debe1c22950dc53556e7e4b2
+- name: github.com/godbus/dbus
+  version: 4b24ebee04561bf8a3bcc09aead82062edc56778
+- name: github.com/golang/protobuf
+  version: 4bd1920723d7b7c925de087aa32e2187708897f7
+  subpackages:
+  - jsonpb
+  - proto
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/handlers
+  version: 6d39a51b4b5238fb818fe7ee0d0527dc5bf16d07
+- name: github.com/gorilla/mux
+  version: 94e7d24fd285520f3d12ae998f7fdd6b5393d453
+- name: github.com/hashicorp/hcl
+  version: 630949a3c5fa3c613328e1b8256052cbc2327c9b
+  subpackages:
+  - hcl/ast
+  - hcl/parser
+  - hcl/scanner
+  - hcl/strconv
+  - hcl/token
+  - json/parser
+  - json/scanner
+  - json/token
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/krolaw/dhcp4
+  version: f61f734b73027e29f7fa2ed623f2ed85a7ef08fa
+- name: github.com/magiconair/properties
+  version: b3b15ef068fd0b17ddf408a23669f20811d194d2
+- name: github.com/mailru/easyjson
+  version: d89c33ca38a143e5190297c6252fcc75f01694ed
+  subpackages:
+  - buffer
+  - jlexer
+  - jwriter
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
+  subpackages:
+  - pbutil
+- name: github.com/mholt/caddy
+  version: 1262ae92e996d3f14f3f4fadbc022134b6643865
+  subpackages:
+  - caddyfile
+- name: github.com/miekg/coredns
+  version: a6d232a622a2f83a5d5ea1d9d946da7f910a0f9e
+  subpackages:
+  - core/dnsserver
+  - middleware
+  - middleware/etcd/msg
+  - middleware/metrics/vars
+  - middleware/pkg/dnsutil
+  - middleware/pkg/edns
+  - middleware/pkg/rcode
+  - middleware/pkg/singleflight
+  - middleware/proxy
+  - request
+- name: github.com/miekg/dns
+  version: 75229eecb7af00b2736e93b779a78429dcb19472
+- name: github.com/mitchellh/mapstructure
+  version: db1efb556f84b25a0a13a04aad883943538ad2e0
+- name: github.com/pelletier/go-buffruneio
+  version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
+- name: github.com/pelletier/go-toml
+  version: 22139eb5469018e7374b3e7ef653de37ffb44f72
+- name: github.com/pkg/errors
+  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+- name: github.com/prometheus/client_golang
+  version: c5b7fccd204277076155f10851dad72b76a49317
+  subpackages:
+  - prometheus
+- name: github.com/prometheus/client_model
+  version: 6f3806018612930941127f2a7c6c453ba2c527d2
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: 49fee292b27bfff7f354ee0f64e1bc4850462edf
+  subpackages:
+  - expfmt
+  - internal/bitbucket.org/ww/goautoneg
+  - model
+- name: github.com/prometheus/procfs
+  version: a1dba9ce8baed984a2495b658c82687f8157b98f
+  subpackages:
+  - xfs
+- name: github.com/PuerkitoBio/purell
+  version: 0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4
+- name: github.com/PuerkitoBio/urlesc
+  version: 5bd2802263f21d8788851d5305584c82a5c75d7e
+- name: github.com/sergi/go-diff
+  version: 24e2351369ec4949b2ed0dc5c477afdd4c4034e8
+  subpackages:
+  - diffmatchpatch
+- name: github.com/Sirupsen/logrus
+  version: 7f4b1adc791766938c29457bed0703fb9134421a
+- name: github.com/spf13/afero
+  version: 9be650865eab0c12963d8753212f4f9c66cdcf12
+  subpackages:
+  - mem
+- name: github.com/spf13/cast
+  version: d1139bab1c07d5ad390a65e7305876b3c1a8370b
+- name: github.com/spf13/cobra
+  version: ee4055870c2d5f7ce112642377e32c9929c3bbaf
+- name: github.com/spf13/jwalterweatherman
+  version: fa7ca7e836cf3a8bb4ebf799f472c12d7e903d66
+- name: github.com/spf13/pflag
+  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+- name: github.com/spf13/viper
+  version: 7538d73b4eb9511d85a9f1dfef202eeb8ac260f4
+- name: github.com/src-d/gcfg
+  version: f187355171c936ac84a82793659ebb4936bc1c23
+  subpackages:
+  - scanner
+  - token
+  - types
+- name: github.com/tylerb/graceful
+  version: 4654dfbb6ad53cb5e27f37d99b02e16c1872fbbb
+- name: github.com/ugorji/go
+  version: ded73eae5db7e7a0ef6f55aace87a2873c5d2b74
+  subpackages:
+  - codec
+- name: go.universe.tf/netboot
+  version: 3df58430a41fe7f28d33271833f3f5ed094c09c8
+  subpackages:
+  - tftp
+- name: golang.org/x/crypto
+  version: 1351f936d976c60a0a48d728281922cf63eafb8d
+  subpackages:
+  - bcrypt
+  - blowfish
+  - ssh
+  - ssh/agent
+- name: golang.org/x/net
+  version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
+  subpackages:
+  - bpf
+  - context
+  - context/ctxhttp
+  - idna
+  - internal/iana
+  - internal/netreflect
+  - ipv4
+- name: golang.org/x/sys
+  version: 075e574b89e4c2d22f2286a7e2b919519c6f3547
+  subpackages:
+  - unix
+- name: golang.org/x/text
+  version: 85c29909967d7f171f821e7a42e7b7af76fb9598
+  subpackages:
+  - transform
+  - unicode/norm
+  - width
+- name: gopkg.in/mgo.v2
+  version: 3f83fa5005286a7fe593b055f0d7771a7dce4655
+  subpackages:
+  - bson
+  - internal/json
+- name: gopkg.in/warnings.v0
+  version: 8a331561fe74dadba6edfc59f3be66c22c3b065d
+- name: gopkg.in/yaml.v2
+  version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
+- name: srcd.works/go-billy.v1
+  version: 1dfacf9a4b2ac372f16acd6b1aab9a50df955a2a
+  subpackages:
+  - osfs
+- name: srcd.works/go-git.v4
+  version: 09ac55657efcc3bb40db780ce9441095aea0d64c
+  subpackages:
+  - cache
+  - config
+  - plumbing
+  - plumbing/format/config
+  - plumbing/format/idxfile
+  - plumbing/format/index
+  - plumbing/format/objfile
+  - plumbing/format/packfile
+  - plumbing/format/pktline
+  - plumbing/object
+  - plumbing/protocol/packp
+  - plumbing/protocol/packp/capability
+  - plumbing/protocol/packp/sideband
+  - plumbing/revlist
+  - plumbing/storer
+  - plumbing/transport
+  - plumbing/transport/client
+  - plumbing/transport/file
+  - plumbing/transport/git
+  - plumbing/transport/http
+  - plumbing/transport/internal/common
+  - plumbing/transport/server
+  - plumbing/transport/ssh
+  - storage/filesystem
+  - storage/filesystem/internal/dotgit
+  - storage/memory
+  - utils/binary
+  - utils/diff
+  - utils/ioutil
+testImports: []

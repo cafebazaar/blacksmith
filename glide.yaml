@@ -1,0 +1,51 @@
+package: github.com/cafebazaar/blacksmith
+import:
+- package: github.com/dotcloud/docker/pkg/netlink
+  version: 55d41c3e21e1593b944c06196ffb2ac57ab7f653
+- package: github.com/Sirupsen/logrus
+- package: github.com/coreos/coreos-cloudinit
+  subpackages:
+  - config
+  - config/validate
+  - datasource
+  - initialize
+  - network
+- package: github.com/coreos/etcd
+  subpackages:
+  - client
+- package: github.com/go-openapi/errors
+- package: github.com/go-openapi/loads
+- package: github.com/go-openapi/runtime
+  subpackages:
+  - client
+  - flagext
+  - middleware
+- package: github.com/go-openapi/spec
+- package: github.com/go-openapi/strfmt
+- package: github.com/go-openapi/swag
+- package: github.com/go-openapi/validate
+- package: github.com/gorilla/handlers
+- package: github.com/gorilla/mux
+- package: github.com/krolaw/dhcp4
+- package: github.com/miekg/coredns
+  version: a6d232a622a2f83a5d5ea1d9d946da7f910a0f9e
+  subpackages:
+  - middleware/proxy
+- package: github.com/miekg/dns
+- package: github.com/pkg/errors
+- package: github.com/spf13/cobra
+- package: github.com/spf13/pflag
+- package: github.com/spf13/viper
+- package: github.com/tylerb/graceful
+- package: go.universe.tf/netboot
+  subpackages:
+  - tftp
+- package: golang.org/x/net
+  subpackages:
+  - context
+  - ipv4
+- package: gopkg.in/yaml.v2
+- package: srcd.works/go-git.v4
+  subpackages:
+  - plumbing
+  - plumbing/object

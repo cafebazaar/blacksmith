@@ -25,7 +25,6 @@ else
 endif
 DOCKER_TAG := dev-sina
 DOCKER_TAG := refactoring
-PUBKEY ?= ~/.ssh/id_rsa.pub
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 DOCKER_IMAGE ?= localhost:5000/blacksmith
 AGENT_DOCKER_IMAGE ?= localhost:5000/blacksmith-agent

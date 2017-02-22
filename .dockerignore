@@ -1,2 +1,3 @@
-.git
-workspaces/current/repo
+.git/
+workspaces/current/repo/
+vendor/

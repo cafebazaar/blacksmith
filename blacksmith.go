@@ -287,7 +287,7 @@ func main() {
 	}
 
 	etcdDataSource.SetWebServer((&webAddr).String())
-
+	etcdDataSource.SetBlacksmithVariable("blacksmith-image", viper.GetString("conf.blacksmith-image"))
 	etcdDataSource.SetBlacksmithVariable("verbose", fmt.Sprintf("%v", viper.GetBool("conf.verbose")))
 	etcdDataSource.SetBlacksmithVariable("config", viper.GetString("conf.config"))
 	etcdDataSource.SetBlacksmithVariable("version", fmt.Sprintf("%v", viper.GetBool("conf.version")))

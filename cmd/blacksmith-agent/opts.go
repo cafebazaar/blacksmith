@@ -38,17 +38,19 @@ func parseFlags() Options {
 		serverFlag        = flag.String("server", "http://localhost:8000", "HTTP Server to send heartbeats and messages to")
 		versionFlag       = flag.Bool("version", false, "Print version info and exit")
 		debugFlag         = flag.Bool("debug", false, "Log more things")
-		traceFlag         = flag.Bool("trace", false, "[experimental] Enable runtime tracing")
 	)
 
 	flag.Parse()
 
-	if *versionFlag {
+	if *versionFlag || *debugFlag {
 		fmt.Printf(`blacksmith-agent
   version:   %s
   commit:    %s
   buildTime: %s
 `, version, commit, buildTime)
+	}
+
+	if *versionFlag {
 		os.Exit(0)
 	}
 
@@ -64,6 +66,5 @@ func parseFlags() Options {
 		HardwareAddr:  macAddr,
 		Server:        *serverFlag,
 		Debug:         *debugFlag,
-		Tracing:       *traceFlag,
 	}
 }

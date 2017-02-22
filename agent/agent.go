@@ -110,7 +110,7 @@ func StartHeartbeat(ctx context.Context, heartbeatURL *url.URL) {
 						logrus.Error("heartbeat deadline exceeded")
 					}
 				default:
-					logrus.Error(errors.Wrap(err, "heartbeat request failed"))
+					logrus.Error(errors.Wrap(err, "heartbeat failed"))
 				}
 				break
 			}

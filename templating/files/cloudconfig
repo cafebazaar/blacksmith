@@ -15,6 +15,20 @@ coreos:
         RestartSec=10
         [Install]
         WantedBy=multi-user.target
+    - name: install-agent.service
+      command: start
+      content: |
+        [Unit]
+        Description=Initializes the machine
+        Requires=early-docker.service
+        After=etcd.service etcd2.service early-docker.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/tmp/install-agent.sh {{(machine_variable "internal_interface_name")}}
+
+        [Install]
+        WantedBy=multi-user.target
 {{ if (machine_variable "blacksmith_server") | eq "true"}} 
     - name: install-bootstrapper.service
       command: start
@@ -38,6 +52,11 @@ write_files:
     permissions: "0774"
     owner: "root"
     content: {{ b64template "workspace-updater.sh" }}
+  - path: /tmp/install-agent.sh
+    encoding: "base64"
+    permissions: "0744"
+    owner: "root"
+    content: {{ b64template "install-agent.sh" }}
 {{ if (machine_variable "blacksmith_server") | eq "true"}}
   - path: /tmp/install-bootstrapper.sh
     encoding: "base64"
@@ -54,28 +73,11 @@ write_files:
     permissions: "0744"
     owner: "root"
     content: {{ b64file "id_rsa" }}
-
   - path: /var/lib/blacksmith/workspaces/id_rsa.pub
     encoding: "base64"
     permissions: "0744"
     owner: "root"
     content: {{ b64file "id_rsa.pub" }}
-
-  - path: /var/lib/blacksmith/certs/server.crt
-    encoding: "base64"
-    permissions: "0744"
-    owner: "root"
-    content: {{ b64file "certs/server.crt" }}
-  - path: /var/lib/blacksmith/certs/server.key
-    encoding: "base64"
-    permissions: "0744"
-    owner: "root"
-    content: {{ b64file "certs/server.key" }}
-  - path: /var/lib/blacksmith/certs/ca.crt
-    encoding: "base64"
-    permissions: "0744"
-    owner: "root"
-    content: {{ b64file "certs/ca.crt" }}
 {{ end }}
 
 ssh_authorized_keys:

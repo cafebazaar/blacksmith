@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path"
-	"runtime/trace"
 	"strings"
 	"time"
 
@@ -22,13 +22,15 @@ import (
 )
 
 func main() {
+	log.Println("agent-starting...")
 	opts := parseFlags()
 
-	if opts.Debug {
-		logrus.SetLevel(logrus.DebugLevel)
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
-	}
+	logrus.SetLevel(logrus.DebugLevel)
+	// if opts.Debug {
+	// 	logrus.SetLevel(logrus.DebugLevel)
+	// } else {
+	// 	logrus.SetLevel(logrus.InfoLevel)
+	// }
 
 	etcdClient, err := etcd.New(etcd.Config{
 		Transport:               etcd.DefaultTransport,
@@ -47,11 +49,6 @@ func main() {
 		opts.Server, opts.HardwareAddr.String()))
 	if err != nil {
 		logrus.Fatal(err)
-	}
-
-	if opts.Tracing {
-		logrus.Info("Tracing stopping")
-		trace.Start(os.Stdout)
 	}
 
 	logrus.Debug("Heartbeat starting")
@@ -98,27 +95,13 @@ func main() {
 		},
 	)
 
-	waitForInterrupt(func() {
-		cancel()
-		if opts.Tracing {
-			logrus.Info("Tracing stopping")
-			trace.Stop()
-		}
-		os.Exit(0)
-	})
-}
-
-func waitForInterrupt(callback func()) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for sig := range c {
-			logrus.WithFields(logrus.Fields{
-				"signal": sig,
-			}).Info("received signal")
-			callback()
-		}
-	}()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	sig := <-quit
+	logrus.WithFields(logrus.Fields{
+		"signal": sig,
+	}).Info("received signal")
+	cancel()
 }
 
 func execCmd(name string, args ...string) (ok bool) {

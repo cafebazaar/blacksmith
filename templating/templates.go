@@ -21,16 +21,18 @@ func templateFuncsDefault() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"machine_variable": emptyStringFunc,
-		"cluster_variable": emptyStringFunc,
-		"array_variable":   emptyStringFunc,
-		"b64":              emptyStringFunc,
-		"b64template":      emptyStringFunc,
-		"render":           emptyStringFunc,
-		"variable":         emptyStringFunc,
-		"b64file":          emptyStringFunc,
-		"pathSplit":        emptyStringFunc,
-		"join":             emptyStringFunc,
+		"machine_variable":          emptyStringFunc,
+		"cluster_variable":          emptyStringFunc,
+		"blacksmith_variable":       emptyStringFunc,
+		"array_variable":            emptyStringFunc,
+		"blacksmith_array_variable": emptyStringFunc,
+		"b64":         emptyStringFunc,
+		"b64template": emptyStringFunc,
+		"render":      emptyStringFunc,
+		"variable":    emptyStringFunc,
+		"b64file":     emptyStringFunc,
+		"pathSplit":   emptyStringFunc,
+		"join":        emptyStringFunc,
 	}
 }
 
@@ -49,6 +51,14 @@ func templateFuncs(rootTemplate *template.Template, ds *datasource.EtcdDatasourc
 			if err != nil {
 				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
 					"error while GetVariable")
+			}
+			return value
+		},
+		"blacksmith_variable": func(key string) string {
+			value, err := ds.GetBlacksmithVariable(key)
+			if err != nil {
+				log.WithField("where", "templating.executeTemplate").WithError(err).Warn(
+					"error while GetBlacksmithVariable")
 			}
 			return value
 		},

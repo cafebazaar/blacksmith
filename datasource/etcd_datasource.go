@@ -247,6 +247,10 @@ func (ds *EtcdDatasource) SetBlacksmithVariable(key string, value string) error 
 	return ds.set(ds.prefixifyForBlacksmithVariables(key), value)
 }
 
+func (ds *EtcdDatasource) GetBlacksmithVariable(key string) (string, error) {
+	return ds.get(ds.prefixifyForBlacksmithVariables(key))
+}
+
 // SetClusterVariable sets a cluster variable inside etcd
 func (ds *EtcdDatasource) SetClusterVariable(key string, value string) error {
 	err := validateVariable(key, value)

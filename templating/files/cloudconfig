@@ -21,8 +21,6 @@ coreos:
       content: |
         [Unit]
         Description=Initializes the machine
-        Requires=early-docker.service
-        After=etcd.service etcd2.service early-docker.service
 
         [Service]
         Type=oneshot

@@ -1,6 +1,7 @@
 package main // import "github.com/cafebazaar/blacksmith"
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net"
 	"os"
@@ -60,6 +61,8 @@ func initConfig() {
 	flagset.String("tls-cert", "", "API server TLS certificate filename")
 	flagset.String("tls-key", "", "API server TLS key filename")
 	flagset.String("tls-ca", "", "API server TLS certificate authority filename")
+	flagset.String("agent-tls-cert", "", "API server TLS certificate filename")
+	flagset.String("agent-tls-key", "", "API server TLS key filename")
 	flagset.String("workspace", "/workspace", workspacePathHelp)
 	flagset.String("workspace-repo", "", "Repository of workspace")
 	flagset.String("file-server", "http://localhost/", "A HTTP server to serve needed files")
@@ -298,6 +301,8 @@ func main() {
 	etcdDataSource.SetBlacksmithVariable("tls-cert", viper.GetString("conf.tls-cert"))
 	etcdDataSource.SetBlacksmithVariable("tls-key", viper.GetString("conf.tls-key"))
 	etcdDataSource.SetBlacksmithVariable("tls-ca", viper.GetString("conf.tls-ca"))
+	etcdDataSource.SetBlacksmithVariable("agent-tls-cert", viper.GetString("conf.agent-tls-cert"))
+	etcdDataSource.SetBlacksmithVariable("agent-tls-key", viper.GetString("conf.agent-tls-key"))
 	etcdDataSource.SetBlacksmithVariable("workspace", viper.GetString("conf.workspace"))
 	etcdDataSource.SetBlacksmithVariable("workspace-repo", viper.GetString("conf.workspace-repo"))
 	etcdDataSource.SetBlacksmithVariable("file-server", viper.GetString("conf.file-server"))
@@ -307,6 +312,8 @@ func main() {
 	etcdDataSource.SetBlacksmithVariable("lease-start", viper.GetString("conf.lease-start"))
 	etcdDataSource.SetBlacksmithVariable("lease-range", fmt.Sprintf("%v", viper.GetInt("conf.lease-range")))
 	etcdDataSource.SetArrayVariable("ssh-keys", viper.GetStringSlice("ssh-keys"))
+
+	etcdDataSource.SetBlacksmithVariable("agent-url", viper.GetString("conf.agent-url"))
 
 	go func() {
 		dns.ServeDNS(dnsTCPAddr, dnsUDPAddr, etcdDataSource)
@@ -318,8 +325,19 @@ func main() {
 	}()
 
 	go func() {
-		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger,
-			viper.GetString("conf.tls-cert"), viper.GetString("conf.tls-key"), viper.GetString("conf.tls-ca")); err != nil {
+		tlsCert, err := base64.StdEncoding.DecodeString(viper.GetString("conf.tls-cert"))
+		if err != nil {
+			log.Fatalf("bad conf.tls-cert: %v", err)
+		}
+		tlsKey, err := base64.StdEncoding.DecodeString(viper.GetString("conf.tls-key"))
+		if err != nil {
+			log.Fatalf("bad conf.tls-key: %v", err)
+		}
+		tlsCa, err := base64.StdEncoding.DecodeString(viper.GetString("conf.tls-ca"))
+		if err != nil {
+			log.Fatalf("bad conf.tls-ca: %v", err)
+		}
+		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger, string(tlsCert), string(tlsKey), string(tlsCa)); err != nil {
 			log.Fatalf("\nError while serving swagger api: %s\n", err)
 		}
 	}()

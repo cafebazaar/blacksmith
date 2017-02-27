@@ -92,6 +92,12 @@ parameters:
     required: true
     description: Commit hash
     type: string
+  heartbeat:
+    name: heartbeat
+    in: path
+    required: true
+    description: JSON stringify heartbeat data
+    type: string
 
 paths:
   /nodes:
@@ -105,6 +111,17 @@ paths:
         500:
           $ref: "#/responses/Standard500ErrorResponse"
 
+  /heartbeat/{mac}/{heartbeat}:
+    get:
+      description: Post heartbeat data
+      parameters:
+        - $ref: "#/parameters/heartbeat"
+        - $ref: "#/parameters/mac"
+      responses:
+        200:
+          description: Successful response
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
   /workspace:
     get:
       description: Get the current workspace

@@ -5,9 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
-	"net/url"
+	"os"
 	"time"
+
+	"github.com/cafebazaar/blacksmith/swagger/client"
+	"github.com/cafebazaar/blacksmith/swagger/client/operations"
+	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
 
 	"golang.org/x/net/context"
 
@@ -68,11 +74,57 @@ func Watch(ctx context.Context, kapi etcd.KeysAPI, key string, callback func(*et
 	return nil
 }
 
-// StartHeartbeat starts a loop for sending heartbeat every second
-func StartHeartbeat(ctx context.Context, heartbeatURL *url.URL) {
-	httpClient := http.Client{
-		Timeout: time.Second,
+func tmpFile(name, content string) *os.File {
+	tmpfile, err := ioutil.TempFile("", name)
+	if err != nil {
+		log.Fatal(err)
 	}
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		log.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return tmpfile
+}
+
+func newSwaggerClient(server, caServerName, tlsCert, tlsKey, tlsCa string) *client.Salesman {
+	var httpClient *http.Client
+	var err error
+	if tlsCert != "" && tlsKey != "" && tlsCa != "" {
+		tlsCertFile := tmpFile("cert", tlsCert).Name()
+		tlsKeyFile := tmpFile("cert-key", tlsKey).Name()
+		tlsCaFile := tmpFile("ca", tlsCa).Name()
+
+		httpClient, err = httptransport.TLSClient(httptransport.TLSClientOptions{
+			ServerName:         caServerName,
+			Certificate:        tlsCertFile,
+			Key:                tlsKeyFile,
+			CA:                 tlsCaFile,
+			InsecureSkipVerify: false,
+		})
+		if err != nil {
+			log.Fatal("Error creating TLSClient:", err)
+		}
+	} else {
+		logrus.Fatal("tlsCert tlsKey tlsCert shoud not be empty")
+		httpClient = &http.Client{}
+	}
+
+	httpClient.Timeout = time.Second
+
+	transport := httptransport.NewWithClient(
+		server,
+		client.DefaultBasePath,
+		client.DefaultSchemes,
+		httpClient,
+	)
+	return client.New(transport, strfmt.NewFormats())
+}
+
+// StartHeartbeat starts a loop for sending heartbeat every second
+func StartHeartbeat(ctx context.Context, server, mac, caServerName, tlsCert, tlsKey, tlsCa string) {
+	c := newSwaggerClient(server, caServerName, tlsCert, tlsKey, tlsCa)
 
 	canceled := false
 
@@ -90,20 +142,21 @@ func StartHeartbeat(ctx context.Context, heartbeatURL *url.URL) {
 				Age:     int(time.Since(startTime) / time.Second),
 			})
 
-			req, err := http.NewRequest("POST", heartbeatURL.String(), buf)
+			ctxReq, _ := context.WithTimeout(ctx, time.Second)
+			resp, err := c.Operations.GetHeartbeatMacHeartbeat(&operations.GetHeartbeatMacHeartbeatParams{
+				Context:   ctxReq,
+				Mac:       mac,
+				Heartbeat: buf.String(),
+			})
 			if err != nil {
-				logrus.Error(errors.Wrap(err, "request initialization failed"))
+				fmt.Printf("Error: err=%#v resp=%v\n", err, resp)
 				break
 			}
 
-			ctxReq, _ := context.WithTimeout(ctx, time.Second)
-			req = req.WithContext(ctxReq)
-			resp, err := httpClient.Do(req)
-
 			if err != nil {
 				select {
-				case <-req.Context().Done():
-					switch req.Context().Err() {
+				case <-ctxReq.Done():
+					switch ctxReq.Err() {
 					case context.Canceled:
 						logrus.Info("heartbeat canceled")
 					case context.DeadlineExceeded:
@@ -116,25 +169,26 @@ func StartHeartbeat(ctx context.Context, heartbeatURL *url.URL) {
 			}
 
 			logrus.WithFields(logrus.Fields{
-				"url":      heartbeatURL.String(),
-				"response": resp.StatusCode,
+				"response": resp,
 				"status":   currentStatus.Name,
-			}).Debug("sent a heartbeat")
+			}).Debug("sent heartbeat")
 
-			if resp.StatusCode != http.StatusOK {
-				buf, err := ioutil.ReadAll(resp.Body)
-				if err != nil {
+			/*
+				if resp.StatusCode != http.StatusOK {
+					buf, err := ioutil.ReadAll(resp.Body)
+					if err != nil {
+						logrus.WithFields(logrus.Fields{
+							"err":    err,
+							"status": resp.Status,
+						}).Error("heartbeat received non-200 response")
+						return
+					}
 					logrus.WithFields(logrus.Fields{
-						"err":    err,
-						"status": resp.Status,
+						"status":   resp.Status,
+						"response": string(buf),
 					}).Error("heartbeat received non-200 response")
-					return
 				}
-				logrus.WithFields(logrus.Fields{
-					"status":   resp.Status,
-					"response": string(buf),
-				}).Error("heartbeat received non-200 response")
-			}
+			*/
 		}
 
 		if canceled {

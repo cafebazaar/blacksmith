@@ -18,7 +18,7 @@ func TestCoreOSVersion(t *testing.T) {
 		return
 	}
 
-	if want := "1192.2.0"; version != want {
+	if want := "1235.12.0"; version != want {
 		t.Errorf("invalid coreos version; want %q, got %q", want, version)
 	}
 }

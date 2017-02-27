@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cafebazaar/blacksmith/agent"
-	"github.com/coreos/coreos-cloudinit/config/validate"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
 
@@ -26,11 +23,6 @@ func main() {
 	opts := parseFlags()
 
 	logrus.SetLevel(logrus.DebugLevel)
-	// if opts.Debug {
-	// 	logrus.SetLevel(logrus.DebugLevel)
-	// } else {
-	// 	logrus.SetLevel(logrus.InfoLevel)
-	// }
 
 	etcdClient, err := etcd.New(etcd.Config{
 		Transport:               etcd.DefaultTransport,
@@ -45,14 +37,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	heartbeatURL, err := url.Parse(fmt.Sprintf("%s/api/agents/%s/heartbeat",
-		opts.Server, opts.HardwareAddr.String()))
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
 	logrus.Debug("Heartbeat starting")
-	go agent.StartHeartbeat(ctx, heartbeatURL)
+	go agent.StartHeartbeat(ctx, opts.HeartbeatServer, opts.HardwareAddr.String(), "localhost", opts.TLSCert, opts.TLSKey, opts.TLSCa)
 
 	logrus.Debug("Workspace updater starting")
 	go agent.WatchCommand(ctx,
@@ -60,31 +46,8 @@ func main() {
 		path.Join(opts.ClusterName, "machines", opts.HardwareAddr.String(), "agent", "command"),
 		agent.WatchOptions{
 			UpdateCallback: func() {
-				// Fetch cloudconfig
-				u := fmt.Sprintf("%s/t/cc/%s", opts.Server, opts.HardwareAddr.String())
-				cloudconfig, err := agent.GetCloudConfig(u)
-				if err != nil {
-					logrus.Error(err)
-					return
-				}
-
-				// Validate
-				if report, err := validate.Validate(cloudconfig); err != nil || len(report.Entries()) != 0 {
-					entries := report.Entries()
-					for i := range entries {
-						logrus.Infof("Cloudconfig validation report [%d/%d]: %s",
-							i+1, len(entries), entries[i].String())
-					}
-					if err != nil {
-						logrus.Error(err)
-						return
-					}
-				}
-
-				// Apply cloudconfig
-				if err := agent.ApplyCloudconfig(cloudconfig); err != nil {
-					logrus.Error(err)
-					return
+				if ok := execCmd("/usr/bin/coreos-cloudinit", "-validate", "-from-url", opts.CloudconfigURL); ok {
+					execCmd("/usr/bin/coreos-cloudinit", "-from-url", opts.CloudconfigURL)
 				}
 			},
 			RebootCallback: func() {
@@ -106,7 +69,8 @@ func main() {
 
 func execCmd(name string, args ...string) (ok bool) {
 	t0 := time.Now()
-	cmd := exec.Command(name, args...)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	cmd := exec.CommandContext(ctx, name, args...)
 	fullCmd := strings.Join(cmd.Args, " ")
 	bufOut, bufErr := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = bufOut, bufErr

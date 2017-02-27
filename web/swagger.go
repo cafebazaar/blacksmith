@@ -40,7 +40,7 @@ func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) mid
 			continue
 		}
 
-		value, err := machine.GetVariable(path.Join("_agent", "heartbeat"))
+		value, err := machine.GetVariable(path.Join("agent", "heartbeat"))
 		if err != nil {
 			return operations.
 				NewGetNodesInternalServerError().
@@ -235,4 +235,21 @@ func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.
 	}
 
 	return operations.NewDeleteVariablesNodesMacKeyOK()
+}
+
+func (ws *webServer) swaggerGetHeartbeatMacHeartbeatHandler(params operations.GetHeartbeatMacHeartbeatParams) middleware.Responder {
+	mac, err := net.ParseMAC(params.Mac)
+	if err != nil {
+		return operations.
+			NewGetHeartbeatMacHeartbeatInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	err = ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "heartbeat"), params.Heartbeat)
+	if err != nil {
+		return operations.
+			NewGetHeartbeatMacHeartbeatInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+
+	return operations.NewGetHeartbeatMacHeartbeatOK()
 }

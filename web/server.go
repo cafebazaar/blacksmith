@@ -1,7 +1,9 @@
 package web // import "github.com/cafebazaar/blacksmith/web"
 
 import (
+	"io/ioutil"
 	"net"
+	"os"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -93,7 +95,8 @@ func ServeWeb(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr) error {
 	return s.ListenAndServe()
 }
 
-func ServeSwaggerAPI(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr, tlsCertFlag string, tlsKeyFlag string, tlsCaFlag string) error {
+func ServeSwaggerAPI(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr,
+	tlsCert string, tlsKey string, tlsCa string) error {
 	swaggerSpec, err := loads.Analyzed(restapi.SwaggerJSON, "")
 	if err != nil {
 		log.Fatalln(err)
@@ -117,14 +120,35 @@ func ServeSwaggerAPI(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr, tlsC
 	api.PostVariablesClusterKeyHandler = operations.PostVariablesClusterKeyHandlerFunc(ws.swaggerPostVariablesClusterKeyHandler)
 	api.PostVariablesNodesMacKeyHandler = operations.PostVariablesNodesMacKeyHandlerFunc(ws.swaggerPostVariablesNodesMacKeyHandler)
 	api.PostWorkspaceHandler = operations.PostWorkspaceHandlerFunc(ws.swaggerPostWorkspaceHandler)
+	api.GetHeartbeatMacHeartbeatHandler = operations.GetHeartbeatMacHeartbeatHandlerFunc(ws.swaggerGetHeartbeatMacHeartbeatHandler)
 
 	api.ServerShutdown = func() {}
+	api.Logger = log.Printf
 
 	server := restapi.NewServer(api)
 	defer server.Shutdown()
+	server.TLSHost = listenAddr.IP.String()
 	server.TLSPort = listenAddr.Port
-	server.TLSCertificate = tlsCertFlag
-	server.TLSCertificateKey = tlsKeyFlag
-	server.TLSCACertificate = tlsCaFlag
+	tlsCertFile := tmpFile("cert", tlsCert).Name()
+	tlsKeyFile := tmpFile("cert-key", tlsKey).Name()
+	tlsCaFile := tmpFile("ca", tlsCa).Name()
+
+	server.TLSCertificate = tlsCertFile
+	server.TLSCertificateKey = tlsKeyFile
+	server.TLSCACertificate = tlsCaFile
 	return server.Serve()
+}
+
+func tmpFile(name, content string) *os.File {
+	tmpfile, err := ioutil.TempFile("", name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		log.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return tmpfile
 }

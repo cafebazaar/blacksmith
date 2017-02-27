@@ -293,10 +293,11 @@ func (ds *EtcdDatasource) UpdateWorkspace() error {
 	var erro error
 	erro = nil
 
-	branch := "refs/heads/master"
-	if ds.selfInfo.DebugMode == "true" {
-		branch = "refs/heads/dev"
-	}
+	branch := "refs/heads/dev"
+	// branch := "refs/heads/master"
+	// if ds.selfInfo.DebugMode == "true" {
+	// 	branch = "refs/heads/dev"
+	// }
 	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
 	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
 	if err != nil {
@@ -514,10 +515,11 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		selfInfo:        selfInfo,
 	}
 
-	branch := "refs/heads/master"
-	if ds.selfInfo.DebugMode == "true" {
-		branch = "refs/heads/dev"
-	}
+	branch := "refs/heads/dev"
+	// branch := "refs/heads/master"
+	// if ds.selfInfo.DebugMode == "true" {
+	// 	branch = "refs/heads/dev"
+	// }
 	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
 	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
 	if err != nil {

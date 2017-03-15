@@ -5,20 +5,24 @@ echo "
 ---
 conf:
   blacksmith-image: {{ blacksmith_variable "blacksmith-image" }}
-  workspace: /workspace
-  etcd: http://127.0.0.1:2379
-  if: $1
+  etcd: {{ blacksmith_variable "etcd" }}
+  if: {{ machine_variable "internal_interface_name" }}
   cluster-name: {{ blacksmith_variable "cluster-name" }}
   lease-start: {{ blacksmith_variable "lease-start" }}
   lease-range: {{ blacksmith_variable "lease-range" }}
   dns: {{ blacksmith_variable "dns" }}
   file-server: {{ blacksmith_variable "file-server" }}
-  http-listen: 127.0.0.1:8000
-  api-listen: 127.0.0.1:8001
+  http-listen: {{ machine_variable "external_ip" }}:8000
+  api-listen: {{ machine_variable "external_ip" }}:8001
   workspace: /workspace
   workspace-repo: {{ blacksmith_variable "workspace-repo" }}
-  workspace-config: /workspace/initial.yaml
+  workspace-repo-branch: {{ blacksmith_variable "workspace-repo-branch" }}
+  initial-config: {{ blacksmith_variable "initial-config" }}
+  private-key: {{ blacksmith_variable "private-key" }}
   debug: true
+  agent-tls-cert: {{ blacksmith_variable "agent-tls-cert" }}
+  agent-tls-key: {{ blacksmith_variable "agent-tls-key" }}
+  agent-tls-ca: {{ blacksmith_variable "agent-tls-ca" }}
   tls-cert: {{ blacksmith_variable "tls-cert" }}
   tls-key: {{ blacksmith_variable "tls-key" }}
   tls-ca: {{ blacksmith_variable "tls-ca" }}

@@ -5,17 +5,26 @@ coreos:
   units:
     - name: etcd2.service
       command: start
+    # - name: flanneld.service
+    #   command: start
+    #   drop-ins:
+    #     - name: 50-network-config.conf
+    #       content: |
+    #         [Service]
+    #         ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config '{ "Network": "10.100.0.0/16" }'
+    # - name: flannel-docker-opts.service
+    #   command: start
     - name: docker.service
       drop-ins:
         - name: 50-insecure-registry.conf
           content: |
             [Service]
-            Environment=DOCKER_OPTS=--insecure-registry=172.19.1.1:5000
+            Environment=DOCKER_OPTS=--insecure-registry={{ blacksmith_variable "insecure-registry" }}
     - name: workspace-updater.service
       command: start
       content: |
         [Unit]
-        Description=Blacksmith Kubernetes Workspace Updater
+        Description=Blacksmith Workspace Updater
         Documentation=https://github.com/cafebazaar/blacksmith-kubernetes
         [Service]
         ExecStart=/usr/bin/bash /var/lib/blacksmith/workspace-updater.sh
@@ -27,11 +36,11 @@ coreos:
       command: start
       content: |
         [Unit]
-        Description=Run blacksmith agent
+        Description=Run Blacksmith Agent
         Requires=docker.service
         After=etcd2.service docker.service
         [Service]
-        ExecStart=/tmp/blacksmith-agent.sh {{(machine_variable "internal_interface_name")}}
+        ExecStart=/tmp/blacksmith-agent.sh
         [Install]
         WantedBy=multi-user.target
 {{ if (machine_variable "blacksmith_server") | eq "true"}} 
@@ -39,12 +48,12 @@ coreos:
       command: start
       content: |
         [Unit]
-        Description=Run blacksmith
+        Description=Run Blacksmith
         Requires=docker.service
         After=etcd2.service docker.service
         [Service]
         ExecStartPre=/usr/bin/docker pull {{ blacksmith_variable "blacksmith-image" }}
-        ExecStart=/tmp/blacksmith-bootstrapper.sh {{(machine_variable "internal_interface_name")}}
+        ExecStart=/tmp/blacksmith-bootstrapper.sh
         ExecStopPost=/usr/bin/docker rm -vf blacksmith
         [Install]
         WantedBy=multi-user.target
@@ -72,16 +81,7 @@ write_files:
     permissions: "0744"
     owner: "root"
     content: {{ b64template "initial.yaml" }}    
-  - path: /var/lib/blacksmith/workspaces/id_rsa
-    encoding: "base64"
-    permissions: "0744"
-    owner: "root"
-    content: {{ b64file "id_rsa" }}
-  - path: /var/lib/blacksmith/workspaces/id_rsa.pub
-    encoding: "base64"
-    permissions: "0744"
-    owner: "root"
-    content: {{ b64file "id_rsa.pub" }}
+  # TODO(sina): why do we need id_rsa and id_rsa.pub?
 {{ end }}
 
 ssh_authorized_keys:

@@ -47,7 +47,7 @@ func (ws *webServer) Handler() http.Handler {
 	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.SetClusterVariables).Methods("PUT")
 	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.DelClusterVariables).Methods("DELETE")
 
-	mux.PathPrefix("/api/update").HandlerFunc(ws.UpdateWorkspace).Methods("POST")
+	mux.PathPrefix("/api/update").HandlerFunc(ws.UpdateWorkspaces).Methods("POST")
 	mux.PathPrefix("/api/update").HandlerFunc(ws.GetWorkspaceHash).Methods("GET")
 
 	// TODO: returning other files functionalities
@@ -116,11 +116,13 @@ func ServeSwaggerAPI(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr,
 	api.GetVariablesClusterKeyHandler = operations.GetVariablesClusterKeyHandlerFunc(ws.swaggerGetVariablesClusterKeyHandler)
 	api.GetVariablesNodesMacHandler = operations.GetVariablesNodesMacHandlerFunc(ws.swaggerGetVariablesNodesMacHandler)
 	api.GetVariablesNodesMacKeyHandler = operations.GetVariablesNodesMacKeyHandlerFunc(ws.swaggerGetVariablesNodesMacKeyHandler)
-	api.GetWorkspaceHandler = operations.GetWorkspaceHandlerFunc(ws.swaggerGetWorkspaceHandler)
+	api.GetWorkspaceMacHandler = operations.GetWorkspaceMacHandlerFunc(ws.swaggerGetWorkspaceMacHandler)
+	api.PostWorkspaceMacHandler = operations.PostWorkspaceMacHandlerFunc(ws.swaggerPostWorkspaceMacHandler)
+	api.PostWorkspacesHandler = operations.PostWorkspacesHandlerFunc(ws.swaggerPostWorkspacesHandler)
+	api.PostRebootMacHandler = operations.PostRebootMacHandlerFunc(ws.swaggerPostRebootMacHandler)
 	api.PostVariablesClusterKeyHandler = operations.PostVariablesClusterKeyHandlerFunc(ws.swaggerPostVariablesClusterKeyHandler)
 	api.PostVariablesNodesMacKeyHandler = operations.PostVariablesNodesMacKeyHandlerFunc(ws.swaggerPostVariablesNodesMacKeyHandler)
-	api.PostWorkspaceHandler = operations.PostWorkspaceHandlerFunc(ws.swaggerPostWorkspaceHandler)
-	api.GetHeartbeatMacHeartbeatHandler = operations.GetHeartbeatMacHeartbeatHandlerFunc(ws.swaggerGetHeartbeatMacHeartbeatHandler)
+	api.PostHeartbeatMacHeartbeatHandler = operations.PostHeartbeatMacHeartbeatHandlerFunc(ws.swaggerPostHeartbeatMacHeartbeatHandler)
 
 	api.ServerShutdown = func() {}
 	api.Logger = log.Printf

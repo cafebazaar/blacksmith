@@ -34,10 +34,10 @@ type Status struct {
 
 // Agent details
 type Agent struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Time    string `json:"time"`
-	Age     int    `json:"age"`
+	Status  string    `json:"status"`
+	Message string    `json:"message"`
+	Time    time.Time `json:"time"`
+	Age     int       `json:"age"`
 }
 
 // WatchOptions represents the callback functions for WatchCommand
@@ -138,12 +138,12 @@ func StartHeartbeat(ctx context.Context, server, mac, caServerName, tlsCert, tls
 			json.NewEncoder(buf).Encode(Agent{
 				Status:  currentStatus.Name,
 				Message: currentStatus.Description,
-				Time:    time.Now().Format(time.RFC822),
+				Time:    time.Now(),
 				Age:     int(time.Since(startTime) / time.Second),
 			})
 
 			ctxReq, _ := context.WithTimeout(ctx, time.Second)
-			resp, err := c.Operations.GetHeartbeatMacHeartbeat(&operations.GetHeartbeatMacHeartbeatParams{
+			resp, err := c.Operations.PostHeartbeatMacHeartbeat(&operations.PostHeartbeatMacHeartbeatParams{
 				Context:   ctxReq,
 				Mac:       mac,
 				Heartbeat: buf.String(),

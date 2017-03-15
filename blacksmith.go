@@ -6,14 +6,12 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/spf13/pflag"
-	"golang.org/x/net/context"
 
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
@@ -32,11 +30,7 @@ import (
 
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
-				/config/bootparams/main
 				/config/cloudconfig/main
-				/config/ignition/main
-				/images/{core-os-version}/coreos_production_pxe_image.cpio.gz
-				/images/{core-os-version}/coreos_production_pxe.vmlinuz
 				/initial.yaml
 `
 )
@@ -46,30 +40,36 @@ var (
 	version   string
 	commit    string
 	buildTime string
-	debugMode string
 )
 
 func initConfig() {
 	flagset := pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
-	flagset.BoolP("verbose", "v", false, "Enable verbose mode")
+	flagset.Bool("verbose", false, "Enable verbose mode")
 	flagset.String("config", "", "Set config file")
 	flagset.Bool("version", false, "Print version info and exit")
 	flagset.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	flagset.String("if", "", "Interface name for DHCP and PXE to listen on")
+
 	flagset.String("http-listen", "", "IP range to listen on for web UI requests")
 	flagset.String("api-listen", "", "IP range to listen on for Swagger API requests")
-	flagset.String("tls-cert", "", "API server TLS certificate filename")
-	flagset.String("tls-key", "", "API server TLS key filename")
-	flagset.String("tls-ca", "", "API server TLS certificate authority filename")
-	flagset.String("agent-tls-cert", "", "API server TLS certificate filename")
-	flagset.String("agent-tls-key", "", "API server TLS key filename")
+	flagset.String("tls-cert", "", "API server TLS certificate")
+	flagset.String("tls-key", "", "API server TLS key")
+	flagset.String("tls-ca", "", "API server TLS certificate authority")
+	flagset.String("agent-tls-cert", "", "API server TLS certificate")
+	flagset.String("agent-tls-key", "", "API server TLS key")
+	flagset.String("agent-tls-ca", "", "API server TLS ca")
+
 	flagset.String("workspace", "/workspace", workspacePathHelp)
 	flagset.String("workspace-repo", "", "Repository of workspace")
+	flagset.String("workspace-repo-branch", "master", "Branch name for the repository of workspace")
+	flagset.String("initial-config", "", "initial.yaml")
 	flagset.String("file-server", "http://localhost/", "A HTTP server to serve needed files")
+	flagset.String("insecure-registry", "localhost:5000", "Local HTTP docker registry")
 	flagset.String("etcd", "", "Etcd endpoints")
 	flagset.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 	flagset.String("dns", "8.8.8.8", "comma separated IPs which will be used as default nameservers for skydns.")
 	flagset.String("lease-start", "", "Beginning of lease starting IP")
+	flagset.String("private-key", "", "Base64 SSH private key used for cloning private workspace repositories.")
 	flagset.Int("lease-range", 0, "Lease range")
 	flagset.Parse(os.Args)
 
@@ -113,9 +113,6 @@ func init() {
 	}
 	if buildTime == "" {
 		buildTime = "unknown"
-	}
-	if debugMode == "" {
-		debugMode = "false"
 	}
 }
 
@@ -195,9 +192,13 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	// etcd config
-	if viper.GetString("conf.etcd") == "" || viper.GetString("conf.cluster-name") == "" {
-		fmt.Fprint(os.Stderr, "\nPlease specify the etcd endpoints\n")
+	if viper.GetString("conf.etcd") == "" {
+		fmt.Fprint(os.Stderr, "\nPlease specify the etcd blacksmith variable\n")
+		os.Exit(1)
+	}
+
+	if viper.GetString("conf.cluster-name") == "" {
+		fmt.Fprint(os.Stderr, "\nPlease specify the cluster-name blacksmith variable\n")
 		os.Exit(1)
 	}
 
@@ -278,12 +279,23 @@ func main() {
 		Version:          version,
 		Commit:           commit,
 		BuildTime:        buildTime,
-		DebugMode:        debugMode,
 		ServiceStartTime: time.Now().UTC().Unix(),
 	}
-	etcdDataSource, err := datasource.NewEtcdDataSource(kapi, etcdClient,
-		leaseStart, viper.GetInt("conf.lease-range"), viper.GetString("conf.cluster-name"), viper.GetString("conf.workspace"),
-		viper.GetString("conf.workspace-repo"), viper.GetString("conf.file-server"), dnsIPStrings, selfInfo)
+	etcdDataSource, err := datasource.NewEtcdDataSource(
+		kapi,
+		etcdClient,
+		leaseStart,
+		viper.GetInt("conf.lease-range"),
+		viper.GetString("conf.cluster-name"),
+		viper.GetString("conf.workspace"),
+		viper.GetString("conf.workspace-repo"),
+		viper.GetString("conf.workspace-repo-branch"),
+		viper.GetString("conf.initial-config"),
+		viper.GetString("conf.file-server"),
+		viper.GetString("conf.private-key"),
+		dnsIPStrings,
+		selfInfo,
+	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
 		os.Exit(1)
@@ -303,9 +315,13 @@ func main() {
 	etcdDataSource.SetBlacksmithVariable("tls-ca", viper.GetString("conf.tls-ca"))
 	etcdDataSource.SetBlacksmithVariable("agent-tls-cert", viper.GetString("conf.agent-tls-cert"))
 	etcdDataSource.SetBlacksmithVariable("agent-tls-key", viper.GetString("conf.agent-tls-key"))
+	etcdDataSource.SetBlacksmithVariable("agent-tls-ca", viper.GetString("conf.agent-tls-ca"))
 	etcdDataSource.SetBlacksmithVariable("workspace", viper.GetString("conf.workspace"))
 	etcdDataSource.SetBlacksmithVariable("workspace-repo", viper.GetString("conf.workspace-repo"))
+	etcdDataSource.SetBlacksmithVariable("workspace-repo-branch", viper.GetString("conf.workspace-repo-branch"))
+	etcdDataSource.SetBlacksmithVariable("initial-config", viper.GetString("conf.initial-config"))
 	etcdDataSource.SetBlacksmithVariable("file-server", viper.GetString("conf.file-server"))
+	etcdDataSource.SetBlacksmithVariable("insecure-registry", viper.GetString("conf.insecure-registry"))
 	etcdDataSource.SetBlacksmithVariable("etcd", viper.GetString("conf.etcd"))
 	etcdDataSource.SetBlacksmithVariable("cluster-name", viper.GetString("conf.cluster-name"))
 	etcdDataSource.SetBlacksmithVariable("dns", viper.GetString("conf.dns"))
@@ -350,18 +366,7 @@ func main() {
 		}
 	}()
 
-	go func() {
-		for {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			watcher := kapi.Watcher(path.Join(etcdDataSource.ClusterName(), "workspace-update"), nil)
-			defer cancel()
-			_, err := watcher.Next(ctx)
-			if err != nil {
-				continue
-			}
-			etcdDataSource.UpdateWorkspace()
-		}
-	}()
+	go etcdDataSource.UpdateMyWorkspaceLoop()
 
 	// waiting till we're officially the master instance
 	for etcdDataSource.WhileMaster() != nil {
@@ -401,13 +406,17 @@ func main() {
 		log.Fatalf("\nError while serving dhcp: %s\n", err)
 	}()
 
-	for etcdDataSource.WhileMaster() == nil {
+	for {
+		if err = etcdDataSource.WhileMaster(); err != nil {
+			break
+		}
 		time.Sleep(datasource.ActiveMasterUpdateTime)
 	}
 
 	log.WithFields(log.Fields{
 		"where":  "blacksmith.main",
 		"action": "debug",
+		"err":    err,
 	}).Debug("Now we're NOT the master. Terminating. Hoping to be restarted by the service manager.")
 
 	gracefulShutdown(etcdDataSource)

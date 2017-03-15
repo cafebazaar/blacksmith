@@ -5,6 +5,7 @@ import (
 	"net"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/cafebazaar/blacksmith/swagger/models"
 	"github.com/cafebazaar/blacksmith/swagger/restapi/operations"
@@ -13,14 +14,55 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-func (ws *webServer) swaggerPostWorkspaceHandler(params operations.PostWorkspaceParams) middleware.Responder {
-	// TODO:
-	return middleware.NotImplemented("operation PostWorkspace has not yet been implemented")
-	// return operations.NewPostWorkspaceInternalServerError()
-	// return operations.NewPostWorkspaceOK()
+func logger(params interface{}) {
+	// log.Printf("params: %#v", params)
+}
+
+func (ws *webServer) swaggerPostWorkspacesHandler(params operations.PostWorkspacesParams) middleware.Responder {
+	logger(params)
+	if err := ws.ds.UpdateWorkspaces(); err != nil {
+		return operations.
+			NewPostWorkspacesInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	return operations.NewPostWorkspacesOK()
+}
+
+func (ws *webServer) swaggerPostWorkspaceMacHandler(params operations.PostWorkspaceMacParams) middleware.Responder {
+	logger(params)
+	mac, err := net.ParseMAC(params.Mac)
+	if err != nil {
+		return operations.
+			NewPostWorkspaceMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "update"); err != nil {
+		return operations.
+			NewPostWorkspaceMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	return operations.NewPostWorkspaceMacOK()
+}
+
+func (ws *webServer) swaggerPostRebootMacHandler(params operations.PostRebootMacParams) middleware.Responder {
+	logger(params)
+	mac, err := net.ParseMAC(params.Mac)
+	if err != nil {
+		return operations.
+			NewPostRebootMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+
+	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "update"); err != nil {
+		return operations.
+			NewPostRebootMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	return operations.NewPostRebootMacOK()
 }
 
 func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) middleware.Responder {
+	logger(params)
 	machines, err := ws.ds.GetEtcdMachines()
 	if err != nil {
 		return operations.
@@ -47,28 +89,29 @@ func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) mid
 				WithPayload(&models.Error{err.Error()})
 		}
 		heatbeat := struct {
-			Time   string
+			Time   time.Time
 			Status string
 		}{}
 		json.NewDecoder(strings.NewReader(value)).Decode(&heatbeat)
-		var t strfmt.Date
-		err = t.UnmarshalText([]byte(heatbeat.Time))
-		if err != nil {
-			return operations.
-				NewGetNodesInternalServerError().
-				WithPayload(&models.Error{err.Error()})
-		}
+		// var t strfmt.Date
+		// err = t.UnmarshalText([]byte(heatbeat.Time))
+		// if err != nil {
+		// 	return operations.
+		// 		NewGetNodesInternalServerError().
+		// 		WithPayload(&models.Error{err.Error()})
+		// }
 
 		resp.Payload = append(resp.Payload, &models.Node{
 			IP:            m.IP.String(),
 			Mac:           machine.Mac().String(),
-			LastHeartbeat: t,
+			LastHeartbeat: strfmt.Date(heatbeat.Time),
 		})
 	}
 	return resp
 }
 
 func (ws *webServer) swaggerGetVariablesClusterKeyHandler(params operations.GetVariablesClusterKeyParams) middleware.Responder {
+	logger(params)
 	value, err := ws.ds.GetClusterVariable(params.Key)
 	if client.IsKeyNotFound(err) {
 		return operations.
@@ -88,6 +131,7 @@ func (ws *webServer) swaggerGetVariablesClusterKeyHandler(params operations.GetV
 }
 
 func (ws *webServer) swaggerGetVariablesClusterHandler(params operations.GetVariablesClusterParams) middleware.Responder {
+	logger(params)
 	vars, err := ws.ds.ListClusterVariables()
 	if err != nil {
 		return operations.
@@ -106,6 +150,7 @@ func (ws *webServer) swaggerGetVariablesClusterHandler(params operations.GetVari
 }
 
 func (ws *webServer) swaggerGetVariablesNodesMacHandler(params operations.GetVariablesNodesMacParams) middleware.Responder {
+	logger(params)
 	// GetVariablesNodesMac
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
@@ -131,6 +176,7 @@ func (ws *webServer) swaggerGetVariablesNodesMacHandler(params operations.GetVar
 }
 
 func (ws *webServer) swaggerGetVariablesNodesMacKeyHandler(params operations.GetVariablesNodesMacKeyParams) middleware.Responder {
+	logger(params)
 	// GetVariablesNodesMacKey
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
@@ -155,19 +201,21 @@ func (ws *webServer) swaggerGetVariablesNodesMacKeyHandler(params operations.Get
 	})
 }
 
-func (ws *webServer) swaggerGetWorkspaceHandler(params operations.GetWorkspaceParams) middleware.Responder {
+func (ws *webServer) swaggerGetWorkspaceMacHandler(params operations.GetWorkspaceMacParams) middleware.Responder {
+	logger(params)
 	h, err := ws.ds.GetWorkspaceHash()
 	if err != nil {
 		return operations.
-			NewGetWorkspaceInternalServerError().
+			NewGetWorkspaceMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	return operations.NewGetWorkspaceOK().WithPayload(&models.Workspace{
+	return operations.NewGetWorkspaceMacOK().WithPayload(&models.Workspace{
 		Commit: h,
 	})
 }
 
 func (ws *webServer) swaggerPostVariablesClusterKeyHandler(params operations.PostVariablesClusterKeyParams) middleware.Responder {
+	logger(params)
 	if err := ws.ds.SetClusterVariable(params.Key, params.Value); err != nil {
 		return operations.
 			NewPostVariablesClusterKeyInternalServerError().
@@ -181,6 +229,7 @@ func (ws *webServer) swaggerPostVariablesClusterKeyHandler(params operations.Pos
 }
 
 func (ws *webServer) swaggerPostVariablesNodesMacKeyHandler(params operations.PostVariablesNodesMacKeyParams) middleware.Responder {
+	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -188,7 +237,12 @@ func (ws *webServer) swaggerPostVariablesNodesMacKeyHandler(params operations.Po
 			WithPayload(&models.Error{err.Error()})
 	}
 
-	if err := ws.ds.GetEtcdMachine(mac).SetVariable(params.Key, params.Value); err != nil {
+	m := ws.ds.GetEtcdMachine(mac)
+	if !m.IsExist() {
+		return operations.NewPostVariablesNodesMacKeyNotFound()
+	}
+
+	if err := m.SetVariable(params.Key, params.Value); err != nil {
 		return operations.
 			NewPostVariablesNodesMacKeyInternalServerError().
 			WithPayload(&models.Error{err.Error()})
@@ -201,6 +255,7 @@ func (ws *webServer) swaggerPostVariablesNodesMacKeyHandler(params operations.Po
 }
 
 func (ws *webServer) swaggerDeleteVariablesClusterKeyHandler(params operations.DeleteVariablesClusterKeyParams) middleware.Responder {
+	logger(params)
 	err := ws.ds.DeleteClusterVariable(params.Key)
 	if client.IsKeyNotFound(err) {
 		return operations.
@@ -217,6 +272,7 @@ func (ws *webServer) swaggerDeleteVariablesClusterKeyHandler(params operations.D
 }
 
 func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.DeleteVariablesNodesMacKeyParams) middleware.Responder {
+	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -237,19 +293,20 @@ func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.
 	return operations.NewDeleteVariablesNodesMacKeyOK()
 }
 
-func (ws *webServer) swaggerGetHeartbeatMacHeartbeatHandler(params operations.GetHeartbeatMacHeartbeatParams) middleware.Responder {
+func (ws *webServer) swaggerPostHeartbeatMacHeartbeatHandler(params operations.PostHeartbeatMacHeartbeatParams) middleware.Responder {
+	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
-			NewGetHeartbeatMacHeartbeatInternalServerError().
+			NewPostHeartbeatMacHeartbeatInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
 	err = ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "heartbeat"), params.Heartbeat)
 	if err != nil {
 		return operations.
-			NewGetHeartbeatMacHeartbeatInternalServerError().
+			NewPostHeartbeatMacHeartbeatInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
 
-	return operations.NewGetHeartbeatMacHeartbeatOK()
+	return operations.NewPostHeartbeatMacHeartbeatOK()
 }

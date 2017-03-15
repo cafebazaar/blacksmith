@@ -32,7 +32,6 @@ type machineDetails struct {
 }
 
 func machineToDetails(machineInterface *datasource.EtcdMachine) (*machineDetails, error) {
-
 	name := machineInterface.Hostname()
 	mac := machineInterface.Mac()
 
@@ -231,12 +230,10 @@ func (ws *webServer) DelClusterVariables(w http.ResponseWriter, r *http.Request)
 	io.WriteString(w, `"OK"`)
 }
 
-func (ws *webServer) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
-	err := ws.ds.UpdateWorkspace()
-	if err != nil {
+func (ws *webServer) UpdateWorkspaces(w http.ResponseWriter, r *http.Request) {
+	if err := ws.ds.UpdateWorkspaces(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
 }
 
 func (ws *webServer) GetWorkspaceHash(w http.ResponseWriter, r *http.Request) {

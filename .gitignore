@@ -13,6 +13,7 @@ vagrant_provision_after_docker_installation.local
 /blacksmithctl
 /blacksmith-agent
 /vendor
+/certs
 pxe/pxelinux_autogen.go
 templating/files_autogen.go
 web/ui_autogen.go

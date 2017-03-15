@@ -76,36 +76,9 @@ func NewSetVariablesClusterKey() *cobra.Command {
 	}
 }
 
-func NewSetWorkspace() *cobra.Command {
-	mandatoryArgs := []string{
-		"<commit>",
-	}
-	return &cobra.Command{
-		Use: "workspace " + strings.Join(mandatoryArgs, " "),
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return checkArgs(args, mandatoryArgs)
-		},
-		Run: func(cmd *cobra.Command, args []string) {
-			var commit = args[0]
-
-			c := newSwaggerClient()
-			ctx, _ := context.WithTimeout(context.Background(), time.Second)
-			resp, err := c.Operations.PostWorkspace(&operations.PostWorkspaceParams{
-				Context: ctx,
-				Commit:  commit,
-			})
-			if err != nil {
-				fmt.Println("Error:", err)
-				return
-			}
-			fmt.Print(formatOutput(resp.Payload))
-		},
-	}
-}
-
 func init() {
 	RootCmd.AddCommand(setCmd)
 	setCmd.AddCommand(NewSetVariablesNodesMacKey())
 	setCmd.AddCommand(NewSetVariablesClusterKey())
-	setCmd.AddCommand(NewSetWorkspace())
+	// setCmd.AddCommand(NewSetWorkspace())
 }

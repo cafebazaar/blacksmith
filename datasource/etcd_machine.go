@@ -73,6 +73,11 @@ func (m *EtcdMachine) Machine(createIfNeeded bool,
 	return machine, nil
 }
 
+func (m *EtcdMachine) IsExist() bool {
+	_, err := m.etcdDS.get(m.prefixifyForMachine(""))
+	return !etcd.IsKeyNotFound(err)
+}
+
 func (m *EtcdMachine) store(machine *Machine) error {
 	if machine.Type == 0 {
 		if machine.IP == nil {

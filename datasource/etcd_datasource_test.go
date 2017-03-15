@@ -40,3 +40,7 @@ func TestEtcdMembers(t *testing.T) {
 		t.Error("expecting EtcdMembers result to contains etcd0= and ends with 80, got:", got)
 	}
 }
+
+func TestIterateOverYaml(t *testing.T) {
+	// TODO
+}

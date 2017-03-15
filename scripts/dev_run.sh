@@ -28,7 +28,7 @@ fi
 
 ####
 # BoB IP
-HostIP="172.19.1.1"
+BobIP="172.19.1.1"
 # hostonly network name, it is "vboxnet0" by default and we have less control for what it should be it seems
 HOSTONLY="vboxnet0"
 if [[ -f ".vbox_network_hostonly_if" ]]; then HOSTONLY=$(cat .vbox_network_hostonly_if); fi
@@ -53,7 +53,7 @@ function createNetwork {
     # usually it installs a hostonly network named "vboxnet0", it would be nice if we could control its name, it seems we can't, however
     HOSTONLY=$(vboxmanage hostonlyif create 2>/dev/null | sed "s/.*'\(.*\)'.*/\1/g")
     echo $HOSTONLY > .vbox_network_hostonly_if
-    vboxmanage hostonlyif ipconfig $HOSTONLY --ip $HostIP --netmask 255.255.255.0
+    vboxmanage hostonlyif ipconfig $HOSTONLY --ip $BobIP --netmask 255.255.255.0
 }
 
 function create_machine {
@@ -134,17 +134,16 @@ function initEtcd {
         -p 2379:2379 \
         --name blacksmith-dev-etcd quay.io/coreos/etcd:v2.2.3 \
         -name etcd0 \
-        -advertise-client-urls http://${HostIP}:2379,http://${HostIP}:4001 \
+        -advertise-client-urls http://${BobIP}:2379,http://${BobIP}:4001 \
         -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
-        -initial-advertise-peer-urls http://${HostIP}:2380 \
+        -initial-advertise-peer-urls http://${BobIP}:2380 \
         -listen-peer-urls http://0.0.0.0:2380 \
         -initial-cluster-token etcd-cluster-1 \
-        -initial-cluster etcd0=http://${HostIP}:2380 \
+        -initial-cluster etcd0=http://${BobIP}:2380 \
         -initial-cluster-state new
 }
 
 function runBlacksmith {
-  # TODO: pass SSH keys content, not filenames
   local configFile=config.yaml
   mkdir -p ./config
   echo "
@@ -153,31 +152,32 @@ function runBlacksmith {
 conf:
   blacksmith-image: 172.19.1.1:5000/blacksmith:refactoring
   workspace: /workspace
-  etcd: http://${HostIP}:2379
+  etcd: http://${BobIP}:2379
   if: $HOSTONLY
   cluster-name: cafecluster
   lease-start: 172.19.1.11
-  file-server: http://${HostIP}/
+  file-server: http://${BobIP}/
   lease-range: 10
   dns: 8.8.8.8
   debug: true
-  http-listen: ${HostIP}:8000
-  api-listen: ${HostIP}:8001
+  http-listen: ${BobIP}:8000
+  api-listen: ${BobIP}:8001
   tls-cert: $(base64 -w0 certs/server.crt)
   tls-key: $(base64 -w0 certs/server.key)
   tls-ca: $(base64 -w0 certs/ca.crt)
   agent-tls-cert: $(base64 -w0 certs/client.crt)
   agent-tls-key: $(base64 -w0 certs/client.key)
-  agent-url: http://${HostIP}:9090/blacksmith-agent
+  agent-url: http://${BobIP}:9090/blacksmith-agent
   workspace-repo: git://172.19.1.1/for-refactoring/.git
   workspace-config: /workspace/initial.yaml
+  private-key: $(base64 -w0 ~/.ssh/id_rsa)
+  insecure-registry: ${BobIP}:5000
 ssh-keys:
   - $(cat ~/.ssh/id_rsa.pub)
     " > ./config/$configFile
-    # trap "rm ./config/$configFile" EXIT
 
     docker rm -f blacksmith 2>/dev/null || true
-    docker run -it --name blacksmith --restart=always --net=host \
+    docker run -d --name blacksmith --net=host \
       -v $GOPATH/src/github.com/cafebazaar/blacksmith/workspaces/current:/workspace \
       -v $(pwd)/config/:/config/ \
       -v /etc/ssl/certs:/etc/ssl/certs \

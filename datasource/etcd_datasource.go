@@ -3,6 +3,7 @@ package datasource
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	gitssh "srcd.works/go-git.v4/plumbing/transport/ssh"
+
 	git "srcd.works/go-git.v4"
 	"srcd.works/go-git.v4/plumbing"
 	"srcd.works/go-git.v4/plumbing/object"
@@ -23,6 +26,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
@@ -32,6 +36,7 @@ const (
 	etcdBlacksmithConfVarsDirName = "blacksmith-variables"
 	etcdConfigurationDirName      = "configuration"
 	etcdFilesDirName              = "files"
+	etcdUpdateMeValue             = "update-me"
 )
 
 // EtcdDatasource provides the interface for querying general information
@@ -43,6 +48,8 @@ type EtcdDatasource struct {
 	clusterName     string
 	workspacePath   string
 	workspaceRepo   string
+	workspaceBranch string
+	initialConfig   string
 	fileServer      string
 	webServer       string
 	dhcpAssignLock  *sync.Mutex
@@ -177,15 +184,15 @@ func (ds *EtcdDatasource) delete(keyPath string, opts *etcd.DeleteOptions) error
 	return err
 }
 
-func (ds *EtcdDatasource) watchOnce(keyPath string) (*etcd.Response, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3600*time.Second)
+func (ds *EtcdDatasource) watchOnce(keyPath string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	watcher := ds.keysAPI.Watcher(keyPath, nil)
 	defer cancel()
 	resp, err := watcher.Next(ctx)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return resp, nil
+	return resp.Node.Value, nil
 }
 
 // GetClusterVariable returns a cluster variables with the given name
@@ -267,13 +274,9 @@ func (ds *EtcdDatasource) DeleteClusterVariable(key string) error {
 
 // GetWorkspaceHash returns worspace hash
 func (ds *EtcdDatasource) GetWorkspaceHash() (string, error) {
+	// TODO: this is meaningless if machines are updated one by one
 	workspaceHash, err := ds.get(path.Join(ds.ClusterName(), "workspace-hash"))
 	return workspaceHash, err
-}
-
-func (ds *EtcdDatasource) UpdateSignal() error {
-	err := ds.set(path.Join(ds.ClusterName(), "workspace-update"), hashGenerator())
-	return err
 }
 
 func hashGenerator() string {
@@ -287,118 +290,127 @@ func hashGenerator() string {
 	return hashStr
 }
 
-// UpdateWorkspace updates workspace
-func (ds *EtcdDatasource) UpdateWorkspace() error {
+func (ds *EtcdDatasource) getPrivateKey() []byte {
+	priKey, err := ds.GetBlacksmithVariable("private-key")
+	if err != nil {
+		return []byte{}
+	}
+	if priKey == "" {
+		return []byte{}
+	}
+	priKeyBytes, err := base64.StdEncoding.DecodeString(priKey)
+	if err != nil {
+		return []byte{}
+	}
+	return priKeyBytes
+}
 
-	var erro error
-	erro = nil
+func (ds *EtcdDatasource) UpdateMyWorkspaceLoop() error {
+	k := path.Join(
+		ds.ClusterName(),
+		"blacksmith-instances",
+		colonlessMacToMac(ds.selfInfo.Nic.String()),
+		"workspace-commit-hash",
+	)
 
-	branch := "refs/heads/dev"
-	// branch := "refs/heads/master"
-	// if ds.selfInfo.DebugMode == "true" {
-	// 	branch = "refs/heads/dev"
-	// }
-	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
-	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
+	watcher := ds.keysAPI.Watcher(k, nil)
+	log.WithFields(log.Fields{
+		"key": k,
+	}).Info("UPDATE: watching for update signal")
+	for {
+		resp, err := watcher.Next(context.Background())
+		if err != nil {
+			return err
+		}
+		log.WithFields(log.Fields{
+			"key":   k,
+			"value": resp.Node.Value,
+		}).Info("UPDATE: new value")
+		if resp.Node.Value == etcdUpdateMeValue {
+			ds.UpdateMyWorkspace()
+		}
+	}
+}
+
+// UpdateMyWorkspace clones the workspace repo of the current instance
+func (ds *EtcdDatasource) UpdateMyWorkspace() error {
+	branch := fmt.Sprintf("refs/heads/%s", ds.workspaceBranch)
+	dir := path.Join(ds.workspacePath, "repo")
+	os.RemoveAll(dir)
+	repo, err := clone(dir, ds.workspaceRepo, branch, ds.getPrivateKey())
 	if err != nil {
 		return errors.Wrapf(err,
 			"cloning %s branch %s to %s failed",
-			ds.workspaceRepo, branch,
-			path.Join(ds.workspacePath, "repo"),
+			ds.workspaceRepo, branch, dir,
 		)
 	}
 	head, err := repo.Head()
 	if err != nil {
-		return errors.Wrapf(err, "error while getting repository head for %s", ds.workspaceRepo)
+		return errors.Wrap(err, "failed to get repo head")
 	}
 
-	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash"), head.Hash().String())
+	k := path.Join(
+		ds.ClusterName(),
+		"blacksmith-instances",
+		colonlessMacToMac(ds.selfInfo.Nic.String()),
+		"workspace-commit-hash",
+	)
+	return ds.set(k, head.Hash().String())
+}
+
+// UpdateWorkspaces requests all instances to update
+// their workspace. It blocks until all instances have
+// completed their cloning.
+func (ds *EtcdDatasource) UpdateWorkspaces() error {
+	log.Info("UPDATE: UpdateWorkspaces called!")
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	response, err := ds.keysAPI.Get(
+		ctx,
+		path.Join(ds.ClusterName(), "blacksmith-instances"),
+		&etcd.GetOptions{Recursive: true},
+	)
 	if err != nil {
 		return err
 	}
 
-	err = ds.create(path.Join(ds.ClusterName(), "workspace-lock"), hashGenerator())
-	alreadyExists := false
-	if cErr, ok := err.(etcd.Error); ok {
-		if cErr.Code == etcd.ErrorCodeNodeExist {
-			alreadyExists = true
+	wg := sync.WaitGroup{}
+	for _, node := range response.Node.Nodes {
+		wg.Add(1)
+		go func(node *etcd.Node) {
+			defer wg.Done()
+			k := path.Join(node.Key, "workspace-commit-hash")
+			log.Infof("UPDATE: node: %s", k)
+			if err := ds.set(k, etcdUpdateMeValue); err != nil {
+				log.Error(err)
+				return
+			}
+			// Wait until node's blacksmith changes the value from
+			// etcdUpdateMeValue to a commit hash.
+			if _, err := ds.watchOnce(k); err != nil {
+				log.Error(err)
+			}
+		}(node)
+	}
+	wg.Wait()
+
+	newWorkspaceCommitHash := ""
+	for _, node := range response.Node.Nodes {
+		k := path.Join(node.Key, "workspace-commit-hash")
+		val, err := ds.get(k)
+		if err != nil {
+			return err
+		}
+		if newWorkspaceCommitHash == "" {
+			newWorkspaceCommitHash = val
+		} else if newWorkspaceCommitHash != val {
+			return fmt.Errorf("workspace commit hashes on at least one instances does not match, %s != %s", newWorkspaceCommitHash, val)
+		}
+		if err := ds.delete(k, nil); err != nil {
+			return err
 		}
 	}
-	if alreadyExists {
-		log.Info("Already locked!")
-		ds.watchOnce(path.Join(ds.ClusterName(), "workspace-lock"))
-		log.Info("Unlocked!")
-	} else {
-		log.Info("Locked!")
-		defer func() {
-			err = ds.delete(path.Join(ds.ClusterName(), "workspace-lock"), nil)
-			if err != nil {
-				erro = err
-			}
-		}()
-	}
 
-	c := make(chan bool)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	ops := &etcd.GetOptions{Recursive: true}
-	response, err := ds.keysAPI.Get(ctx, path.Join(ds.ClusterName(), "blacksmith-instances"), ops)
-	if err != nil {
-		return err
-	}
-
-	for _, node := range response.Node.Nodes {
-		go func(c chan bool, node *etcd.Node) {
-			defer func() { c <- true }()
-			for {
-				workspaceCommitHash, err := ds.get(path.Join(node.Key, "workspace-commit-hash"))
-				if err != nil {
-					log.Error(err.Error())
-					continue
-				}
-
-				workspaceCommit, err := repo.Commit(plumbing.NewHash(workspaceCommitHash))
-				if err != nil {
-					log.Error(err.Error())
-					continue
-				}
-
-				localCommit, err := repo.Commit(head.Hash())
-				if err != nil {
-					log.Error(err.Error())
-					continue
-				}
-
-				if localCommit.Author.When.Before(workspaceCommit.Author.When) {
-					resp, err := ds.watchOnce(path.Join(node.Key, "workspace-commit-hash"))
-					if err != nil {
-						log.Error(err.Error())
-						continue
-					}
-
-					if resp != nil {
-						break
-					}
-				} else {
-					break
-				}
-			}
-
-		}(c, node)
-	}
-
-	for range response.Node.Nodes {
-		<-c
-	}
-
-	err = ds.set(path.Join(ds.ClusterName(), "workspace-hash"), hashGenerator())
-	if err != nil {
-		return err
-	}
-
-	return erro
+	return ds.set(path.Join(ds.ClusterName(), "workspace"), newWorkspaceCommitHash)
 }
 
 // ClusterName returns the name of the cluster
@@ -496,9 +508,9 @@ func (ds *EtcdDatasource) iterateOverYaml(iVals interface{}, pathStr string) err
 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
-func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
-	leaseRange int, clusterName, workspacePath string, workspaceRepo string,
-	fileServer string, defaultNameServers []string,
+func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP, leaseRange int, clusterName,
+	workspacePath string, workspaceRepo string, workspaceBranch string, initialConfig string,
+	fileServer string, privateKey string, defaultNameServers []string,
 	selfInfo InstanceInfo) (*EtcdDatasource, error) {
 
 	ds := &EtcdDatasource{
@@ -509,19 +521,18 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		leaseRange:      leaseRange,
 		workspacePath:   workspacePath,
 		workspaceRepo:   workspaceRepo,
+		workspaceBranch: workspaceBranch,
+		initialConfig:   initialConfig,
 		fileServer:      fileServer,
 		dhcpAssignLock:  &sync.Mutex{},
 		instanceEtcdKey: invalidEtcdKey,
 		selfInfo:        selfInfo,
 	}
 
-	branch := "refs/heads/dev"
-	// branch := "refs/heads/master"
-	// if ds.selfInfo.DebugMode == "true" {
-	// 	branch = "refs/heads/dev"
-	// }
+	branch := fmt.Sprintf("refs/heads/%s", ds.workspaceBranch)
 	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
-	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, path.Join(ds.workspacePath, "id_rsa"), branch)
+	ds.SetBlacksmithVariable("private-key", privateKey)
+	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, branch, ds.getPrivateKey())
 	if err != nil {
 		return nil, errors.Wrapf(err,
 			"cloning %s branch %s to %s failed",
@@ -539,7 +550,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 		return nil, errors.Wrapf(err, "error while setting ds key %q to %q", "workspace-commit-hash", head.Hash().String())
 	}
 
-	data, err := ioutil.ReadFile(filepath.Join(ds.workspacePath, "initial.yaml"))
+	data, err := ioutil.ReadFile(ds.initialConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
 	}
@@ -583,7 +594,7 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	return ds, nil
 }
 
-func clone(path, url, priKeyPath, ref string) (*git.Repository, error) {
+func clone(path string, url string, ref string, privateKey []byte) (*git.Repository, error) {
 	log.WithFields(log.Fields{
 		"url":  url,
 		"path": path,
@@ -596,6 +607,18 @@ func clone(path, url, priKeyPath, ref string) (*git.Repository, error) {
 		SingleBranch:  true,
 		Depth:         1,
 		Progress:      os.Stdout,
+	}
+
+	if len(privateKey) != 0 {
+		log.Println("Using private-key")
+		signer, err := ssh.ParsePrivateKey(privateKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse private key")
+		}
+		opts.Auth = &gitssh.PublicKeys{
+			User:   "git",
+			Signer: signer,
+		}
 	}
 
 	r, err := git.PlainClone(path, false, &opts)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -128,7 +129,10 @@ func ForTest(params *ForTestParams) (*EtcdDatasource, error) {
 		clusterNameFlag,
 		workspacePath,
 		workspaceRepo,
+		"master",
+		filepath.Join(workspacePath, "initial.yaml"),
 		fileServer,
+		"",
 		dnsIPStrings,
 		selfInfo,
 	)

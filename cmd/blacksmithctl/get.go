@@ -136,13 +136,13 @@ func NewGetNodesCmd() *cobra.Command {
 	}
 }
 
-func NewGetWorkspaceCmd() *cobra.Command {
+func NewGetWorkspaceMacCmd() *cobra.Command {
 	return &cobra.Command{
 		Use: "workspace",
 		Run: func(cmd *cobra.Command, args []string) {
 			c := newSwaggerClient()
 			ctx, _ := context.WithTimeout(context.Background(), time.Second)
-			resp, err := c.Operations.GetWorkspace(&operations.GetWorkspaceParams{Context: ctx})
+			resp, err := c.Operations.GetWorkspaceMac(&operations.GetWorkspaceMacParams{Context: ctx})
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -155,7 +155,7 @@ func NewGetWorkspaceCmd() *cobra.Command {
 func init() {
 	RootCmd.AddCommand(getCmd)
 	getCmd.AddCommand(NewGetNodesCmd())
-	getCmd.AddCommand(NewGetWorkspaceCmd())
+	getCmd.AddCommand(NewGetWorkspaceMacCmd())
 
 	getCmd.AddCommand(NewGetVariablesNodesMac())
 	getCmd.AddCommand(NewGetVariablesNodesMacKey())

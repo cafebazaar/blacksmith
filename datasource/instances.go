@@ -19,7 +19,7 @@ const (
 
 	invalidEtcdKey   = "INVALID"
 	instancesEtcdDir = "instances"
-	etcdTimeout      = 5 * time.Second
+	etcdTimeout      = 10 * time.Second
 )
 
 func (ds *EtcdDatasource) registerOnEtcd() error {

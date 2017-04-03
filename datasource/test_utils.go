@@ -130,9 +130,9 @@ func ForTest(params *ForTestParams) (*EtcdDatasource, error) {
 		workspacePath,
 		workspaceRepo,
 		"master",
+		"",
 		filepath.Join(workspacePath, "initial.yaml"),
 		fileServer,
-		"",
 		dnsIPStrings,
 		selfInfo,
 	)

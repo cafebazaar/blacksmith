@@ -290,9 +290,9 @@ func main() {
 		viper.GetString("conf.workspace"),
 		viper.GetString("conf.workspace-repo"),
 		viper.GetString("conf.workspace-repo-branch"),
+		viper.GetString("conf.private-key"),
 		viper.GetString("conf.initial-config"),
 		viper.GetString("conf.file-server"),
-		viper.GetString("conf.private-key"),
 		dnsIPStrings,
 		selfInfo,
 	)

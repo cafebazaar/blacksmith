@@ -508,9 +508,19 @@ func (ds *EtcdDatasource) iterateOverYaml(iVals interface{}, pathStr string) err
 
 // NewEtcdDataSource gives blacksmith the ability to use an etcd endpoint as
 // a MasterDataSource
-func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP, leaseRange int, clusterName,
-	workspacePath string, workspaceRepo string, workspaceBranch string, initialConfig string,
-	fileServer string, privateKey string, defaultNameServers []string,
+func NewEtcdDataSource(
+	kapi etcd.KeysAPI,
+	client etcd.Client,
+	leaseStart net.IP,
+	leaseRange int,
+	clusterName,
+	workspacePath string,
+	workspaceRepo string,
+	workspaceBranch string,
+	privateKey string,
+	initialConfig string,
+	fileServer string,
+	defaultNameServers []string,
 	selfInfo InstanceInfo) (*EtcdDatasource, error) {
 
 	ds := &EtcdDatasource{
@@ -530,14 +540,15 @@ func NewEtcdDataSource(kapi etcd.KeysAPI, client etcd.Client, leaseStart net.IP,
 	}
 
 	branch := fmt.Sprintf("refs/heads/%s", ds.workspaceBranch)
-	os.RemoveAll(path.Join(ds.workspacePath, "repo"))
+	dir := path.Join(ds.workspacePath, "repo")
+	os.RemoveAll(dir)
 	ds.SetBlacksmithVariable("private-key", privateKey)
-	repo, err := clone(path.Join(ds.workspacePath, "repo"), ds.workspaceRepo, branch, ds.getPrivateKey())
+	repo, err := clone(dir, ds.workspaceRepo, branch, ds.getPrivateKey())
 	if err != nil {
 		return nil, errors.Wrapf(err,
 			"cloning %s branch %s to %s failed",
 			ds.workspaceRepo, branch,
-			path.Join(ds.workspacePath, "repo"),
+			dir,
 		)
 	}
 	head, err := repo.Head()

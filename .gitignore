@@ -20,6 +20,7 @@ web/ui_autogen.go
 web/static/external
 web/static/fonts
 swagger/
+/config/
 
 # local
 example/example

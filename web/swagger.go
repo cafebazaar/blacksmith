@@ -14,12 +14,7 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-func logger(params interface{}) {
-	// log.Printf("params: %#v", params)
-}
-
 func (ws *webServer) swaggerPostWorkspacesHandler(params operations.PostWorkspacesParams) middleware.Responder {
-	logger(params)
 	if err := ws.ds.UpdateWorkspaces(); err != nil {
 		return operations.
 			NewPostWorkspacesInternalServerError().
@@ -29,7 +24,6 @@ func (ws *webServer) swaggerPostWorkspacesHandler(params operations.PostWorkspac
 }
 
 func (ws *webServer) swaggerPostWorkspaceMacHandler(params operations.PostWorkspaceMacParams) middleware.Responder {
-	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -45,7 +39,6 @@ func (ws *webServer) swaggerPostWorkspaceMacHandler(params operations.PostWorksp
 }
 
 func (ws *webServer) swaggerPostRebootMacHandler(params operations.PostRebootMacParams) middleware.Responder {
-	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -62,7 +55,6 @@ func (ws *webServer) swaggerPostRebootMacHandler(params operations.PostRebootMac
 }
 
 func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) middleware.Responder {
-	logger(params)
 	machines, err := ws.ds.GetEtcdMachines()
 	if err != nil {
 		return operations.
@@ -111,7 +103,6 @@ func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) mid
 }
 
 func (ws *webServer) swaggerGetVariablesClusterKeyHandler(params operations.GetVariablesClusterKeyParams) middleware.Responder {
-	logger(params)
 	value, err := ws.ds.GetClusterVariable(params.Key)
 	if client.IsKeyNotFound(err) {
 		return operations.
@@ -131,7 +122,6 @@ func (ws *webServer) swaggerGetVariablesClusterKeyHandler(params operations.GetV
 }
 
 func (ws *webServer) swaggerGetVariablesClusterHandler(params operations.GetVariablesClusterParams) middleware.Responder {
-	logger(params)
 	vars, err := ws.ds.ListClusterVariables()
 	if err != nil {
 		return operations.
@@ -150,7 +140,6 @@ func (ws *webServer) swaggerGetVariablesClusterHandler(params operations.GetVari
 }
 
 func (ws *webServer) swaggerGetVariablesNodesMacHandler(params operations.GetVariablesNodesMacParams) middleware.Responder {
-	logger(params)
 	// GetVariablesNodesMac
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
@@ -176,7 +165,6 @@ func (ws *webServer) swaggerGetVariablesNodesMacHandler(params operations.GetVar
 }
 
 func (ws *webServer) swaggerGetVariablesNodesMacKeyHandler(params operations.GetVariablesNodesMacKeyParams) middleware.Responder {
-	logger(params)
 	// GetVariablesNodesMacKey
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
@@ -202,7 +190,6 @@ func (ws *webServer) swaggerGetVariablesNodesMacKeyHandler(params operations.Get
 }
 
 func (ws *webServer) swaggerGetWorkspaceMacHandler(params operations.GetWorkspaceMacParams) middleware.Responder {
-	logger(params)
 	h, err := ws.ds.GetWorkspaceHash()
 	if err != nil {
 		return operations.
@@ -215,7 +202,6 @@ func (ws *webServer) swaggerGetWorkspaceMacHandler(params operations.GetWorkspac
 }
 
 func (ws *webServer) swaggerPostVariablesClusterKeyHandler(params operations.PostVariablesClusterKeyParams) middleware.Responder {
-	logger(params)
 	if err := ws.ds.SetClusterVariable(params.Key, params.Value); err != nil {
 		return operations.
 			NewPostVariablesClusterKeyInternalServerError().
@@ -229,7 +215,6 @@ func (ws *webServer) swaggerPostVariablesClusterKeyHandler(params operations.Pos
 }
 
 func (ws *webServer) swaggerPostVariablesNodesMacKeyHandler(params operations.PostVariablesNodesMacKeyParams) middleware.Responder {
-	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -255,7 +240,6 @@ func (ws *webServer) swaggerPostVariablesNodesMacKeyHandler(params operations.Po
 }
 
 func (ws *webServer) swaggerDeleteVariablesClusterKeyHandler(params operations.DeleteVariablesClusterKeyParams) middleware.Responder {
-	logger(params)
 	err := ws.ds.DeleteClusterVariable(params.Key)
 	if client.IsKeyNotFound(err) {
 		return operations.
@@ -272,7 +256,6 @@ func (ws *webServer) swaggerDeleteVariablesClusterKeyHandler(params operations.D
 }
 
 func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.DeleteVariablesNodesMacKeyParams) middleware.Responder {
-	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -294,7 +277,6 @@ func (ws *webServer) swaggerDeleteVariablesNodesMacKeyHandler(params operations.
 }
 
 func (ws *webServer) swaggerPostHeartbeatMacHeartbeatHandler(params operations.PostHeartbeatMacHeartbeatParams) middleware.Responder {
-	logger(params)
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.

@@ -48,7 +48,7 @@ prepare_test_etcd:
 	  -initial-cluster-state new
 
 test: dependencies
-	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test $(shell glide novendor)
+	ETCD_ENDPOINT=$(ETCD_ENDPOINT) $(GO) test -p=1 $(shell glide novendor)
 
 production: blacksmith docker		
 

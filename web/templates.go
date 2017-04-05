@@ -12,7 +12,6 @@ import (
 
 	"github.com/cafebazaar/blacksmith/merger"
 	"github.com/cafebazaar/blacksmith/templating"
-	"github.com/coreos/coreos-cloudinit/config"
 )
 
 const (
@@ -57,12 +56,12 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 		return ""
 	}
 
-	baseCC := config.CloudConfig{}
+	baseCC := merger.CloudConfig{}
 	if err := yaml.Unmarshal([]byte(ccbase), &baseCC); err != nil {
 		http.Error(w, err.Error(), 500)
 		return ""
 	}
-	userCC := config.CloudConfig{}
+	userCC := merger.CloudConfig{}
 	if err := yaml.Unmarshal([]byte(ccuser), &userCC); err != nil {
 		http.Error(w, err.Error(), 500)
 		return ""

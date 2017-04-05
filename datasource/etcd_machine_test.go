@@ -128,6 +128,7 @@ func TestLeaseRange(t *testing.T) {
 	}
 }
 
+/*
 func TestColonlessMacToMac(t *testing.T) {
 	cases := []struct {
 		mac       string
@@ -148,3 +149,4 @@ func TestColonlessMacToMac(t *testing.T) {
 		}
 	}
 }
+*/

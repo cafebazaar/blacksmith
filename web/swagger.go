@@ -46,7 +46,7 @@ func (ws *webServer) swaggerPostRebootMacHandler(params operations.PostRebootMac
 			WithPayload(&models.Error{err.Error()})
 	}
 
-	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "update"); err != nil {
+	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "reboot"); err != nil {
 		return operations.
 			NewPostRebootMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})

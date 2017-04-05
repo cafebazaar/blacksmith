@@ -1,7 +1,6 @@
 package merger_test
 
 import (
-	"log"
 	"reflect"
 	"testing"
 
@@ -133,7 +132,6 @@ ssh_authorized_keys:
 		if err := yaml.Unmarshal([]byte(tt.want), &wantCC); err != nil {
 			t.Error(err)
 		}
-		log.Println(wantCC.String())
 		if got, err := merger.Merge(baseCC, userCC); !reflect.DeepEqual(got, wantCC) {
 			if err != nil {
 				t.Error(err)

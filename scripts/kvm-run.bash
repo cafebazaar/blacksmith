@@ -49,7 +49,7 @@ conf:
   workspace-repo: ${WorkspaceGitURL}
   workspace-repo-branch: master
   initial-config: /workspace/initial.yaml
-  # private-key: $(base64 -w0 ~/.ssh/id_rsa)
+  private-key: $(base64 -w0 ~/.ssh/id_rsa)
   insecure-registry: ${BobIP}:5000
 ssh-keys:
   - $(cat ~/.ssh/id_rsa.pub)

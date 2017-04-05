@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"srcd.works/go-git.v4/plumbing/transport"
 	gitssh "srcd.works/go-git.v4/plumbing/transport/ssh"
 
 	git "srcd.works/go-git.v4"
@@ -336,7 +337,6 @@ func (ds *EtcdDatasource) UpdateMyWorkspaceLoop() error {
 func (ds *EtcdDatasource) UpdateMyWorkspace() error {
 	branch := fmt.Sprintf("refs/heads/%s", ds.workspaceBranch)
 	dir := path.Join(ds.workspacePath, "repo")
-	os.RemoveAll(dir)
 	repo, err := clone(dir, ds.workspaceRepo, branch, ds.getPrivateKey())
 	if err != nil {
 		return errors.Wrapf(err,
@@ -541,7 +541,6 @@ func NewEtcdDataSource(
 
 	branch := fmt.Sprintf("refs/heads/%s", ds.workspaceBranch)
 	dir := path.Join(ds.workspacePath, "repo")
-	os.RemoveAll(dir)
 	ds.SetBlacksmithVariable("private-key", privateKey)
 	repo, err := clone(dir, ds.workspaceRepo, branch, ds.getPrivateKey())
 	if err != nil {
@@ -632,7 +631,16 @@ func clone(path string, url string, ref string, privateKey []byte) (*git.Reposit
 		}
 	}
 
+	os.RemoveAll(path)
 	r, err := git.PlainClone(path, false, &opts)
+	if err == transport.ErrInvalidAuthMethod && len(privateKey) != 0 {
+		// Try again without the privateKey
+		log.WithFields(log.Fields{"err": err}).Info("retrying clone without key")
+		opts.Auth = nil
+		os.RemoveAll(path)
+		r, err = git.PlainClone(path, false, &opts)
+	}
+
 	if err != nil {
 		return nil, err
 	}

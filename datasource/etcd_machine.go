@@ -1,7 +1,6 @@
 package datasource
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -174,14 +173,14 @@ func (m *EtcdMachine) LastSeen() (int64, error) {
 
 // DeleteMachine deletes associated etcd folder of a machine entirely
 func (m *EtcdMachine) DeleteMachine() error {
-	return m.etcdDS.delete(path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname()),
+	return m.etcdDS.delete(path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.mac.String()),
 		&etcd.DeleteOptions{Dir: true, Recursive: true})
 }
 
 // ListFlags returns the list of all the flgas of a machine from Etcd
 // etcd and machine prefix will be added to the path
 func (m *EtcdMachine) ListVariables() (map[string]string, error) {
-	nodes, err := m.etcdDS.GetArrayVariable(path.Join("machines", m.Hostname()))
+	nodes, err := m.etcdDS.GetArrayVariable(path.Join("machines", m.mac.String()))
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +238,7 @@ func (m *EtcdMachine) DeleteVariable(key string) error {
 }
 
 func (m *EtcdMachine) prefixifyForMachine(key string) string {
-	return path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.Hostname(),
+	return path.Join(m.etcdDS.ClusterName(), etcdMachinesDirName, m.mac.String(),
 		key)
 }
 
@@ -249,16 +248,19 @@ func macFromName(name string) (net.HardwareAddr, error) {
 }
 
 func colonlessMacToMac(colonless string) string {
-	if strings.Index(colonless, ":") != -1 {
-		return colonless
-	}
-
-	var buf bytes.Buffer
-	for i, c := range colonless {
-		if i != 0 && i%2 == 0 {
-			buf.WriteString(":")
+	return colonless
+	/*
+		if strings.Index(colonless, ":") != -1 {
+			return colonless
 		}
-		buf.WriteString(string(c))
-	}
-	return buf.String()
+
+		var buf bytes.Buffer
+		for i, c := range colonless {
+			if i != 0 && i%2 == 0 {
+				buf.WriteString(":")
+			}
+			buf.WriteString(string(c))
+		}
+		return buf.String()
+	*/
 }

@@ -44,10 +44,11 @@ conf:
   tls-ca: $(base64 -w0 certs/ca.crt)
   agent-tls-cert: $(base64 -w0 certs/client.crt)
   agent-tls-key: $(base64 -w0 certs/client.key)
+  agent-tls-ca: $(base64 -w0 certs/client.ca)
   agent-url: http://${BobIP}:9090/blacksmith-agent
   workspace: /workspace
   workspace-repo: ${WorkspaceGitURL}
-  workspace-repo-branch: master
+  workspace-repo-branch: dev
   initial-config: /workspace/initial.yaml
   private-key: $(base64 -w0 ~/.ssh/id_rsa)
   insecure-registry: ${BobIP}:5000

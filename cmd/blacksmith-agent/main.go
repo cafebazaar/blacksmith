@@ -69,7 +69,7 @@ func main() {
 
 func execCmd(name string, args ...string) (ok bool) {
 	t0 := time.Now()
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Minute)
 	cmd := exec.CommandContext(ctx, name, args...)
 	fullCmd := strings.Join(cmd.Args, " ")
 	bufOut, bufErr := new(bytes.Buffer), new(bytes.Buffer)

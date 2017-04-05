@@ -14,16 +14,15 @@ GIT ?= git
 GO ?= go
 OS ?= linux
 ARCH ?= amd64
-VERSION := refactoring
 COMMIT := $(shell git rev-parse HEAD)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-DOCKER_IMAGE ?= localhost:5000/blacksmith:refactoring
+DOCKER_IMAGE ?= localhost:5000/blacksmith:$(BRANCH)
 DOCKER_IMAGE_PRODUCTION ?= quay.io/cafebazaar/blacksmith:$(BRANCH)
 BUILD_TIME := $(shell LANG=en_US date +"%F_%T_%z")
 ETCD_ENDPOINT ?= http://127.0.0.1:20379
 DUMMY_WORKSPACE ?= /tmp/blacksmith/workspaces/dummy-workspace
 ETCD_RELEASE_VERSION ?= v2.3.7
-LD_FLAGS := -s -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)
+LD_FLAGS := -s -X main.version=$(BRANCH) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)
 
 ################################################################
 #  Tasks

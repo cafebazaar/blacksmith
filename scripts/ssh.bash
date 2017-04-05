@@ -1,6 +1,9 @@
 #!/bin/bash
 # Manage VM nodes which have a specific set of hardware attributes.
 
+# Example:
+#   $ bash scripts/ssh.bash 172.20.0.11
+
 function main {
   local SSH_OPTS="StrictHostKeyChecking no"
   IP=$1

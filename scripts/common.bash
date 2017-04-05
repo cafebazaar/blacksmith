@@ -20,8 +20,8 @@ NODES=(node1 node2 node3)
 ## NODE3_MAC=52:54:00:c3:61:77
 
 # Common config
-BlacksmithImageForBob=localhost:5000/blacksmith:refactoring
-BlacksmithImage=${BobIP}:5000/blacksmith:refactoring
+BlacksmithImageForBob=localhost:5000/blacksmith:dev
+BlacksmithImage=${BobIP}:5000/blacksmith:dev
 WorkspaceGitURL=git://${BobIP}/for-refactoring/.git
 
 # BlacksmithImageForBob=quay.io/cafebazaar/blacksmith:dev

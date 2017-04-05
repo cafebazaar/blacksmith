@@ -54,7 +54,7 @@ production: blacksmith docker
 
 dependencies: *.go */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go /tmp/blacksmith/workspaces/dummy-workspace/initial.yaml swagger
 	glide --version 2> /dev/null || curl https://glide.sh/get | sh
-	# glide -q -y glide.yaml install
+	glide -q -y glide.yaml install
 
 blacksmith: dependencies blacksmithctl blacksmith-agent
 	GOOS=$(OS) GOARCH=$(ARCH) $(GO) build -ldflags="$(LD_FLAGS)" -o $@

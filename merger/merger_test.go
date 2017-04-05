@@ -1,13 +1,13 @@
 package merger_test
 
 import (
+	"log"
 	"reflect"
 	"testing"
 
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/cafebazaar/blacksmith/merger"
-	"github.com/coreos/coreos-cloudinit/config"
 )
 
 func TestMerge(t *testing.T) {
@@ -121,18 +121,19 @@ ssh_authorized_keys:
 		},
 	}
 	for _, tt := range tests {
-		baseCC := config.CloudConfig{}
+		baseCC := merger.CloudConfig{}
 		if err := yaml.Unmarshal([]byte(tt.base), &baseCC); err != nil {
 			t.Error(err)
 		}
-		userCC := config.CloudConfig{}
+		userCC := merger.CloudConfig{}
 		if err := yaml.Unmarshal([]byte(tt.user), &userCC); err != nil {
 			t.Error(err)
 		}
-		wantCC := config.CloudConfig{}
+		wantCC := merger.CloudConfig{}
 		if err := yaml.Unmarshal([]byte(tt.want), &wantCC); err != nil {
 			t.Error(err)
 		}
+		log.Println(wantCC.String())
 		if got, err := merger.Merge(baseCC, userCC); !reflect.DeepEqual(got, wantCC) {
 			if err != nil {
 				t.Error(err)

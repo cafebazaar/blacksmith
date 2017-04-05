@@ -2,7 +2,7 @@ package merger
 
 import "github.com/coreos/coreos-cloudinit/config"
 
-func mergeCoreOS(coreos1, coreos2 config.CoreOS) config.CoreOS {
+func mergeCoreOS(coreos1, coreos2 CoreOS) CoreOS {
 	if (config.Etcd{}) != coreos2.Etcd {
 		coreos1.Etcd = coreos2.Etcd
 	}

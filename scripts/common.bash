@@ -22,7 +22,7 @@ NODES=(node1 node2 node3)
 # Common config
 BlacksmithImageForBob=localhost:5000/blacksmith:dev
 BlacksmithImage=${BobIP}:5000/blacksmith:dev
-WorkspaceGitURL=git://${BobIP}/for-refactoring/.git
+WorkspaceGitURL=git@git.cafebazaar.ir:ali.javadi/blacksmith-kubernetes.git # WorkspaceGitURL=git://${BobIP}/for-refactoring/.git
 
 # BlacksmithImageForBob=quay.io/cafebazaar/blacksmith:dev
 # BlacksmithImage=quay.io/cafebazaar/blacksmith:dev

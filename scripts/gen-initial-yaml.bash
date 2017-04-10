@@ -9,7 +9,7 @@ cluster-variables:
   # coreos-version: "1325.1.0"
   coreos-version: "1235.9.0"
   net-conf: '{"netmask":"255.255.255.0", "classlessRouteOption": [{"router": "172.20.0.1", "size":24, "destination": "172.20.0.0"}]}'
-  cluster_name: "cafecluster" # sina: moved to blacksmith variable
+  cluster_name: "cafecluster"
   internal_net_conf: '{"netmask":"255.255.255.0", "classlessRouteOption": [{"router": "172.20.0.1", "size":24, "destination": "172.20.0.0"}]}'
   bootstrapper1_hostname: "bootstrapper1"
   bootstrapper1_ip: "172.20.0.11"
@@ -40,7 +40,6 @@ cluster-variables:
   machine-key: "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRRGl6NXN5YWE2U1V3ckwKOG90SFdtempyOCtKYjVlUWtkNzZTbGdwK09mZTZPRXlzVElyNFFQQzlYcWhaQjFNVDlpMVBWY0xCZ2IrVDI2bgp6TUdzR2xUeXo5cXZHWDgreU9SZDdTbkdZbE9uMC9KNDdSRWQ3aHEvZGs3QlZGb24zVlg5UllvdEVGSVNqNURaClRabnBFcmVBQndmamlvbzAyZGFOWmhzOHpSeWdmVUc3VExkVWZJaVV5VWtONE1zWkU4YjY3Tzh5ZGZFN1Q4VWMKbUE4d01RL3cyZ01MODliYmV0Z0hPYm1hb3U0eXR3NStqZkpEOVRETndKZ1JyQXcxZXVST3duOExaWUcyc3lTbwpQbXlqdGYwTkRDYmwvd21SaHBsU05RQVV0ZHVoMExJa2lEOXBEejUyMFRta0tkMUJhSjRoYUJscVEySFhHNGRsCnRIZGNGanZSQWdNQkFBRUNnZ0VCQUw2QUN1VlQyRmwwUUR3K2NuY3kzd1I2RlVGbEpoTTZRZU5OY0RHSXF4QVIKMzV3Wk1uK2lWZXQ1RFUvaTY2eTkzOUdTUExxNGpFVXJhRkN0N1BsbGdIWVUyS043TWVJRkQ3SklVVzhjQlJHUQpOamNWUHV3NW9lT3dOY094MnF0aS95ZGtNZ05aa3VXZUNkWktsSHdyeVU1U0dYRW5XcCs3VzdhVnpVakxLa0VzCmZvNCtMNHlIUU9IakNIQk40TmQ3YUJEV1lLQ2ZPYmE1dkxKOE11Tld0SnI4Wk95SlR2bXNjTkk5S2JGR2pvYTAKM25ZMVBuS3RBYnRhK3JQcS9xQTlFQTR0akZFdWdOU2RSRkpXdXZQVWY1aUhWSm50QWIvMWRNZFdabU5YS0xreQpWUTdsSlFSWW1NTXhMNnZjejI0a2JLTld4NXpvdVhFM2krbnRpQ0U0bUVFQ2dZRUE5MlZRSVNxM0lLVE5YV1Z0CnZYZWlNU01NcVozKy9saFVGZmQ1SUttT3hwTDViUFUzREkySFJNSktVRlE4cU5ZTmp3bFJ6MDZWelBXNGNsQ28KSjNpMjVTOWpuTHhnekszbTg3QUl5UHNIYWdiMzJqcUlrOUQwWGNNRXN5YnVPNytIQkljV0h6ZmoxSEx2b3lDcQpCbDFMTGtVVDVSTElBZ3I0NjBqRTdRR1B3WGtDZ1lFQTZyTUVRYkZ2SXpRWU5HK1ZWbnVaZG44REpuS291bzZmCkMwb0JudnlJTnYwSThQRDhmNVRGWUkzd0hTSzhpS2I5QjIrWmZoSk9zbFV1RUkrZkFLR2syV1VGbit6ZGgzNW4Kcy9wbEo1QzBqR3ladmhtaXpUZ0hlRUNncGxPWnZYT2g2bDNZa3BwSE1uZTdPK0pzWTM5RHJTWXpCK3lJTFJKeAo5SnJvZ2gwWVR4a0NnWUJZRExIcExBZkRVWVJaOGtpTmYyKzFaMUVSYVU4Zy9SVG9RSXpXeUNJdG9JK3ZiTkxyCjM4ODk5Sng0WEpLK1VIakE2TU02TWpEMG9wdkQ2OXI5T1dSMnkxZjdwN3dYL09qTzRGOHdFTkFCdDNzdEsxb0MKcWdMZkFCTERKRjd6MnVYV0FiSW82RDVwRllNZW52aUVqVjI5bVE1TW9GT1pEb2lyVE5ueHRIV1NtUUtCZ0ZRYwphZmNkSHNaUUFpaXdvS1dJMER2T1V4T3hYZFRXRGh1ZW55d2FOcnIyUGdFVGJIcFFsOWY5cGtMYTB4UnFQQjR4CkdhSTc3MllyN3NGU3Axb3prLyt4RzYzdjFvaWJmWkRidU9yUUNsU1ZDeGc4MmNLUVJPVU16RVl2aWRhQ25WRi8KNW9ETHQ1NVhtSXRpbnhPZFpXU2xYdjZFLzF5ZjBxVWw2eFBPVjRycEFvR0FNRHU2RmZ1OVlxYnJBS2lkRTFWaApYek5zcXNZenBUV0tyYnEwMFVFcmdWanc3WWx2SXhvNkxKekE5cG8rY1Jib2R6cEVJclN6czVVcXVELzRTRWpRCnZQa0FQZW9zcjdFZUMrS21wdVdaYVA0Nzlvclg3LzQyVVdJUnJNeU9ydFpENDJ1M2hIdlI1QmdPTkRIYkNrZ1QKeW93WmEyM1ltalBiWXNieEdWRkp0Qlk9Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K"
   bob: $BobIP
 machines:
-  # ${NODE1_MAC//:/}:
   ${NODE1_MAC}:
     hostname: "bootstrapper1"
     internal_interface_name: "ens3"
@@ -50,7 +49,6 @@ machines:
     state: "unknown"
     _machine: '{"ip":"172.20.0.11","first_seen":0,"type":1}'
     mac: "$NODE1_MAC"
-  # ${NODE2_MAC//:/}:
   ${NODE2_MAC}:
     hostname: "bootstrapper2"
     internal_interface_name: "ens3"
@@ -60,7 +58,6 @@ machines:
     state: "unknown"
     _machine: '{"ip":"172.20.0.12","first_seen":0,"type":1}'
     mac: "$NODE2_MAC"
-  # ${NODE3_MAC//:/}:
   ${NODE3_MAC}:
     hostname: "bootstrapper3"
     internal_interface_name: "ens3"

@@ -14,7 +14,7 @@
   "storage": {
     "filesystems": [{
       "mount": {
-        "device": "/dev/sda",
+        "device": "/dev/disk/by-label/ROOT",
         "format": "xfs",
         "create": {
           "force": true,

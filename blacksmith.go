@@ -57,7 +57,7 @@ func initConfig() {
 	flagset.String("tls-ca", "", "API server TLS certificate authority")
 	flagset.String("agent-tls-cert", "", "API server TLS certificate")
 	flagset.String("agent-tls-key", "", "API server TLS key")
-	flagset.String("agent-tls-ca", "", "API server TLS ca")
+	flagset.String("agent-tls-ca", "", "API server TLS CA")
 
 	flagset.String("workspace", "/workspace", workspacePathHelp)
 	flagset.String("workspace-repo", "", "Repository of workspace")

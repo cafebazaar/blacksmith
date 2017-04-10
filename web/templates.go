@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"path"
@@ -12,26 +11,23 @@ import (
 
 	"github.com/cafebazaar/blacksmith/merger"
 	"github.com/cafebazaar/blacksmith/templating"
+	"github.com/pkg/errors"
 )
 
 const (
 	templatesDebugTag = "WEB-T"
 )
 
-func (ws *webServer) generateTemplateForMachine(templateName string, w http.ResponseWriter, r *http.Request) string {
-	_, macStr := path.Split(r.URL.Path)
-
+func (ws *webServer) generateTemplateForMachine(templateName string, macStr string) (string, error) {
 	mac, err := net.ParseMAC(macStr)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`Error while parsing the mac: %q`, err), 500)
-		return ""
+		return "", errors.Wrap(err, "Error while parsing the mac")
 	}
 
 	machineInterface := ws.ds.GetEtcdMachine(mac)
 	_, err = machineInterface.Machine(false, nil)
 	if err != nil {
-		http.Error(w, "Machine not found", 404)
-		return ""
+		return "", errors.New("Machine not found")
 	}
 
 	var ccuser string
@@ -40,54 +36,54 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 		ccuser, err = templating.ExecuteTemplateFolder(
 			path.Join(ws.ds.WorkspacePath(), "repo", "config", templateName), "main", ws.ds, machineInterface)
 		if err != nil {
-			http.Error(w, fmt.Sprintf(`Error while executing the template: %q`, err), 500)
-			return ""
+			return "", errors.Wrap(err, "Error while executing the template")
 		}
 	}
 
 	tmpl, err := templating.FSString(false, "/files/"+templateName)
 	if err != nil {
-		http.Error(w, "Ebedded template not found: "+err.Error(), 500)
-		return ""
+		return "", errors.Wrap(err, "Ebedded template not found")
 	}
+
 	ccbase, err := templating.ExecuteTemplateFile(tmpl, ws.ds, machineInterface)
 	if err != nil {
-		http.Error(w, "Ebedded template can't be rendered: "+err.Error(), 500)
-		return ""
+		return "", errors.Wrap(err, "Ebedded template can't be rendered")
 	}
 
 	var content string
 	if templateName == "cloudconfig" {
 		baseCC := merger.CloudConfig{}
 		if err := yaml.Unmarshal([]byte(ccbase), &baseCC); err != nil {
-			http.Error(w, err.Error(), 500)
-			return ""
+			return "", err
 		}
 		userCC := merger.CloudConfig{}
 		if err := yaml.Unmarshal([]byte(ccuser), &userCC); err != nil {
-			http.Error(w, err.Error(), 500)
-			return ""
+			return "", err
 		}
 
 		merged, err := merger.Merge(baseCC, userCC)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return ""
+			return "", err
 		}
 		content = merged.String()
 	} else {
 		content = ccbase + "\n" + ccuser
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(content))
-	return content
+	return content, nil
 }
 
 // Cloudconfig generates and writes cloudconfig for the machine specified by the
 // mac in the request url path
 func (ws *webServer) Cloudconfig(w http.ResponseWriter, r *http.Request) {
-	config := ws.generateTemplateForMachine("cloudconfig", w, r)
+	_, macStr := path.Split(r.URL.Path)
+	config, err := ws.generateTemplateForMachine("cloudconfig", macStr)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(config))
 
 	if config != "" && r.FormValue("validate") != "" {
 		w.Write([]byte(templating.ValidateCloudConfig(config)))
@@ -97,11 +93,25 @@ func (ws *webServer) Cloudconfig(w http.ResponseWriter, r *http.Request) {
 // Ignition generates and writes ignition for the machine specified by the
 // mac in the request url path
 func (ws *webServer) Ignition(w http.ResponseWriter, r *http.Request) {
-	ws.generateTemplateForMachine("ignition", w, r)
+	_, macStr := path.Split(r.URL.Path)
+	config, err := ws.generateTemplateForMachine("ignition", macStr)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(config))
 }
 
 // Bootparams generates and writes bootparams for the machine specified by the
 // mac in the request url path. (Just for validation purpose)
 func (ws *webServer) Bootparams(w http.ResponseWriter, r *http.Request) {
-	ws.generateTemplateForMachine("bootparams", w, r)
+	_, macStr := path.Split(r.URL.Path)
+	config, err := ws.generateTemplateForMachine("bootparams", macStr)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte(config))
 }

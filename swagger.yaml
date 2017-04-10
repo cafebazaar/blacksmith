@@ -15,6 +15,8 @@ consumes:
   - application/json
 
 definitions:
+  Cloudconfig:
+    type: string
   Workspace:
     properties:
       commit:
@@ -80,6 +82,12 @@ parameters:
     required: true
     description: Variable value
     type: string
+  validate:
+    name: validate
+    in: query
+    required: false
+    description: Validate
+    type: boolean
   mac:
     name: mac
     in: path
@@ -100,6 +108,49 @@ parameters:
     type: string
 
 paths:
+  /cloudconfig/cc/{mac}:
+    get:
+      description: Get cloudconfig
+      parameters:
+        - $ref: "#/parameters/mac"
+        - $ref: "#/parameters/validate"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Cloudconfig"
+        404:
+          description: Machine with given MAC not found
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+  /cloudconfig/ig/{mac}:
+    get:
+      description: Get ignition
+      parameters:
+        - $ref: "#/parameters/mac"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Cloudconfig"
+        404:
+          description: Machine with given MAC not found
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
+  /cloudconfig/bp/{mac}:
+    get:
+      description: Get bootparams
+      parameters:
+        - $ref: "#/parameters/mac"
+      responses:
+        200:
+          description: Successful response
+          schema:
+            $ref: "#/definitions/Cloudconfig"
+        404:
+          description: Machine with given MAC not found
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
   /nodes:
     get:
       description: Get node objects

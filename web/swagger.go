@@ -9,6 +9,7 @@ import (
 
 	"github.com/cafebazaar/blacksmith/swagger/models"
 	"github.com/cafebazaar/blacksmith/swagger/restapi/operations"
+	"github.com/cafebazaar/blacksmith/templating"
 	"github.com/coreos/etcd/client"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
@@ -67,6 +68,47 @@ func (ws *webServer) swaggerPostRebootMacHandler(params operations.PostRebootMac
 			WithPayload(&models.Error{err.Error()})
 	}
 	return operations.NewPostRebootMacOK()
+}
+
+func (ws *webServer) swaggerGetCloudconfigCcMacHander(params operations.GetCloudconfigCcMacParams) middleware.Responder {
+	config, err := ws.generateTemplateForMachine("cloudconfig", params.Mac)
+	if err != nil {
+		return operations.
+			NewGetCloudconfigCcMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	if config != "" && *params.Validate {
+		return operations.
+			NewGetCloudconfigCcMacOK().
+			WithPayload(models.Cloudconfig(config + templating.ValidateCloudConfig(config)))
+	}
+	return operations.
+		NewGetCloudconfigCcMacOK().
+		WithPayload(models.Cloudconfig(config))
+}
+
+func (ws *webServer) swaggerGetCloudconfigIgMacHander(params operations.GetCloudconfigIgMacParams) middleware.Responder {
+	config, err := ws.generateTemplateForMachine("ignition", params.Mac)
+	if err != nil {
+		return operations.
+			NewGetCloudconfigIgMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	return operations.
+		NewGetCloudconfigIgMacOK().
+		WithPayload(models.Cloudconfig(config))
+}
+
+func (ws *webServer) swaggerGetCloudconfigBpMacHander(params operations.GetCloudconfigBpMacParams) middleware.Responder {
+	config, err := ws.generateTemplateForMachine("bootparams", params.Mac)
+	if err != nil {
+		return operations.
+			NewGetCloudconfigBpMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	return operations.
+		NewGetCloudconfigBpMacOK().
+		WithPayload(models.Cloudconfig(config))
 }
 
 func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) middleware.Responder {

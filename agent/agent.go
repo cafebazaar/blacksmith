@@ -42,16 +42,18 @@ type Agent struct {
 
 // WatchOptions represents the callback functions for WatchCommand
 type WatchOptions struct {
-	RebootCallback func()
-	UpdateCallback func()
+	RebootCallback  func()
+	UpdateCallback  func()
+	InstallCallback func()
 }
 
 var (
 	statusStarting         = Status{"Starting", "blacksmith-agent is starting"}
 	statusReady            = Status{"Ready", "blacksmith-agent is ready for new commands"}
 	statusConnectingToEtcd = Status{"ConnectingToEtcd", "blacksmith-agent is attempting to connect to etcd"}
-	statusBeforeReboot     = Status{"BeforeReboot", "blacksmith-agent is attempting reboot"}
-	statusBeforeUpdate     = Status{"BeforeUpdate", "blacksmith-agent is attempting updating"}
+	statusBeforeReboot     = Status{"RebootStarted", "blacksmith-agent is attempting reboot"}
+	statusBeforeUpdate     = Status{"UpdateStarted", "blacksmith-agent is attempting updating"}
+	statusBeforeInstall    = Status{"InstallStarted", "blacksmith-agent is attempting installing"}
 
 	startTime     = time.Now()
 	currentStatus = statusStarting
@@ -237,6 +239,11 @@ func WatchCommand(ctx context.Context, kapi etcd.KeysAPI, key string, opts Watch
 				currentStatus = statusBeforeReboot
 				if opts.RebootCallback != nil {
 					opts.RebootCallback()
+				}
+			case "install":
+				currentStatus = statusBeforeInstall
+				if opts.InstallCallback != nil {
+					opts.InstallCallback()
 				}
 			case "update":
 				currentStatus = statusBeforeUpdate

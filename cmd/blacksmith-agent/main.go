@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -45,6 +47,23 @@ func main() {
 		etcd.NewKeysAPI(etcdClient),
 		path.Join(opts.ClusterName, "machines", opts.HardwareAddr.String(), "agent", "command"),
 		agent.WatchOptions{
+			InstallCallback: func() {
+				resp, err := http.Get(opts.CloudconfigURL)
+				if err != nil {
+					logrus.Error(err)
+					return
+				}
+				defer resp.Body.Close()
+				cc, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					logrus.Error(err)
+					return
+				}
+				ccFile := tmpFile("cc", string(cc))
+				if ok := execCmd("/usr/bin/coreos-cloudinit", "-validate", "-from-file", ccFile.Name()); ok {
+					execCmd("/usr/bin/coreos-install", "-d", "/dev/sda", "-c", ccFile.Name(), "-C", "beta", "-b", opts.FileServer)
+				}
+			},
 			UpdateCallback: func() {
 				if ok := execCmd("/usr/bin/coreos-cloudinit", "-validate", "-from-url", opts.CloudconfigURL); ok {
 					execCmd("/usr/bin/coreos-cloudinit", "-from-url", opts.CloudconfigURL)
@@ -65,6 +84,20 @@ func main() {
 		"signal": sig,
 	}).Info("received signal")
 	cancel()
+}
+
+func tmpFile(name, content string) *os.File {
+	tmpfile, err := ioutil.TempFile("", name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		log.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return tmpfile
 }
 
 func execCmd(name string, args ...string) (ok bool) {

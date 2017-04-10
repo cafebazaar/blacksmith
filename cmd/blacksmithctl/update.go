@@ -42,7 +42,7 @@ func NewUpdateNodeCmd() *cobra.Command {
 			c := newSwaggerClient()
 			mac := args[0]
 			ctx, _ := context.WithTimeout(context.Background(), time.Second)
-			_, err := c.Operations.PostWorkspaceMac(&operations.PostWorkspaceMacParams{
+			_, err := c.Operations.PostWorkspaceUpdateMac(&operations.PostWorkspaceUpdateMacParams{
 				Mac:     mac,
 				Context: ctx,
 			})

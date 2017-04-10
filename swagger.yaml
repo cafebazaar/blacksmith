@@ -144,7 +144,7 @@ paths:
           description: Workspace not found
         500:
           $ref: "#/responses/Standard500ErrorResponse"
-
+  /workspace/update/{mac}:
     post:
       description: Update workspace
       parameters:
@@ -156,7 +156,18 @@ paths:
           description: Workspace not found
         500:
           $ref: "#/responses/Standard500ErrorResponse"
-
+  /workspace/install/{mac}:
+    post:
+      description: Install workspace
+      parameters:
+        - $ref: "#/parameters/mac"
+      responses:
+        200:
+          description: Successful response
+        404:
+          description: Workspace not found
+        500:
+          $ref: "#/responses/Standard500ErrorResponse"
   /reboot/{mac}:
     post:
       description: Reboot machine

@@ -56,25 +56,32 @@ func (ws *webServer) generateTemplateForMachine(templateName string, w http.Resp
 		return ""
 	}
 
-	baseCC := merger.CloudConfig{}
-	if err := yaml.Unmarshal([]byte(ccbase), &baseCC); err != nil {
-		http.Error(w, err.Error(), 500)
-		return ""
-	}
-	userCC := merger.CloudConfig{}
-	if err := yaml.Unmarshal([]byte(ccuser), &userCC); err != nil {
-		http.Error(w, err.Error(), 500)
-		return ""
-	}
-	merged, err := merger.Merge(baseCC, userCC)
-	if err := yaml.Unmarshal([]byte(ccuser), &userCC); err != nil {
-		http.Error(w, err.Error(), 500)
-		return ""
+	var content string
+	if templateName == "cloudconfig" {
+		baseCC := merger.CloudConfig{}
+		if err := yaml.Unmarshal([]byte(ccbase), &baseCC); err != nil {
+			http.Error(w, err.Error(), 500)
+			return ""
+		}
+		userCC := merger.CloudConfig{}
+		if err := yaml.Unmarshal([]byte(ccuser), &userCC); err != nil {
+			http.Error(w, err.Error(), 500)
+			return ""
+		}
+
+		merged, err := merger.Merge(baseCC, userCC)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return ""
+		}
+		content = merged.String()
+	} else {
+		content = ccbase + "\n" + ccuser
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(merged.String()))
-	return merged.String()
+	w.Write([]byte(content))
+	return content
 }
 
 // Cloudconfig generates and writes cloudconfig for the machine specified by the

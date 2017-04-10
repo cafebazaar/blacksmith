@@ -14,6 +14,21 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
+func (ws *webServer) swaggerPostWorkspaceInstallMacHandler(params operations.PostWorkspaceInstallMacParams) middleware.Responder {
+	mac, err := net.ParseMAC(params.Mac)
+	if err != nil {
+		return operations.
+			NewPostWorkspaceInstallMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "install"); err != nil {
+		return operations.
+			NewPostWorkspaceInstallMacInternalServerError().
+			WithPayload(&models.Error{err.Error()})
+	}
+	return operations.NewPostWorkspaceInstallMacOK()
+}
+
 func (ws *webServer) swaggerPostWorkspacesHandler(params operations.PostWorkspacesParams) middleware.Responder {
 	if err := ws.ds.UpdateWorkspaces(); err != nil {
 		return operations.
@@ -23,19 +38,19 @@ func (ws *webServer) swaggerPostWorkspacesHandler(params operations.PostWorkspac
 	return operations.NewPostWorkspacesOK()
 }
 
-func (ws *webServer) swaggerPostWorkspaceMacHandler(params operations.PostWorkspaceMacParams) middleware.Responder {
+func (ws *webServer) swaggerPostWorkspaceUpdateMacHandler(params operations.PostWorkspaceUpdateMacParams) middleware.Responder {
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
-			NewPostWorkspaceMacInternalServerError().
+			NewPostWorkspaceUpdateMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
 	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "update"); err != nil {
 		return operations.
-			NewPostWorkspaceMacInternalServerError().
+			NewPostWorkspaceUpdateMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	return operations.NewPostWorkspaceMacOK()
+	return operations.NewPostWorkspaceUpdateMacOK()
 }
 
 func (ws *webServer) swaggerPostRebootMacHandler(params operations.PostRebootMacParams) middleware.Responder {

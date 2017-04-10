@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -22,6 +23,7 @@ type Options struct {
 	Debug           bool
 	Tracing         bool
 	CloudconfigURL  string
+	FileServer      string
 	TLSCert         string
 	TLSKey          string
 	TLSCa           string
@@ -45,6 +47,7 @@ func parseFlags() Options {
 		versionFlag         = flag.Bool("version", false, "Print version info and exit")
 		debugFlag           = flag.Bool("debug", false, "Log more things")
 		cloudconfigURLFlag  = flag.String("cloudconfig-url", "", "cloudconfig url")
+		fileServerFlag      = flag.String("file-server", "", "file-server base url")
 		tlsCertFlag         = flag.String("tls-cert", "", "base64 encoded tls-cert")
 		tlsKeyFlag          = flag.String("tls-key", "", "base64 encoded tls-key")
 		tlsCaFlag           = flag.String("tls-ca", "", "base64 encoded tls-ca")
@@ -82,6 +85,10 @@ func parseFlags() Options {
 		log.Fatal(err)
 	}
 
+	if *fileServerFlag == "" {
+		log.Fatal(errors.New("file-server flag must be set"))
+	}
+
 	return Options{
 		EtcdEndPoints:   strings.Split(*etcdEndpointsFlag, ","),
 		Master:          "master",
@@ -90,6 +97,7 @@ func parseFlags() Options {
 		HeartbeatServer: *heartbeatServerFlag,
 		Debug:           *debugFlag,
 		CloudconfigURL:  *cloudconfigURLFlag,
+		FileServer:      *fileServerFlag,
 		TLSCert:         string(tlsCert),
 		TLSKey:          string(tlsKey),
 		TLSCa:           string(tlsCa),

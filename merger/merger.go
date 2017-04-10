@@ -29,98 +29,98 @@ type CoreOS struct {
 
 type Etcd struct {
 	Addr                     string  `yaml:"addr,omitempty"                          env:"ETCD_ADDR"`
-	AdvertiseClientURLs      string  `yaml:"advertise_client_urls,omitempty"         env:"ETCD_ADVERTISE_CLIENT_URLS"       deprecated:"etcd2 options no longer work for etcd"`
-	BindAddr                 string  `yaml:"bind_addr,omitempty"                     env:"ETCD_BIND_ADDR"`
-	CAFile                   string  `yaml:"ca_file,omitempty"                       env:"ETCD_CA_FILE"`
-	CertFile                 string  `yaml:"cert_file,omitempty"                     env:"ETCD_CERT_FILE"`
-	ClusterActiveSize        int     `yaml:"cluster_active_size,omitempty"           env:"ETCD_CLUSTER_ACTIVE_SIZE"`
-	ClusterRemoveDelay       float64 `yaml:"cluster_remove_delay,omitempty"          env:"ETCD_CLUSTER_REMOVE_DELAY"`
-	ClusterSyncInterval      float64 `yaml:"cluster_sync_interval,omitempty"         env:"ETCD_CLUSTER_SYNC_INTERVAL"`
+	AdvertiseClientURLs      string  `yaml:"advertise-client-urls,omitempty"         env:"ETCD_ADVERTISE_CLIENT_URLS"       deprecated:"etcd2 options no longer work for etcd"`
+	BindAddr                 string  `yaml:"bind-addr,omitempty"                     env:"ETCD_BIND_ADDR"`
+	CAFile                   string  `yaml:"ca-file,omitempty"                       env:"ETCD_CA_FILE"`
+	CertFile                 string  `yaml:"cert-file,omitempty"                     env:"ETCD_CERT_FILE"`
+	ClusterActiveSize        int     `yaml:"cluster-active-size,omitempty"           env:"ETCD_CLUSTER_ACTIVE_SIZE"`
+	ClusterRemoveDelay       float64 `yaml:"cluster-remove-delay,omitempty"          env:"ETCD_CLUSTER_REMOVE_DELAY"`
+	ClusterSyncInterval      float64 `yaml:"cluster-sync-interval,omitempty"         env:"ETCD_CLUSTER_SYNC_INTERVAL"`
 	CorsOrigins              string  `yaml:"cors,omitempty"                          env:"ETCD_CORS"`
-	DataDir                  string  `yaml:"data_dir,omitempty"                      env:"ETCD_DATA_DIR"`
+	DataDir                  string  `yaml:"data-dir,omitempty"                      env:"ETCD_DATA_DIR"`
 	Discovery                string  `yaml:"discovery,omitempty"                     env:"ETCD_DISCOVERY"`
-	DiscoveryFallback        string  `yaml:"discovery_fallback,omitempty"            env:"ETCD_DISCOVERY_FALLBACK"          deprecated:"etcd2 options no longer work for etcd"`
-	DiscoverySRV             string  `yaml:"discovery_srv,omitempty"                 env:"ETCD_DISCOVERY_SRV"               deprecated:"etcd2 options no longer work for etcd"`
-	DiscoveryProxy           string  `yaml:"discovery_proxy,omitempty"               env:"ETCD_DISCOVERY_PROXY"             deprecated:"etcd2 options no longer work for etcd"`
-	ElectionTimeout          int     `yaml:"election_timeout,omitempty"              env:"ETCD_ELECTION_TIMEOUT"            deprecated:"etcd2 options no longer work for etcd"`
-	ForceNewCluster          bool    `yaml:"force_new_cluster,omitempty"             env:"ETCD_FORCE_NEW_CLUSTER"           deprecated:"etcd2 options no longer work for etcd"`
-	GraphiteHost             string  `yaml:"graphite_host,omitempty"                 env:"ETCD_GRAPHITE_HOST"`
-	HeartbeatInterval        int     `yaml:"heartbeat_interval,omitempty"            env:"ETCD_HEARTBEAT_INTERVAL"          deprecated:"etcd2 options no longer work for etcd"`
-	HTTPReadTimeout          float64 `yaml:"http_read_timeout,omitempty"             env:"ETCD_HTTP_READ_TIMEOUT"`
-	HTTPWriteTimeout         float64 `yaml:"http_write_timeout,omitempty"            env:"ETCD_HTTP_WRITE_TIMEOUT"`
-	InitialAdvertisePeerURLs string  `yaml:"initial_advertise_peer_urls,omitempty"   env:"ETCD_INITIAL_ADVERTISE_PEER_URLS" deprecated:"etcd2 options no longer work for etcd"`
-	InitialCluster           string  `yaml:"initial_cluster,omitempty"               env:"ETCD_INITIAL_CLUSTER"             deprecated:"etcd2 options no longer work for etcd"`
-	InitialClusterState      string  `yaml:"initial_cluster_state,omitempty"         env:"ETCD_INITIAL_CLUSTER_STATE"       deprecated:"etcd2 options no longer work for etcd"`
-	InitialClusterToken      string  `yaml:"initial_cluster_token,omitempty"         env:"ETCD_INITIAL_CLUSTER_TOKEN"       deprecated:"etcd2 options no longer work for etcd"`
-	KeyFile                  string  `yaml:"key_file,omitempty"                      env:"ETCD_KEY_FILE"`
-	ListenClientURLs         string  `yaml:"listen_client_urls,omitempty"            env:"ETCD_LISTEN_CLIENT_URLS"          deprecated:"etcd2 options no longer work for etcd"`
-	ListenPeerURLs           string  `yaml:"listen_peer_urls,omitempty"              env:"ETCD_LISTEN_PEER_URLS"            deprecated:"etcd2 options no longer work for etcd"`
-	MaxResultBuffer          int     `yaml:"max_result_buffer,omitempty"             env:"ETCD_MAX_RESULT_BUFFER"`
-	MaxRetryAttempts         int     `yaml:"max_retry_attempts,omitempty"            env:"ETCD_MAX_RETRY_ATTEMPTS"`
-	MaxSnapshots             int     `yaml:"max_snapshots,omitempty"                 env:"ETCD_MAX_SNAPSHOTS"               deprecated:"etcd2 options no longer work for etcd"`
-	MaxWALs                  int     `yaml:"max_wals,omitempty"                      env:"ETCD_MAX_WALS"                    deprecated:"etcd2 options no longer work for etcd"`
+	DiscoveryFallback        string  `yaml:"discovery-fallback,omitempty"            env:"ETCD_DISCOVERY_FALLBACK"          deprecated:"etcd2 options no longer work for etcd"`
+	DiscoverySRV             string  `yaml:"discovery-srv,omitempty"                 env:"ETCD_DISCOVERY_SRV"               deprecated:"etcd2 options no longer work for etcd"`
+	DiscoveryProxy           string  `yaml:"discovery-proxy,omitempty"               env:"ETCD_DISCOVERY_PROXY"             deprecated:"etcd2 options no longer work for etcd"`
+	ElectionTimeout          int     `yaml:"election-timeout,omitempty"              env:"ETCD_ELECTION_TIMEOUT"            deprecated:"etcd2 options no longer work for etcd"`
+	ForceNewCluster          bool    `yaml:"force-new-cluster,omitempty"             env:"ETCD_FORCE_NEW_CLUSTER"           deprecated:"etcd2 options no longer work for etcd"`
+	GraphiteHost             string  `yaml:"graphite-host,omitempty"                 env:"ETCD_GRAPHITE_HOST"`
+	HeartbeatInterval        int     `yaml:"heartbeat-interval,omitempty"            env:"ETCD_HEARTBEAT_INTERVAL"          deprecated:"etcd2 options no longer work for etcd"`
+	HTTPReadTimeout          float64 `yaml:"http-read-timeout,omitempty"             env:"ETCD_HTTP_READ_TIMEOUT"`
+	HTTPWriteTimeout         float64 `yaml:"http-write-timeout,omitempty"            env:"ETCD_HTTP_WRITE_TIMEOUT"`
+	InitialAdvertisePeerURLs string  `yaml:"initial-advertise-peer-urls,omitempty"   env:"ETCD_INITIAL_ADVERTISE_PEER_URLS" deprecated:"etcd2 options no longer work for etcd"`
+	InitialCluster           string  `yaml:"initial-cluster,omitempty"               env:"ETCD_INITIAL_CLUSTER"             deprecated:"etcd2 options no longer work for etcd"`
+	InitialClusterState      string  `yaml:"initial-cluster-state,omitempty"         env:"ETCD_INITIAL_CLUSTER_STATE"       deprecated:"etcd2 options no longer work for etcd"`
+	InitialClusterToken      string  `yaml:"initial-cluster-token,omitempty"         env:"ETCD_INITIAL_CLUSTER_TOKEN"       deprecated:"etcd2 options no longer work for etcd"`
+	KeyFile                  string  `yaml:"key-file,omitempty"                      env:"ETCD_KEY_FILE"`
+	ListenClientURLs         string  `yaml:"listen-client-urls,omitempty"            env:"ETCD_LISTEN_CLIENT_URLS"          deprecated:"etcd2 options no longer work for etcd"`
+	ListenPeerURLs           string  `yaml:"listen-peer-urls,omitempty"              env:"ETCD_LISTEN_PEER_URLS"            deprecated:"etcd2 options no longer work for etcd"`
+	MaxResultBuffer          int     `yaml:"max-result-buffer,omitempty"             env:"ETCD_MAX_RESULT_BUFFER"`
+	MaxRetryAttempts         int     `yaml:"max-retry-attempts,omitempty"            env:"ETCD_MAX_RETRY_ATTEMPTS"`
+	MaxSnapshots             int     `yaml:"max-snapshots,omitempty"                 env:"ETCD_MAX_SNAPSHOTS"               deprecated:"etcd2 options no longer work for etcd"`
+	MaxWALs                  int     `yaml:"max-wals,omitempty"                      env:"ETCD_MAX_WALS"                    deprecated:"etcd2 options no longer work for etcd"`
 	Name                     string  `yaml:"name,omitempty"                          env:"ETCD_NAME"`
-	PeerAddr                 string  `yaml:"peer_addr,omitempty"                     env:"ETCD_PEER_ADDR"`
-	PeerBindAddr             string  `yaml:"peer_bind_addr,omitempty"                env:"ETCD_PEER_BIND_ADDR"`
-	PeerCAFile               string  `yaml:"peer_ca_file,omitempty"                  env:"ETCD_PEER_CA_FILE"`
-	PeerCertFile             string  `yaml:"peer_cert_file,omitempty"                env:"ETCD_PEER_CERT_FILE"`
-	PeerElectionTimeout      int     `yaml:"peer_election_timeout,omitempty"         env:"ETCD_PEER_ELECTION_TIMEOUT"`
-	PeerHeartbeatInterval    int     `yaml:"peer_heartbeat_interval,omitempty"       env:"ETCD_PEER_HEARTBEAT_INTERVAL"`
-	PeerKeyFile              string  `yaml:"peer_key_file,omitempty"                 env:"ETCD_PEER_KEY_FILE"`
+	PeerAddr                 string  `yaml:"peer-addr,omitempty"                     env:"ETCD_PEER_ADDR"`
+	PeerBindAddr             string  `yaml:"peer-bind-addr,omitempty"                env:"ETCD_PEER_BIND_ADDR"`
+	PeerCAFile               string  `yaml:"peer-ca-file,omitempty"                  env:"ETCD_PEER_CA_FILE"`
+	PeerCertFile             string  `yaml:"peer-cert-file,omitempty"                env:"ETCD_PEER_CERT_FILE"`
+	PeerElectionTimeout      int     `yaml:"peer-election-timeout,omitempty"         env:"ETCD_PEER_ELECTION_TIMEOUT"`
+	PeerHeartbeatInterval    int     `yaml:"peer-heartbeat-interval,omitempty"       env:"ETCD_PEER_HEARTBEAT_INTERVAL"`
+	PeerKeyFile              string  `yaml:"peer-key-file,omitempty"                 env:"ETCD_PEER_KEY_FILE"`
 	Peers                    string  `yaml:"peers,omitempty"                         env:"ETCD_PEERS"`
-	PeersFile                string  `yaml:"peers_file,omitempty"                    env:"ETCD_PEERS_FILE"`
+	PeersFile                string  `yaml:"peers-file,omitempty"                    env:"ETCD_PEERS_FILE"`
 	Proxy                    string  `yaml:"proxy,omitempty"                         env:"ETCD_PROXY"                       deprecated:"etcd2 options no longer work for etcd"`
-	RetryInterval            float64 `yaml:"retry_interval,omitempty"                env:"ETCD_RETRY_INTERVAL"`
+	RetryInterval            float64 `yaml:"retry-interval,omitempty"                env:"ETCD_RETRY_INTERVAL"`
 	Snapshot                 bool    `yaml:"snapshot,omitempty"                      env:"ETCD_SNAPSHOT"`
-	SnapshotCount            int     `yaml:"snapshot_count,omitempty"                env:"ETCD_SNAPSHOTCOUNT"`
+	SnapshotCount            int     `yaml:"snapshot-count,omitempty"                env:"ETCD_SNAPSHOTCOUNT"`
 	StrTrace                 string  `yaml:"trace,omitempty"                         env:"ETCD_TRACE"`
 	Verbose                  bool    `yaml:"verbose,omitempty"                       env:"ETCD_VERBOSE"`
-	VeryVerbose              bool    `yaml:"very_verbose,omitempty"                  env:"ETCD_VERY_VERBOSE"`
-	VeryVeryVerbose          bool    `yaml:"very_very_verbose,omitempty"             env:"ETCD_VERY_VERY_VERBOSE"`
+	VeryVerbose              bool    `yaml:"very-verbose,omitempty"                  env:"ETCD_VERY_VERBOSE"`
+	VeryVeryVerbose          bool    `yaml:"very-very-verbose,omitempty"             env:"ETCD_VERY_VERY_VERBOSE"`
 }
 
 type Etcd2 struct {
-	AdvertiseClientURLs      string `yaml:"advertise_client_urls,omitempty"         env:"ETCD_ADVERTISE_CLIENT_URLS"`
-	CAFile                   string `yaml:"ca_file,omitempty"                       env:"ETCD_CA_FILE"                     deprecated:"ca_file obsoleted by trusted_ca_file and client_cert_auth"`
-	CertFile                 string `yaml:"cert_file,omitempty"                     env:"ETCD_CERT_FILE"`
-	ClientCertAuth           bool   `yaml:"client_cert_auth,omitempty"              env:"ETCD_CLIENT_CERT_AUTH"`
+	AdvertiseClientURLs      string `yaml:"advertise-client-urls,omitempty"         env:"ETCD_ADVERTISE_CLIENT_URLS"`
+	CAFile                   string `yaml:"ca-file,omitempty"                       env:"ETCD_CA_FILE"                     deprecated:"ca_file obsoleted by trusted_ca_file and client_cert_auth"`
+	CertFile                 string `yaml:"cert-file,omitempty"                     env:"ETCD_CERT_FILE"`
+	ClientCertAuth           bool   `yaml:"client-cert-auth,omitempty"              env:"ETCD_CLIENT_CERT_AUTH"`
 	CorsOrigins              string `yaml:"cors,omitempty"                          env:"ETCD_CORS"`
-	DataDir                  string `yaml:"data_dir,omitempty"                      env:"ETCD_DATA_DIR"`
+	DataDir                  string `yaml:"data-dir,omitempty"                      env:"ETCD_DATA_DIR"`
 	Debug                    bool   `yaml:"debug,omitempty"                         env:"ETCD_DEBUG"`
 	Discovery                string `yaml:"discovery,omitempty"                     env:"ETCD_DISCOVERY"`
-	DiscoveryFallback        string `yaml:"discovery_fallback,omitempty"            env:"ETCD_DISCOVERY_FALLBACK"`
-	DiscoverySRV             string `yaml:"discovery_srv,omitempty"                 env:"ETCD_DISCOVERY_SRV"`
-	DiscoveryProxy           string `yaml:"discovery_proxy,omitempty"               env:"ETCD_DISCOVERY_PROXY"`
-	ElectionTimeout          int    `yaml:"election_timeout,omitempty"              env:"ETCD_ELECTION_TIMEOUT"`
-	EnablePprof              bool   `yaml:"enable_pprof,omitempty"                  env:"ETCD_ENABLE_PPROF"`
-	ForceNewCluster          bool   `yaml:"force_new_cluster,omitempty"             env:"ETCD_FORCE_NEW_CLUSTER"`
-	HeartbeatInterval        int    `yaml:"heartbeat_interval,omitempty"            env:"ETCD_HEARTBEAT_INTERVAL"`
-	InitialAdvertisePeerURLs string `yaml:"initial_advertise_peer_urls,omitempty"   env:"ETCD_INITIAL_ADVERTISE_PEER_URLS"`
-	InitialCluster           string `yaml:"initial_cluster,omitempty"               env:"ETCD_INITIAL_CLUSTER"`
-	InitialClusterState      string `yaml:"initial_cluster_state,omitempty"         env:"ETCD_INITIAL_CLUSTER_STATE"`
-	InitialClusterToken      string `yaml:"initial_cluster_token,omitempty"         env:"ETCD_INITIAL_CLUSTER_TOKEN"`
-	KeyFile                  string `yaml:"key_file,omitempty"                      env:"ETCD_KEY_FILE"`
-	ListenClientURLs         string `yaml:"listen_client_urls,omitempty"            env:"ETCD_LISTEN_CLIENT_URLS"`
-	ListenPeerURLs           string `yaml:"listen_peer_urls,omitempty"              env:"ETCD_LISTEN_PEER_URLS"`
-	LogPackageLevels         string `yaml:"log_package_levels,omitempty"            env:"ETCD_LOG_PACKAGE_LEVELS"`
-	MaxSnapshots             int    `yaml:"max_snapshots,omitempty"                 env:"ETCD_MAX_SNAPSHOTS"`
-	MaxWALs                  int    `yaml:"max_wals,omitempty"                      env:"ETCD_MAX_WALS"`
+	DiscoveryFallback        string `yaml:"discovery-fallback,omitempty"            env:"ETCD_DISCOVERY_FALLBACK"`
+	DiscoverySRV             string `yaml:"discovery-srv,omitempty"                 env:"ETCD_DISCOVERY_SRV"`
+	DiscoveryProxy           string `yaml:"discovery-proxy,omitempty"               env:"ETCD_DISCOVERY_PROXY"`
+	ElectionTimeout          int    `yaml:"election-timeout,omitempty"              env:"ETCD_ELECTION_TIMEOUT"`
+	EnablePprof              bool   `yaml:"enable-pprof,omitempty"                  env:"ETCD_ENABLE_PPROF"`
+	ForceNewCluster          bool   `yaml:"force-new-cluster,omitempty"             env:"ETCD_FORCE_NEW_CLUSTER"`
+	HeartbeatInterval        int    `yaml:"heartbeat-interval,omitempty"            env:"ETCD_HEARTBEAT_INTERVAL"`
+	InitialAdvertisePeerURLs string `yaml:"initial-advertise-peer-urls,omitempty"   env:"ETCD_INITIAL_ADVERTISE_PEER_URLS"`
+	InitialCluster           string `yaml:"initial-cluster,omitempty"               env:"ETCD_INITIAL_CLUSTER"`
+	InitialClusterState      string `yaml:"initial-cluster-state,omitempty"         env:"ETCD_INITIAL_CLUSTER_STATE"`
+	InitialClusterToken      string `yaml:"initial-cluster-token,omitempty"         env:"ETCD_INITIAL_CLUSTER_TOKEN"`
+	KeyFile                  string `yaml:"key-file,omitempty"                      env:"ETCD_KEY_FILE"`
+	ListenClientURLs         string `yaml:"listen-client-urls,omitempty"            env:"ETCD_LISTEN_CLIENT_URLS"`
+	ListenPeerURLs           string `yaml:"listen-peer-urls,omitempty"              env:"ETCD_LISTEN_PEER_URLS"`
+	LogPackageLevels         string `yaml:"log-package-levels,omitempty"            env:"ETCD_LOG_PACKAGE_LEVELS"`
+	MaxSnapshots             int    `yaml:"max-snapshots,omitempty"                 env:"ETCD_MAX_SNAPSHOTS"`
+	MaxWALs                  int    `yaml:"max-wals,omitempty"                      env:"ETCD_MAX_WALS"`
 	Name                     string `yaml:"name,omitempty"                          env:"ETCD_NAME"`
-	PeerCAFile               string `yaml:"peer_ca_file,omitempty"                  env:"ETCD_PEER_CA_FILE"                deprecated:"peer_ca_file obsoleted peer_trusted_ca_file and peer_client_cert_auth"`
-	PeerCertFile             string `yaml:"peer_cert_file,omitempty"                env:"ETCD_PEER_CERT_FILE"`
-	PeerKeyFile              string `yaml:"peer_key_file,omitempty"                 env:"ETCD_PEER_KEY_FILE"`
-	PeerClientCertAuth       bool   `yaml:"peer_client_cert_auth,omitempty"         env:"ETCD_PEER_CLIENT_CERT_AUTH"`
-	PeerTrustedCAFile        string `yaml:"peer_trusted_ca_file,omitempty"          env:"ETCD_PEER_TRUSTED_CA_FILE"`
+	PeerCAFile               string `yaml:"peer-ca-file,omitempty"                  env:"ETCD_PEER_CA_FILE"                deprecated:"peer_ca_file obsoleted peer_trusted_ca_file and peer_client_cert_auth"`
+	PeerCertFile             string `yaml:"peer-cert-file,omitempty"                env:"ETCD_PEER_CERT_FILE"`
+	PeerKeyFile              string `yaml:"peer-key-file,omitempty"                 env:"ETCD_PEER_KEY_FILE"`
+	PeerClientCertAuth       bool   `yaml:"peer-client-cert-auth,omitempty"         env:"ETCD_PEER_CLIENT_CERT_AUTH"`
+	PeerTrustedCAFile        string `yaml:"peer-trusted-ca-file,omitempty"          env:"ETCD_PEER_TRUSTED_CA_FILE"`
 	Proxy                    string `yaml:"proxy,omitempty"                         env:"ETCD_PROXY"                       valid:"^(on|off|readonly)$"`
-	ProxyDialTimeout         int    `yaml:"proxy_dial_timeout,omitempty"            env:"ETCD_PROXY_DIAL_TIMEOUT"`
-	ProxyFailureWait         int    `yaml:"proxy_failure_wait,omitempty"            env:"ETCD_PROXY_FAILURE_WAIT"`
-	ProxyReadTimeout         int    `yaml:"proxy_read_timeout,omitempty"            env:"ETCD_PROXY_READ_TIMEOUT"`
-	ProxyRefreshInterval     int    `yaml:"proxy_refresh_interval,omitempty"        env:"ETCD_PROXY_REFRESH_INTERVAL"`
-	ProxyWriteTimeout        int    `yaml:"proxy_write_timeout,omitempty"           env:"ETCD_PROXY_WRITE_TIMEOUT"`
-	SnapshotCount            int    `yaml:"snapshot_count,omitempty"                env:"ETCD_SNAPSHOT_COUNT"`
-	StrictReconfigCheck      bool   `yaml:"strict_reconfig_check,omitempty"         env:"ETCD_STRICT_RECONFIG_CHECK"`
-	TrustedCAFile            string `yaml:"trusted_ca_file,omitempty"               env:"ETCD_TRUSTED_CA_FILE"`
-	WalDir                   string `yaml:"wal_dir,omitempty"                       env:"ETCD_WAL_DIR"`
+	ProxyDialTimeout         int    `yaml:"proxy-dial-timeout,omitempty"            env:"ETCD_PROXY_DIAL_TIMEOUT"`
+	ProxyFailureWait         int    `yaml:"proxy-failure-wait,omitempty"            env:"ETCD_PROXY_FAILURE_WAIT"`
+	ProxyReadTimeout         int    `yaml:"proxy-read-timeout,omitempty"            env:"ETCD_PROXY_READ_TIMEOUT"`
+	ProxyRefreshInterval     int    `yaml:"proxy-refresh-interval,omitempty"        env:"ETCD_PROXY_REFRESH_INTERVAL"`
+	ProxyWriteTimeout        int    `yaml:"proxy-write-timeout,omitempty"           env:"ETCD_PROXY_WRITE_TIMEOUT"`
+	SnapshotCount            int    `yaml:"snapshot-count,omitempty"                env:"ETCD_SNAPSHOT_COUNT"`
+	StrictReconfigCheck      bool   `yaml:"strict-reconfig-check,omitempty"         env:"ETCD_STRICT_RECONFIG_CHECK"`
+	TrustedCAFile            string `yaml:"trusted-ca-file,omitempty"               env:"ETCD_TRUSTED_CA_FILE"`
+	WalDir                   string `yaml:"wal-dir,omitempty"                       env:"ETCD_WAL_DIR"`
 }
 
 type Flannel struct {
@@ -172,13 +172,13 @@ type Locksmith struct {
 type OEM struct {
 	ID           string `yaml:"id,omitempty"`
 	Name         string `yaml:"name,omitempty"`
-	VersionID    string `yaml:"version_id,omitempty"`
-	HomeURL      string `yaml:"home_url,omitempty"`
-	BugReportURL string `yaml:"bug_report_url,omitempty"`
+	VersionID    string `yaml:"version-id,omitempty"`
+	HomeURL      string `yaml:"home-url,omitempty"`
+	BugReportURL string `yaml:"bug-report-url,omitempty"`
 }
 
 type Update struct {
-	RebootStrategy string `yaml:"reboot_strategy,omitempty" env:"REBOOT_STRATEGY" valid:"^(best-effort|etcd-lock|reboot|off)$"`
+	RebootStrategy string `yaml:"reboot-strategy,omitempty" env:"REBOOT_STRATEGY" valid:"^(best-effort|etcd-lock|reboot|off)$"`
 	Group          string `yaml:"group,omitempty"           env:"GROUP"`
 	Server         string `yaml:"server,omitempty"          env:"SERVER"`
 }
@@ -190,7 +190,7 @@ type Unit struct {
 	Runtime bool         `yaml:"runtime,omitempty"`
 	Content string       `yaml:"content,omitempty"`
 	Command string       `yaml:"command,omitempty" valid:"^(start|stop|restart|reload|try-restart|reload-or-restart|reload-or-try-restart)$"`
-	DropIns []UnitDropIn `yaml:"drop_ins,omitempty"`
+	DropIns []UnitDropIn `yaml:"drop-ins,omitempty"`
 }
 
 type UnitDropIn struct {
@@ -209,18 +209,18 @@ type File struct {
 type User struct {
 	Name                 string   `yaml:"name,omitempty"`
 	PasswordHash         string   `yaml:"passwd,omitempty"`
-	SSHAuthorizedKeys    []string `yaml:"ssh_authorized_keys,omitempty"`
-	SSHImportGithubUser  string   `yaml:"coreos_ssh_import_github,omitempty"       deprecated:"trying to fetch from a remote endpoint introduces too many intermittent errors"`
-	SSHImportGithubUsers []string `yaml:"coreos_ssh_import_github_users,omitempty" deprecated:"trying to fetch from a remote endpoint introduces too many intermittent errors"`
-	SSHImportURL         string   `yaml:"coreos_ssh_import_url,omitempty"          deprecated:"trying to fetch from a remote endpoint introduces too many intermittent errors"`
+	SSHAuthorizedKeys    []string `yaml:"ssh-authorized-keys,omitempty"`
+	SSHImportGithubUser  string   `yaml:"coreos-ssh-import-github,omitempty"       deprecated:"trying to fetch from a remote endpoint introduces too many intermittent errors"`
+	SSHImportGithubUsers []string `yaml:"coreos-ssh-import-github-users,omitempty" deprecated:"trying to fetch from a remote endpoint introduces too many intermittent errors"`
+	SSHImportURL         string   `yaml:"coreos-ssh-import-url,omitempty"          deprecated:"trying to fetch from a remote endpoint introduces too many intermittent errors"`
 	GECOS                string   `yaml:"gecos,omitempty"`
 	Homedir              string   `yaml:"homedir,omitempty"`
-	NoCreateHome         bool     `yaml:"no_create_home,omitempty"`
-	PrimaryGroup         string   `yaml:"primary_group,omitempty"`
+	NoCreateHome         bool     `yaml:"no-create-home,omitempty"`
+	PrimaryGroup         string   `yaml:"primary-group,omitempty"`
 	Groups               []string `yaml:"groups,omitempty"`
-	NoUserGroup          bool     `yaml:"no_user_group,omitempty"`
+	NoUserGroup          bool     `yaml:"no-user-group,omitempty"`
 	System               bool     `yaml:"system,omitempty"`
-	NoLogInit            bool     `yaml:"no_log_init,omitempty"`
+	NoLogInit            bool     `yaml:"no-log-init,omitempty"`
 	Shell                string   `yaml:"shell,omitempty"`
 }
 

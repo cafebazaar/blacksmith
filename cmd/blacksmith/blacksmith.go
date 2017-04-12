@@ -24,10 +24,6 @@ import (
 	"github.com/cafebazaar/blacksmith/web"
 )
 
-//go:generate esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
-//go:generate esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/static
-//go:generate esc -o templating/files_autogen.go -prefix=templating -pkg templating templating/files
-
 const (
 	workspacePathHelp = `Path to workspace which obey following structure
 				/config/cloudconfig/main

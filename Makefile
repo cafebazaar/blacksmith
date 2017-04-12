@@ -60,11 +60,11 @@ blacksmith: dependencies blacksmithctl blacksmith-agent
 
 templating/files_autogen.go:  templating/files
 	$(GO) get github.com/mjibson/esc
-	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
+	esc -o templating/files_autogen.go -prefix=templating -pkg templating templating/files
 
 pxe/pxelinux_autogen.go: pxe/pxelinux
 	$(GO) get github.com/mjibson/esc
-	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
+	esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
 
 EXTERNAL_FILES := web/static/bower_components/angular/angular.min.js web/static/bower_components/angular-route/angular-route.min.js web/static/bower_components/angular-resource/angular-resource.min.js web/static/bower_components/angular-xeditable/dist/js/xeditable.min.js web/static/bower_components/jquery/dist/jquery.min.js web/static/bower_components/bootstrap/dist/js/bootstrap.min.js web/static/bower_components/bootstrap/dist/css/bootstrap.css web/static/bower_components/angular-xeditable/dist/css/xeditable.css
 web/static/external: $(EXTERNAL_FILES)
@@ -78,7 +78,7 @@ web/static/fonts: $(EXTERNAL_FILES_FONT)
 
 web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/static/img/* web/static/js/* web/static/external web/static/fonts
 	$(GO) get github.com/mjibson/esc
-	GOOS=$(OS) GOARCH=$(ARCH) $(GO) generate
+	esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/static
 
 clean:
 	rm -rf blacksmith blacksmithctl blacksmith-agent gofmt.diff swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts

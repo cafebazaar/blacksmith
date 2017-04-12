@@ -465,12 +465,12 @@ func (ds *EtcdDatasource) EtcdEndpoints() (string, error) {
 	return strings.Join(peers, ","), err
 }
 
-func (ds *EtcdDatasource) iterateOverYaml(iVals interface{}, pathStr string) error {
+func (ds *EtcdDatasource) copyToDatasource(iVals interface{}, pathStr string) error {
 	switch t := iVals.(type) {
 	default:
 	case string:
 		currentValue, _ := ds.get(pathStr)
-		if len(currentValue) == 0 {
+		if currentValue == "" {
 			err := ds.set(pathStr, t)
 
 			if err != nil {
@@ -482,7 +482,7 @@ func (ds *EtcdDatasource) iterateOverYaml(iVals interface{}, pathStr string) err
 	case map[interface{}]string:
 		for key, value := range t {
 			currentValue, _ := ds.get(path.Join(pathStr, key.(string)))
-			if len(currentValue) == 0 {
+			if currentValue == "" {
 				err := ds.set(path.Join(pathStr, key.(string)), value)
 
 				if err != nil {
@@ -495,11 +495,11 @@ func (ds *EtcdDatasource) iterateOverYaml(iVals interface{}, pathStr string) err
 		}
 	case map[interface{}]interface{}:
 		for key, value := range t {
-			ds.iterateOverYaml(value, path.Join(pathStr, key.(string)))
+			ds.copyToDatasource(value, path.Join(pathStr, key.(string)))
 		}
 	case []interface{}:
-		for key, value := range t {
-			ds.iterateOverYaml(value, path.Join(pathStr, string(key)))
+		for idx, value := range t {
+			ds.copyToDatasource(value, path.Join(pathStr, string(idx)))
 		}
 	}
 
@@ -571,7 +571,7 @@ func NewEtcdDataSource(
 		return nil, fmt.Errorf("error while reading initial data: %s", err)
 	}
 
-	ds.iterateOverYaml(iVals, ds.ClusterName())
+	ds.copyToDatasource(iVals, ds.ClusterName())
 
 	// TODO: Integrate DNS service into Blacksmith
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 3*time.Second)

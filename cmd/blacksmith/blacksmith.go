@@ -1,4 +1,4 @@
-package main // import "github.com/cafebazaar/blacksmith"
+package main
 
 import (
 	"encoding/base64"

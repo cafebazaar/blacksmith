@@ -132,11 +132,12 @@ ssh_authorized_keys:
 		if err := yaml.Unmarshal([]byte(tt.want), &wantCC); err != nil {
 			t.Error(err)
 		}
-		if got, err := merger.Merge(baseCC, userCC); !reflect.DeepEqual(got, wantCC) {
-			if err != nil {
-				t.Error(err)
-			}
-			t.Errorf("got:\n%s \nwant:\n%s", got.String(), wantCC.String())
+		merged, err := merger.Merge(baseCC, userCC)
+		if err != nil {
+			t.Error(err)
+		}
+		if !reflect.DeepEqual(merged, wantCC) {
+			t.Errorf("got:\n%s \nwant:\n%s", merged.String(), wantCC.String())
 		}
 	}
 }

@@ -81,7 +81,9 @@ web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/stat
 	esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/static
 
 clean:
-	rm -rf blacksmith blacksmithctl blacksmith-agent gofmt.diff swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts
+	rm -rf blacksmith blacksmithctl blacksmith-agent gofmt.diff \
+		swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts \
+		/tmp/blacksmith/workspaces/dummy-workspace/initial.yaml
 
 docker: blacksmith
 	docker build -f Dockerfile -t $(DOCKER_IMAGE) .

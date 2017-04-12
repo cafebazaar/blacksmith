@@ -100,7 +100,7 @@ func (ds *EtcdDatasource) GetEtcdMachines() ([]*EtcdMachine, error) {
 		machineName := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
 		macAddr, err := macFromName(machineName)
 		if err != nil {
-			return nil, fmt.Errorf("error while converting name to mac: %s", err)
+			return nil, fmt.Errorf("error while converting name %q to mac: %s", machineName, err)
 		}
 		ret = append(ret, ds.GetEtcdMachine(macAddr))
 	}

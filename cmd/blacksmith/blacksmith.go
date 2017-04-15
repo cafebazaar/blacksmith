@@ -33,9 +33,9 @@ const (
 
 var (
 	// Build variables
-	version   string = "unknown"
-	commit    string = "unknown"
-	buildTime string = "unknown"
+	version   = "unknown"
+	commit    = "unknown"
+	buildTime = "unknown"
 )
 
 func init() {
@@ -45,7 +45,6 @@ func init() {
 	flagset.Bool("version", false, "Print version info and exit")
 	flagset.Bool("debug", false, "Log more things that aren't directly related to booting a recognized client")
 	flagset.String("if", "", "Interface name for DHCP and PXE to listen on")
-
 	flagset.String("http-listen", "", "IP range to listen on for web UI requests")
 	flagset.String("api-listen", "", "IP range to listen on for Swagger API requests")
 	flagset.String("tls-cert", "", "API server TLS certificate")
@@ -54,7 +53,6 @@ func init() {
 	flagset.String("agent-tls-cert", "", "API server TLS certificate")
 	flagset.String("agent-tls-key", "", "API server TLS key")
 	flagset.String("agent-tls-ca", "", "API server TLS CA")
-
 	flagset.String("workspace", "/workspace", workspacePathHelp)
 	flagset.String("workspace-repo", "", "Repository of workspace")
 	flagset.String("workspace-repo-branch", "master", "Branch name for the repository of workspace")
@@ -169,23 +167,24 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	if viper.GetString("conf.etcd") == "" {
-		log.Fatal("Specify an Etcd endpoint in conf.etcd")
-	}
-
-	if viper.GetString("conf.cluster-name") == "" {
-		log.Fatal("Specify the cluster name in conf.cluster-name")
+	for _, name := range []string{
+		"conf.workspace-repo",
+		"conf.workspace-repo-branch",
+		"conf.etcd",
+		"conf.cluster-name",
+		"conf.if",
+		"conf.dns",
+	} {
+		if viper.GetString(name) == "" {
+			log.Fatalf("%s is missing", name)
+		}
 	}
 
 	var dhcpIF *net.Interface
 	var err error
-	if viper.GetString("conf.if") != "" {
-		dhcpIF, err = net.InterfaceByName(viper.GetString("conf.if"))
-		if err != nil {
-			log.Fatalf("Failed to get interface %q: %s", viper.GetString("conf.if"), err)
-		}
-	} else {
-		log.Fatal("Specify an interface")
+	dhcpIF, err = net.InterfaceByName(viper.GetString("conf.if"))
+	if err != nil {
+		log.Fatalf("Failed to get interface %q: %s", viper.GetString("conf.if"), err)
 	}
 
 	serverIP, err := interfaceIP(dhcpIF)
@@ -203,9 +202,6 @@ func main() {
 	leaseStart := net.ParseIP(viper.GetString("conf.lease-start"))
 	dnsIPStrings := strings.Split(viper.GetString("conf.dns"), ",")
 
-	if len(dnsIPStrings) == 0 {
-		log.Fatal("Specify an DNS server")
-	}
 	for _, ipString := range dnsIPStrings {
 		ip := net.ParseIP(ipString)
 		if ip == nil {
@@ -257,7 +253,7 @@ func main() {
 		selfInfo,
 	)
 	if err != nil {
-		log.Fatalf(err)
+		log.Fatal(err)
 	}
 
 	etcdDataSource.SetWebServer((&webAddr).String())

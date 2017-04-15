@@ -100,7 +100,7 @@ func (ds *EtcdDatasource) GetEtcdMachines() ([]*EtcdMachine, error) {
 		machineName := pathToMachineDir[strings.LastIndex(pathToMachineDir, "/")+1:]
 		macAddr, err := macFromName(machineName)
 		if err != nil {
-			return nil, fmt.Errorf("error while converting name %q to mac: %s", machineName, err)
+			return nil, fmt.Errorf("failed to convert name %q to mac: %s", machineName, err)
 		}
 		ret = append(ret, ds.GetEtcdMachine(macAddr))
 	}
@@ -428,7 +428,7 @@ func (ds *EtcdDatasource) EtcdMembers() (string, error) {
 	members, err := membersAPI.List(ctx)
 
 	if err != nil {
-		return "", fmt.Errorf("Error while checking etcd members: %s", err)
+		return "", err
 	}
 
 	var peers []string
@@ -443,26 +443,24 @@ func (ds *EtcdDatasource) EtcdMembers() (string, error) {
 
 // EtcdEndpoints returns a string suitable for etcdctl
 // This is the etcd the Blacksmith instance is using as its datastore
-
 func (ds *EtcdDatasource) EtcdEndpoints() (string, error) {
 	membersAPI := etcd.NewMembersAPI(ds.client)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	members, err := membersAPI.List(ctx)
-
 	if err != nil {
-		return "", fmt.Errorf("Error while checking etcd members: %s", err)
+		return "", err
 	}
 
-	var peers []string
+	var clients []string
 	for _, member := range members {
 		for _, peer := range member.ClientURLs {
-			peers = append(peers, fmt.Sprintf("%s", peer))
+			clients = append(clients, fmt.Sprintf("%s", peer))
 		}
 	}
 
-	return strings.Join(peers, ","), err
+	return strings.Join(clients, ","), err
 }
 
 func (ds *EtcdDatasource) copyToDatasource(iVals interface{}, pathStr string) error {
@@ -472,26 +470,19 @@ func (ds *EtcdDatasource) copyToDatasource(iVals interface{}, pathStr string) er
 		currentValue, _ := ds.get(pathStr)
 		if currentValue == "" {
 			err := ds.set(pathStr, t)
-
 			if err != nil {
-				return fmt.Errorf("error while setting initial value (%s: %s): %s",
-					t, t, err)
+				return errors.Wrapf(err, "Failed to set initial value %s=%s", t, t)
 			}
-
 		}
 	case map[interface{}]string:
 		for key, value := range t {
 			currentValue, _ := ds.get(path.Join(pathStr, key.(string)))
 			if currentValue == "" {
 				err := ds.set(path.Join(pathStr, key.(string)), value)
-
 				if err != nil {
-					return fmt.Errorf("error while setting initial value (%s: %s): %s",
-						t, t, err)
+					return errors.Wrapf(err, "Failed to set initial value %s=%s)", t, t)
 				}
-
 			}
-
 		}
 	case map[interface{}]interface{}:
 		for key, value := range t {
@@ -552,23 +543,23 @@ func NewEtcdDataSource(
 	}
 	head, err := repo.Head()
 	if err != nil {
-		return nil, errors.Wrapf(err, "error while getting repository head for %s", ds.workspaceRepo)
+		return nil, errors.Wrapf(err, "failed to get repo head for %s", ds.workspaceRepo)
 	}
 
 	key := path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(ds.selfInfo.Nic.String()), "workspace-commit-hash")
 	if err := ds.set(key, head.Hash().String()); err != nil {
-		return nil, errors.Wrapf(err, "error while setting ds key %q to %q", "workspace-commit-hash", head.Hash().String())
+		return nil, errors.Wrapf(err, "failed to set ds key %q to %q", "workspace-commit-hash", head.Hash().String())
 	}
 
 	data, err := ioutil.ReadFile(ds.initialConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error while trying to read initial data: %s", err)
+		return nil, fmt.Errorf("failed to read initial data: %s", err)
 	}
 
 	iVals := make(map[interface{}]interface{})
 	err = yaml.Unmarshal(data, &iVals)
 	if err != nil {
-		return nil, fmt.Errorf("error while reading initial data: %s", err)
+		return nil, fmt.Errorf("failed to read initial data: %s", err)
 	}
 
 	ds.copyToDatasource(iVals, ds.ClusterName())
@@ -594,7 +585,7 @@ func NewEtcdDataSource(
 
 	_, err = ds.GetEtcdMachine(selfInfo.Nic).Machine(true, selfInfo.IP)
 	if err != nil {
-		return nil, fmt.Errorf("error while creating the machine representation of self: %s", err)
+		return nil, fmt.Errorf("failed to create the machine representation of self: %s", err)
 	}
 
 	err = ds.set(path.Join(ds.ClusterName(), "blacksmith-instances", colonlessMacToMac(selfInfo.Nic.String()), "ip"), selfInfo.IP.String())
@@ -623,7 +614,7 @@ func clone(path string, url string, ref string, privateKey []byte) (*git.Reposit
 		log.Println("Using private-key")
 		signer, err := ssh.ParsePrivateKey(privateKey)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse private key")
+			return nil, errors.Wrap(err, "failed to parse private-key")
 		}
 		opts.Auth = &gitssh.PublicKeys{
 			User:   "git",

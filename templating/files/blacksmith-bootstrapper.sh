@@ -5,7 +5,7 @@ echo "
 ---
 conf:
   blacksmith-image: {{ blacksmith_variable "blacksmith-image" }}
-  etcd: {{ blacksmith_variable "etcd" }}
+  etcd: http://127.0.0.1:2379
   if: {{ machine_variable "internal_interface_name" }}
   cluster-name: {{ blacksmith_variable "cluster-name" }}
   lease-start: {{ blacksmith_variable "lease-start" }}

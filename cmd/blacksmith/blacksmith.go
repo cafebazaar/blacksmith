@@ -177,7 +177,6 @@ func main() {
 		log.Fatal("Specify the cluster name in conf.cluster-name")
 	}
 
-	// finding interface by interface name
 	var dhcpIF *net.Interface
 	var err error
 	if viper.GetString("conf.if") != "" {
@@ -194,22 +193,16 @@ func main() {
 		log.Fatalf("Failed to get IP from the interface %q: %v", dhcpIF, err)
 	}
 
-	// web api can be configured to listen on a custom address
 	webAddr := parseTCPAddr(viper.GetString("conf.http-listen"))
 	webAddrSwagger := parseTCPAddr(viper.GetString("conf.api-listen"))
-
-	// other services are exposed just through the given interface, on hard coded ports
-	var httpBooterAddr = net.TCPAddr{IP: serverIP, Port: 70}
-	var tftpAddr = net.UDPAddr{IP: serverIP, Port: 69}
-	var pxeAddr = net.UDPAddr{IP: serverIP, Port: 4011}
-	var dnsUDPAddr = net.UDPAddr{IP: serverIP, Port: 53}
-	var dnsTCPAddr = net.TCPAddr{IP: serverIP, Port: 53}
-	// 67 -> dhcp
-
-	// dhcp setting
+	httpBooterAddr := net.TCPAddr{IP: serverIP, Port: 70}
+	tftpAddr := net.UDPAddr{IP: serverIP, Port: 69}
+	pxeAddr := net.UDPAddr{IP: serverIP, Port: 4011}
+	dnsUDPAddr := net.UDPAddr{IP: serverIP, Port: 53}
+	dnsTCPAddr := net.TCPAddr{IP: serverIP, Port: 53}
 	leaseStart := net.ParseIP(viper.GetString("conf.lease-start"))
-
 	dnsIPStrings := strings.Split(viper.GetString("conf.dns"), ",")
+
 	if len(dnsIPStrings) == 0 {
 		log.Fatal("Specify an DNS server")
 	}
@@ -227,10 +220,9 @@ func main() {
 		log.Fatal("Lease range should be greater that 1")
 	}
 
-	fmt.Printf("Interface IP:    %s\n", serverIP.String())
-	fmt.Printf("Interface Name:  %s\n", dhcpIF.Name)
+	fmt.Printf("Interface IP:   %s\n", serverIP.String())
+	fmt.Printf("Interface Name: %s\n", dhcpIF.Name)
 
-	// datasources
 	etcdClient, err := etcd.New(etcd.Config{
 		Endpoints:               strings.Split(viper.GetString("conf.etcd"), ","),
 		HeaderTimeoutPerRequest: 5 * time.Second,
@@ -238,8 +230,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Couldn't create Etcd connection: %v", err)
 	}
-	kapi := etcd.NewKeysAPI(etcdClient)
 
+	kapi := etcd.NewKeysAPI(etcdClient)
 	selfInfo := datasource.InstanceInfo{
 		IP:               serverIP,
 		Nic:              dhcpIF.HardwareAddr,
@@ -265,7 +257,7 @@ func main() {
 		selfInfo,
 	)
 	if err != nil {
-		log.Fatalf("Couldn't create runtime configuration: %s", err)
+		log.Fatalf(err)
 	}
 
 	etcdDataSource.SetWebServer((&webAddr).String())
@@ -294,9 +286,8 @@ func main() {
 	etcdDataSource.SetBlacksmithVariable("dns", viper.GetString("conf.dns"))
 	etcdDataSource.SetBlacksmithVariable("lease-start", viper.GetString("conf.lease-start"))
 	etcdDataSource.SetBlacksmithVariable("lease-range", fmt.Sprintf("%v", viper.GetInt("conf.lease-range")))
-	etcdDataSource.SetArrayVariable("ssh-keys", viper.GetStringSlice("ssh-keys"))
-
 	etcdDataSource.SetBlacksmithVariable("agent-url", viper.GetString("conf.agent-url"))
+	etcdDataSource.SetArrayVariable("ssh-keys", viper.GetStringSlice("ssh-keys"))
 
 	go func() {
 		dns.ServeDNS(dnsTCPAddr, dnsUDPAddr, etcdDataSource)
@@ -310,27 +301,26 @@ func main() {
 	go func() {
 		tlsCert, err := base64.StdEncoding.DecodeString(viper.GetString("conf.tls-cert"))
 		if err != nil {
-			log.Fatalf("bad conf.tls-cert: %v", err)
+			log.Fatalf("Failed to decode base64 conf.tls-cert: %v", err)
 		}
 		tlsKey, err := base64.StdEncoding.DecodeString(viper.GetString("conf.tls-key"))
 		if err != nil {
-			log.Fatalf("bad conf.tls-key: %v", err)
+			log.Fatalf("Failed to decode base64 conf.tls-key: %v", err)
 		}
 		tlsCa, err := base64.StdEncoding.DecodeString(viper.GetString("conf.tls-ca"))
 		if err != nil {
-			log.Fatalf("bad conf.tls-ca: %v", err)
+			log.Fatalf("Failed to decode base64 conf.tls-ca: %v", err)
 		}
 		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger, string(tlsCert), string(tlsKey), string(tlsCa)); err != nil {
 			log.Fatalf("Error while serving swagger api: %s\n", err)
 		}
 	}()
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		for range c {
-			gracefulShutdown(etcdDataSource)
-		}
+		<-quit
+		gracefulShutdown(etcdDataSource)
 	}()
 
 	go etcdDataSource.UpdateMyWorkspaceLoop()

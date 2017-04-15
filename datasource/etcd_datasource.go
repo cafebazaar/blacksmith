@@ -54,7 +54,7 @@ type EtcdDatasource struct {
 	fileServer      string
 	webServer       string
 	dhcpAssignLock  *sync.Mutex
-	instanceEtcdKey string // HA
+	instanceEtcdKey string
 	selfInfo        InstanceInfo
 }
 

@@ -33,12 +33,12 @@ const (
 
 var (
 	// Build variables
-	version   string
-	commit    string
-	buildTime string
+	version   string = "unknown"
+	commit    string = "unknown"
+	buildTime string = "unknown"
 )
 
-func initConfig() {
+func init() {
 	flagset := pflag.NewFlagSet(os.Args[0], pflag.ExitOnError)
 	flagset.Bool("verbose", false, "Enable verbose mode")
 	flagset.String("config", "", "Set config file")
@@ -99,19 +99,6 @@ func initConfig() {
 	}
 }
 
-func init() {
-	// If version, commit, or build time are not set, make that clear.
-	if version == "" {
-		version = "unknown"
-	}
-	if commit == "" {
-		commit = "unknown"
-	}
-	if buildTime == "" {
-		buildTime = "unknown"
-	}
-}
-
 func interfaceIP(iface *net.Interface) (net.IP, error) {
 	addrs, err := iface.Addrs()
 	if err != nil {
@@ -143,24 +130,21 @@ func interfaceIP(iface *net.Interface) (net.IP, error) {
 func gracefulShutdown(etcdDataSource *datasource.EtcdDatasource) {
 	err := etcdDataSource.Shutdown()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nError while removing the instance: %s\n", err)
-	} else {
-		fmt.Fprint(os.Stderr, "\nBlacksmith is gracefully shutdown\n")
+		log.Fatalf("Error while removing the instance: %s", err)
 	}
+	fmt.Print("Blacksmith is gracefully shutdown")
 	os.Exit(0)
 }
 
 func parseTCPAddr(addr string) net.TCPAddr {
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		fmt.Printf("Incorrect tcp address provided: %s\n", addr)
-		os.Exit(1)
+		log.Fatalf("Incorrect TCP address %q: %v", addr, err)
 	}
 
 	port, err := strconv.ParseInt(portStr, 10, 64)
 	if err != nil {
-		fmt.Printf("Incorrect tcp port provided: %s\n", portStr)
-		os.Exit(1)
+		log.Fatalf("Incorrect TCP port %q: %v", portStr, err)
 	}
 
 	return net.TCPAddr{
@@ -170,13 +154,10 @@ func parseTCPAddr(addr string) net.TCPAddr {
 }
 
 func main() {
-	var err error
-
-	initConfig()
-
-	fmt.Printf("Blacksmith (%s)\n", version)
-	fmt.Printf("  Commit:        %s\n", commit)
-	fmt.Printf("  Build Time:    %s\n", buildTime)
+	fmt.Println("Blacksmith")
+	fmt.Printf("  Version:    %s\n", version)
+	fmt.Printf("  Commit:     %s\n", commit)
+	fmt.Printf("  Build Time: %s\n", buildTime)
 
 	if viper.GetBool("conf.version") {
 		os.Exit(0)
@@ -189,32 +170,28 @@ func main() {
 	}
 
 	if viper.GetString("conf.etcd") == "" {
-		fmt.Fprint(os.Stderr, "\nPlease specify the etcd blacksmith variable\n")
-		os.Exit(1)
+		log.Fatal("Specify an Etcd endpoint in conf.etcd")
 	}
 
 	if viper.GetString("conf.cluster-name") == "" {
-		fmt.Fprint(os.Stderr, "\nPlease specify the cluster-name blacksmith variable\n")
-		os.Exit(1)
+		log.Fatal("Specify the cluster name in conf.cluster-name")
 	}
 
 	// finding interface by interface name
 	var dhcpIF *net.Interface
+	var err error
 	if viper.GetString("conf.if") != "" {
 		dhcpIF, err = net.InterfaceByName(viper.GetString("conf.if"))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "\nError while trying to get the interface (%s): %s\n", viper.GetString("conf.if"), err)
-			os.Exit(1)
+			log.Fatalf("Failed to get interface %q: %s", viper.GetString("conf.if"), err)
 		}
 	} else {
-		fmt.Fprint(os.Stderr, "\nPlease specify an interface\n")
-		os.Exit(1)
+		log.Fatal("Specify an interface")
 	}
 
 	serverIP, err := interfaceIP(dhcpIF)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nError while trying to get the ip from the interface (%v)\n", dhcpIF)
-		os.Exit(1)
+		log.Fatalf("Failed to get IP from the interface %q: %v", dhcpIF, err)
 	}
 
 	// web api can be configured to listen on a custom address
@@ -234,24 +211,20 @@ func main() {
 
 	dnsIPStrings := strings.Split(viper.GetString("conf.dns"), ",")
 	if len(dnsIPStrings) == 0 {
-		fmt.Fprint(os.Stderr, "\nPlease specify an DNS server\n")
-		os.Exit(1)
+		log.Fatal("Specify an DNS server")
 	}
 	for _, ipString := range dnsIPStrings {
 		ip := net.ParseIP(ipString)
 		if ip == nil {
-			fmt.Fprintf(os.Stderr, "\nInvalid dns ip: %s\n", ipString)
-			os.Exit(1)
+			log.Fatalf("Invalid DNS IP: %s", ipString)
 		}
 	}
 
 	if leaseStart == nil {
-		fmt.Fprint(os.Stderr, "\nPlease specify the lease start ip\n")
-		os.Exit(1)
+		log.Fatal("Specify the lease start IP")
 	}
 	if viper.GetInt("conf.lease-range") <= 1 {
-		fmt.Fprint(os.Stderr, "\nLease range should be greater that 1\n")
-		os.Exit(1)
+		log.Fatal("Lease range should be greater that 1")
 	}
 
 	fmt.Printf("Interface IP:    %s\n", serverIP.String())
@@ -263,8 +236,7 @@ func main() {
 		HeaderTimeoutPerRequest: 5 * time.Second,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nCouldn't create etcd connection: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Couldn't create Etcd connection: %v", err)
 	}
 	kapi := etcd.NewKeysAPI(etcdClient)
 
@@ -293,8 +265,7 @@ func main() {
 		selfInfo,
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nCouldn't create runtime configuration: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Couldn't create runtime configuration: %s", err)
 	}
 
 	etcdDataSource.SetWebServer((&webAddr).String())
@@ -333,7 +304,7 @@ func main() {
 
 	go func() {
 		err := web.ServeWeb(etcdDataSource, webAddr)
-		log.Fatalf("\nError while serving api: %s\n", err)
+		log.Fatalf("Error while serving api: %s\n", err)
 	}()
 
 	go func() {
@@ -350,7 +321,7 @@ func main() {
 			log.Fatalf("bad conf.tls-ca: %v", err)
 		}
 		if err := web.ServeSwaggerAPI(etcdDataSource, webAddrSwagger, string(tlsCert), string(tlsKey), string(tlsCa)); err != nil {
-			log.Fatalf("\nError while serving swagger api: %s\n", err)
+			log.Fatalf("Error while serving swagger api: %s\n", err)
 		}
 	}()
 
@@ -381,25 +352,25 @@ func main() {
 	// serving http booter
 	go func() {
 		err := pxe.ServeHTTPBooter(httpBooterAddr, etcdDataSource, webAddr.Port)
-		log.Fatalf("\nError while serving http booter: %s\n", err)
+		log.Fatalf("Error while serving http booter: %s\n", err)
 	}()
 
 	// serving tftp
 	go func() {
 		err := pxe.ServeTFTP(tftpAddr)
-		log.Fatalf("\nError while serving tftp: %s\n", err)
+		log.Fatalf("Error while serving tftp: %s\n", err)
 	}()
 
 	// pxe protocol
 	go func() {
 		err := pxe.ServePXE(pxeAddr, serverIP, httpBooterAddr)
-		log.Fatalf("\nError while serving pxe: %s\n", err)
+		log.Fatalf("Error while serving pxe: %s\n", err)
 	}()
 
 	// serving dhcp
 	go func() {
 		err := dhcp.StartDHCP(dhcpIF.Name, serverIP, etcdDataSource)
-		log.Fatalf("\nError while serving dhcp: %s\n", err)
+		log.Fatalf("Error while serving dhcp: %s\n", err)
 	}()
 
 	for {

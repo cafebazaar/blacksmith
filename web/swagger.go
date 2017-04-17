@@ -137,23 +137,16 @@ func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) mid
 				NewGetNodesInternalServerError().
 				WithPayload(&models.Error{err.Error()})
 		}
-		heatbeat := struct {
-			Time   time.Time
-			Status string
+		heartbeat := struct {
+			Time   time.Time `json:"time"`
+			Status string    `json:"status"`
 		}{}
-		json.NewDecoder(strings.NewReader(value)).Decode(&heatbeat)
-		// var t strfmt.Date
-		// err = t.UnmarshalText([]byte(heatbeat.Time))
-		// if err != nil {
-		// 	return operations.
-		// 		NewGetNodesInternalServerError().
-		// 		WithPayload(&models.Error{err.Error()})
-		// }
-
+		json.NewDecoder(strings.NewReader(value)).Decode(&heartbeat)
 		resp.Payload = append(resp.Payload, &models.Node{
 			IP:            m.IP.String(),
 			Mac:           machine.Mac().String(),
-			LastHeartbeat: strfmt.Date(heatbeat.Time),
+			LastHeartbeat: strfmt.Date(heartbeat.Time),
+			Age:           int64(time.Now().Sub(heartbeat.Time).Seconds()),
 		})
 	}
 	return resp

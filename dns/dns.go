@@ -47,10 +47,7 @@ func (dnsServ *dnsServer) clusterDNS(w dns.ResponseWriter, r *dns.Msg) {
 			masterMachinesNum = masterMachinesNum + 1
 			masterMachines = append(masterMachines, machine)
 		}
-
 	}
-
-	log.Info("master machines nummber: " + strconv.Itoa(masterMachinesNum))
 
 	machineIP := net.ParseIP("127.0.0.1")
 	if masterMachinesNum != 0 {
@@ -66,10 +63,8 @@ func (dnsServ *dnsServer) clusterDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			domainName := hostName + "." + dnsServ.ds.ClusterName() + "."
-			log.Info("check for hostname: " + domainName)
 			// Should not be hardcoded
 			masterDomainName := "master" + "." + dnsServ.ds.ClusterName() + "."
-			log.Info("ceck for hostname: " + masterDomainName)
 			if r.Question[0].Name == domainName {
 				log.Info("returning IP: " + machineInstance.IP.String())
 				machineIP = machineInstance.IP
@@ -91,6 +86,8 @@ func (dnsServ *dnsServer) clusterDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 			}
 		}
+	} else {
+		log.Info("master machines nummber: " + strconv.Itoa(masterMachinesNum))
 	}
 	if err != nil {
 		log.Error("can't retrieve master machine")

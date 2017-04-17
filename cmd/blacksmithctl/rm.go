@@ -37,7 +37,7 @@ func NewRmVariablesNodesMacKey() *cobra.Command {
 				Key:     key,
 			})
 			if err != nil {
-				fmt.Println("Error:", err)
+				fmt.Println(err)
 				return
 			}
 		},
@@ -63,7 +63,7 @@ func NewRmVariablesClusterKey() *cobra.Command {
 				Key:     key,
 			})
 			if err != nil {
-				fmt.Println("Error:", err)
+				fmt.Println(err)
 				return
 			}
 		},

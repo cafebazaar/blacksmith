@@ -39,7 +39,7 @@ func NewSetVariablesNodesMacKey() *cobra.Command {
 				Value:   val,
 			})
 			if err != nil {
-				fmt.Println("Error:", err)
+				fmt.Println(err)
 				return
 			}
 			fmt.Print(formatOutput(resp.Payload))
@@ -68,7 +68,7 @@ func NewSetVariablesClusterKey() *cobra.Command {
 				Value:   val,
 			})
 			if err != nil {
-				fmt.Println("Error:", err)
+				fmt.Println(err)
 				return
 			}
 			fmt.Print(formatOutput(resp.Payload))

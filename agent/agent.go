@@ -151,7 +151,7 @@ func StartHeartbeat(ctx context.Context, server, mac, caServerName, tlsCert, tls
 				Heartbeat: buf.String(),
 			})
 			if err != nil {
-				fmt.Printf("Error: err=%#v resp=%v\n", err, resp)
+				fmt.Println(err)
 				break
 			}
 
@@ -174,23 +174,6 @@ func StartHeartbeat(ctx context.Context, server, mac, caServerName, tlsCert, tls
 				"response": resp,
 				"status":   currentStatus.Name,
 			}).Debug("sent heartbeat")
-
-			/*
-				if resp.StatusCode != http.StatusOK {
-					buf, err := ioutil.ReadAll(resp.Body)
-					if err != nil {
-						logrus.WithFields(logrus.Fields{
-							"err":    err,
-							"status": resp.Status,
-						}).Error("heartbeat received non-200 response")
-						return
-					}
-					logrus.WithFields(logrus.Fields{
-						"status":   resp.Status,
-						"response": string(buf),
-					}).Error("heartbeat received non-200 response")
-				}
-			*/
 		}
 
 		if canceled {

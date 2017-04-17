@@ -62,7 +62,6 @@ func main() {
 				ccFile := tmpFile("cc", string(cc))
 				if ok := execCmd("/usr/bin/coreos-cloudinit", "-validate", "-from-file", ccFile.Name()); ok {
 					execCmd("/usr/bin/coreos-install", "-d", "/dev/sda", "-c", ccFile.Name(), "-C", "beta", "-b", opts.FileServer)
-					execCmd("/usr/bin/coreos-cloudinit", "-from-file", ccFile.Name())
 				}
 			},
 			UpdateCallback: func() {

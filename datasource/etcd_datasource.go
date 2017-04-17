@@ -464,32 +464,32 @@ func (ds *EtcdDatasource) EtcdEndpoints() (string, error) {
 }
 
 func (ds *EtcdDatasource) copyToDatasource(iVals interface{}, pathStr string) error {
-	switch t := iVals.(type) {
+	switch val := iVals.(type) {
 	default:
 	case string:
 		currentValue, _ := ds.get(pathStr)
 		if currentValue == "" {
-			err := ds.set(pathStr, t)
+			err := ds.set(pathStr, val)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to set initial value %s=%s", t, t)
+				return errors.Wrapf(err, "Failed to set initial value %s=%s", pathStr, val)
 			}
 		}
 	case map[interface{}]string:
-		for key, value := range t {
+		for key, value := range val {
 			currentValue, _ := ds.get(path.Join(pathStr, key.(string)))
 			if currentValue == "" {
 				err := ds.set(path.Join(pathStr, key.(string)), value)
 				if err != nil {
-					return errors.Wrapf(err, "Failed to set initial value %s=%s)", t, t)
+					return errors.Wrapf(err, "Failed to set initial value %s=%s)", pathStr, val)
 				}
 			}
 		}
 	case map[interface{}]interface{}:
-		for key, value := range t {
+		for key, value := range val {
 			ds.copyToDatasource(value, path.Join(pathStr, key.(string)))
 		}
 	case []interface{}:
-		for idx, value := range t {
+		for idx, value := range val {
 			ds.copyToDatasource(value, path.Join(pathStr, string(idx)))
 		}
 	}

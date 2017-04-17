@@ -12,8 +12,8 @@ conf:
   lease-range: {{ blacksmith_variable "lease-range" }}
   dns: {{ blacksmith_variable "dns" }}
   file-server: {{ blacksmith_variable "file-server" }}
-  http-listen: {{ machine_variable "external_ip" }}:8000
-  api-listen: {{ machine_variable "external_ip" }}:8001
+  http-listen: {{ .IP }}:8000
+  api-listen: {{ .IP }}:8001
   workspace: /workspace
   workspace-repo: {{ blacksmith_variable "workspace-repo" }}
   workspace-repo-branch: {{ blacksmith_variable "workspace-repo-branch" }}

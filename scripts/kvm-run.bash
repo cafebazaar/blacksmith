@@ -48,7 +48,7 @@ conf:
   agent-url: http://${BobIP}:9090/blacksmith-agent
   workspace: /workspace
   workspace-repo: ${WorkspaceGitURL}
-  workspace-repo-branch: dev
+  workspace-repo-branch: ${WorkspaceGitBranch}
   initial-config: /workspace/initial.yaml
   private-key: $(base64 -w0 ~/.ssh/id_rsa)
   insecure-registry: ${BobIP}:5000

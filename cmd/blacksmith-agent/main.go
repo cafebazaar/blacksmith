@@ -45,7 +45,7 @@ func main() {
 	logrus.Debug("Workspace updater starting")
 	go agent.WatchCommand(ctx,
 		etcd.NewKeysAPI(etcdClient),
-		path.Join(opts.ClusterName, "machines", opts.HardwareAddr.String(), "agent", "command"),
+		path.Join(opts.ClusterName, "machines", opts.HardwareAddr.String(), "agent_command"),
 		agent.WatchOptions{
 			InstallCallback: func() {
 				resp, err := http.Get(opts.CloudconfigURL)

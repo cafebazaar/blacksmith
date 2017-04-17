@@ -22,7 +22,7 @@ func (ws *webServer) swaggerPostWorkspaceInstallMacHandler(params operations.Pos
 			NewPostWorkspaceInstallMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "install"); err != nil {
+	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent_command"), "install"); err != nil {
 		return operations.
 			NewPostWorkspaceInstallMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
@@ -46,7 +46,7 @@ func (ws *webServer) swaggerPostWorkspaceUpdateMacHandler(params operations.Post
 			NewPostWorkspaceUpdateMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "update"); err != nil {
+	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent_command"), "update"); err != nil {
 		return operations.
 			NewPostWorkspaceUpdateMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
@@ -62,7 +62,7 @@ func (ws *webServer) swaggerPostRebootMacHandler(params operations.PostRebootMac
 			WithPayload(&models.Error{err.Error()})
 	}
 
-	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "command"), "reboot"); err != nil {
+	if err := ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent_command"), "reboot"); err != nil {
 		return operations.
 			NewPostRebootMacInternalServerError().
 			WithPayload(&models.Error{err.Error()})
@@ -131,7 +131,7 @@ func (ws *webServer) swaggerGetNodesHander(params operations.GetNodesParams) mid
 			continue
 		}
 
-		value, err := machine.GetVariable(path.Join("agent", "heartbeat"))
+		value, err := machine.GetVariable(path.Join("agent_heartbeat"))
 		if err != nil {
 			return operations.
 				NewGetNodesInternalServerError().
@@ -340,7 +340,7 @@ func (ws *webServer) swaggerPostHeartbeatMacHeartbeatHandler(params operations.P
 			NewPostHeartbeatMacHeartbeatInternalServerError().
 			WithPayload(&models.Error{err.Error()})
 	}
-	err = ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent", "heartbeat"), params.Heartbeat)
+	err = ws.ds.GetEtcdMachine(mac).SetVariable(path.Join("agent_heartbeat"), params.Heartbeat)
 	if err != nil {
 		return operations.
 			NewPostHeartbeatMacHeartbeatInternalServerError().

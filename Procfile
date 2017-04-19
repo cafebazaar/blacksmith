@@ -1,3 +1,4 @@
-node1: bash scripts/ssh.bash 172.20.0.11 journalctl -b -f -u blacksmith-bootstrapper
-node2: bash scripts/ssh.bash 172.20.0.12 journalctl -b -f -u blacksmith-bootstrapper
-node3: bash scripts/ssh.bash 172.20.0.13 journalctl -b -f -u blacksmith-bootstrapper
+git-server: cd ~/go/src && git-server
+agent-file-server: cd ~/go/src/github.com/cafebazaar/blacksmith && gofile 9090
+docker-registry: docker run --rm -p 5000:5000 --name registry registry:2
+file-server: bash scripts/lightfs.bash

@@ -1,5 +1,6 @@
 #!/bin/bash
-# set -e
+set -e
+set -x
 source ./scripts/common.bash
 
 BlacksmithContainer=blacksmith-kvm
@@ -30,7 +31,7 @@ function run-blacksmith {
 conf:
   blacksmith-image: ${BlacksmithImage}
   etcd: http://${BobIP}:2379
-  if: ${Bridge}
+  if: ${Bridge1}
   cluster-name: cafecluster
   lease-start: ${LeaseStart}
   file-server: http://${BobIP}/
@@ -100,9 +101,9 @@ function main {
 
 function create-nodes {
   local OPTS="--memory=1024 --vcpus=1 --pxe --disk pool=default,size=6 --os-type=linux --os-variant=generic --noautoconsole --events on_poweroff=preserve"
-  virt-install --name $NODE1_NAME --network=bridge:$Bridge,mac=$NODE1_MAC $OPTS --boot=hd,network
-  virt-install --name $NODE2_NAME --network=bridge:$Bridge,mac=$NODE2_MAC $OPTS --boot=hd,network
-  virt-install --name $NODE3_NAME --network=bridge:$Bridge,mac=$NODE3_MAC $OPTS --boot=hd,network
+  virt-install --name $NODE1_NAME --network=bridge:$Bridge1,mac=$NODE1_MAC --network=bridge:$Bridge2 $OPTS --boot=hd,network
+  virt-install --name $NODE2_NAME --network=bridge:$Bridge1,mac=$NODE2_MAC --network=bridge:$Bridge2 $OPTS --boot=hd,network
+  virt-install --name $NODE3_NAME --network=bridge:$Bridge1,mac=$NODE3_MAC --network=bridge:$Bridge2 $OPTS --boot=hd,network
 }
 
 function destroy-nodes {

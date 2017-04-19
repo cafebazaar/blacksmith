@@ -1,8 +1,11 @@
 # Network
-Bridge=blacksmith0
+Bridge1=blacksmith0
+Bridge2=blacksmith1
 BobIP=172.20.0.1
-Subnet=172.20.0.1/24
+Subnet1=172.20.0.1/24
+Subnet2=172.21.0.1/24
 LeaseStart=172.20.0.11
+InternetInterface=$(route | grep '^default' | grep -o '[^ ]*$')
 
 NODE1_NAME=node1
 NODE1_MAC=00:02:7d:15:be:82

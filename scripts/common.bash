@@ -12,13 +12,6 @@ NODE3_NAME=node3
 NODE3_MAC=00:02:7d:15:be:86
 NODES=(node1 node2 node3)
 
-## NODE1_NAME=node1
-## NODE1_MAC=52:54:00:a1:9c:ae
-## NODE2_NAME=node2
-## NODE2_MAC=52:54:00:b2:2f:86
-## NODE3_NAME=node3
-## NODE3_MAC=52:54:00:c3:61:77
-
 # Common config
 
 # BlacksmithImageForBob=localhost:5000/blacksmith:dev

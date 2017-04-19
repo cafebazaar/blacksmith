@@ -1,4 +1,4 @@
-.PHONY: help clean docker push test prepare_test_etcd
+.PHONY: help clean docker push test prepare_test_etcd blacksmith blacksmithctl blacksmith-agent
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  dependencies to install the dependencies"

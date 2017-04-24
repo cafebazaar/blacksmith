@@ -13,8 +13,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// Options represents all the commandline flags
-type Options struct {
+type options struct {
 	EtcdEndPoints   []string
 	Master          string
 	ClusterName     string
@@ -38,19 +37,19 @@ var (
 	buildTime = "was not built properly"
 )
 
-func parseFlags() Options {
+func parseFlags() options {
 	var (
 		etcdEndpointsFlag   = flag.String("etcd", "", "Etcd endpoints")
 		clusterNameFlag     = flag.String("cluster-name", "blacksmith", "The name of this cluster. Will be used as etcd path prefixes.")
 		macAddrFlag         = flag.String("mac", "", "mac address")
 		heartbeatServerFlag = flag.String("heartbeat-server", "http://localhost:8000", "HTTP Server to send heartbeats and messages to")
-		versionFlag         = flag.Bool("version", false, "Print version info and exit")
-		debugFlag           = flag.Bool("debug", false, "Log more things")
 		cloudconfigURLFlag  = flag.String("cloudconfig-url", "", "cloudconfig url")
 		fileServerFlag      = flag.String("file-server", "", "file-server base url")
 		tlsCertFlag         = flag.String("tls-cert", "", "base64 encoded tls-cert")
 		tlsKeyFlag          = flag.String("tls-key", "", "base64 encoded tls-key")
 		tlsCaFlag           = flag.String("tls-ca", "", "base64 encoded tls-ca")
+		versionFlag         = flag.Bool("version", false, "Print version info and exit")
+		debugFlag           = flag.Bool("debug", false, "Log more things")
 	)
 
 	flag.Parse()
@@ -89,7 +88,7 @@ func parseFlags() Options {
 		log.Fatal(errors.New("file-server flag must be set"))
 	}
 
-	return Options{
+	return options{
 		EtcdEndPoints:   strings.Split(*etcdEndpointsFlag, ","),
 		Master:          "master",
 		ClusterName:     *clusterNameFlag,

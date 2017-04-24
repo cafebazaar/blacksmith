@@ -18,22 +18,18 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/coreos/coreos-cloudinit/config"
-	"github.com/coreos/coreos-cloudinit/datasource"
-	"github.com/coreos/coreos-cloudinit/initialize"
-	"github.com/coreos/coreos-cloudinit/network"
 	etcd "github.com/coreos/etcd/client"
 	"github.com/pkg/errors"
 )
 
-// Status represents the status of the agent
+// Status represents an agent status
 type Status struct {
 	Name        string
 	Description string
 }
 
-// Agent details
-type Agent struct {
+// Heartbeat is the heartbeat details reported by the agent
+type Heartbeat struct {
 	Status  string    `json:"status"`
 	Message string    `json:"message"`
 	Time    time.Time `json:"time"`
@@ -59,8 +55,7 @@ var (
 	currentStatus = statusStarting
 )
 
-// Watch if for watching a key and calling callback on change.
-func Watch(ctx context.Context, kapi etcd.KeysAPI, key string, callback func(*etcd.Response, error)) error {
+func watch(ctx context.Context, kapi etcd.KeysAPI, key string, callback func(*etcd.Response, error)) error {
 	for {
 		ctx, cancel := context.WithTimeout(ctx, time.Hour)
 		defer cancel()
@@ -124,7 +119,7 @@ func newSwaggerClient(server, caServerName, tlsCert, tlsKey, tlsCa string) *clie
 	return client.New(transport, strfmt.NewFormats())
 }
 
-// StartHeartbeat starts a loop for sending heartbeat every second
+// StartHeartbeat starts a loop for sending a heartbeat every second
 func StartHeartbeat(ctx context.Context, server, mac, caServerName, tlsCert, tlsKey, tlsCa string) {
 	c := newSwaggerClient(server, caServerName, tlsCert, tlsKey, tlsCa)
 
@@ -137,7 +132,7 @@ func StartHeartbeat(ctx context.Context, server, mac, caServerName, tlsCert, tls
 		default:
 			// Set current status
 			buf := new(bytes.Buffer)
-			json.NewEncoder(buf).Encode(Agent{
+			json.NewEncoder(buf).Encode(Heartbeat{
 				Status:  currentStatus.Name,
 				Message: currentStatus.Description,
 				Time:    time.Now(),
@@ -200,7 +195,7 @@ func WatchCommand(ctx context.Context, kapi etcd.KeysAPI, key string, opts Watch
 		}
 
 		currentStatus = statusReady
-		err := Watch(ctx, kapi, key, func(resp *etcd.Response, err error) {
+		err := watch(ctx, kapi, key, func(resp *etcd.Response, err error) {
 			defer func() {
 				currentStatus = statusReady
 			}()
@@ -246,50 +241,4 @@ func WatchCommand(ctx context.Context, kapi etcd.KeysAPI, key string, opts Watch
 			time.Sleep(time.Second)
 		}
 	}
-}
-
-func GetCloudConfig(url string) ([]byte, error) {
-	httpClient := http.Client{
-		Timeout: time.Second,
-	}
-	resp, err := httpClient.Get(url)
-	if err != nil {
-		return nil, errors.Wrap(err, "cloudconfig fetch failed")
-	}
-	defer resp.Body.Close()
-	buf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "ReadAll for cloudconfig response failed")
-	}
-	return buf, nil
-}
-
-func ApplyCloudconfig(cloudconfig []byte) error {
-	var (
-		configRoot     = ""
-		flagWorkspace  = "/var/lib/coreos-cloudinit"
-		flagSshKeyName = "coreos-cloudinit"
-	)
-
-	var ccu *config.CloudConfig
-	switch ud, err := initialize.ParseUserData(string(cloudconfig)); err {
-	case initialize.ErrIgnitionConfig:
-		return errors.Wrap(err, "Detected an Ignition config")
-	case nil:
-		switch t := ud.(type) {
-		case *config.CloudConfig:
-			ccu = t
-		default:
-			return fmt.Errorf("Only CloudConfig user-data is supported")
-		}
-	default:
-		return errors.Wrap(err, "Failed to parse user-data")
-	}
-
-	env := initialize.NewEnvironment("/", configRoot, flagWorkspace, flagSshKeyName, datasource.Metadata{})
-	if err := initialize.Apply(*ccu, []network.InterfaceGenerator{}, env); err != nil {
-		return errors.Wrap(err, "Failed to apply cloud-config")
-	}
-
-	return nil
 }

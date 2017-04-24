@@ -81,8 +81,8 @@ write_files:
     owner: "root"
     content: Y2x1c3Rlci...
 ssh_authorized_keys:
-  - ssh-rsa AAAAB3NzaC1yc2EAAAA... sina@cafesina
-  - ssh-rsa AAAAB3NzaC1yc2EAAAA... ali@ali-javadi-pc
+  - ssh-rsa AAAAB3NzaC1yc2EAAAA... user1@pc1
+  - ssh-rsa AAAAB3NzaC1yc2EAAAA... user2@pc2
             `,
 			want: `
 #cloud-config
@@ -123,8 +123,8 @@ write_files:
     owner: "root"
     content: Y2x1c3Rlci...
 ssh_authorized_keys:
-  - ssh-rsa AAAAB3NzaC1yc2EAAAA... sina@cafesina
-  - ssh-rsa AAAAB3NzaC1yc2EAAAA... ali@ali-javadi-pc
+  - ssh-rsa AAAAB3NzaC1yc2EAAAA... user1@pc1
+  - ssh-rsa AAAAB3NzaC1yc2EAAAA... user2@pc2
 `,
 		},
 	}

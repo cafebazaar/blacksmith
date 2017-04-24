@@ -47,8 +47,7 @@ func machineToDetails(machineInterface *datasource.EtcdMachine) (*machineDetails
 		machine.FirstSeen, last}, nil
 }
 
-// MachinesList creates a list of the currently known machines based on the etcd
-// entries
+// MachinesList lists currently known machines based on the etcd entries
 func (ws *webServer) MachinesList(w http.ResponseWriter, r *http.Request) {
 	machines, err := ws.ds.GetEtcdMachines()
 	if err != nil {
@@ -100,7 +99,7 @@ func (ws *webServer) MachineDelete(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, `"OK"`)
 }
 
-// MachineVariable returns all the flags set for the machine
+// MachineVariable lists machines variables
 func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	macString := vars["mac"]
@@ -128,7 +127,6 @@ func (ws *webServer) MachineVariables(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) {
-
 	vars := mux.Vars(r)
 	macStr := vars["mac"]
 	name := vars["name"]
@@ -158,7 +156,6 @@ func (ws *webServer) SetMachineVariable(w http.ResponseWriter, r *http.Request) 
 }
 
 func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) {
-
 	vars := mux.Vars(r)
 	macStr := vars["mac"]
 	name := vars["name"]
@@ -184,7 +181,7 @@ func (ws *webServer) DelMachineVariable(w http.ResponseWriter, r *http.Request) 
 	io.WriteString(w, `"OK"`)
 }
 
-// ClusterVariables returns all the cluster general variables
+// ClusterVariables lists all cluster variables
 func (ws *webServer) ClusterVariablesList(w http.ResponseWriter, r *http.Request) {
 	flags, err := ws.ds.ListClusterVariables()
 	if err != nil {

@@ -3,6 +3,9 @@
 set -x
 source ./scripts/common.bash
 
+user=$(whoami)
+pubkey=$(cat ~/.ssh/id_rsa.pub)
+
 cat <<YAML
 cluster-variables:
   coreos-version: "1248.4.0"
@@ -65,6 +68,5 @@ machines:
     _machine: '{"ip":"172.20.0.13","first_seen":0,"type":1}'
     mac: "$NODE3_MAC"
 ssh-keys:
-  ali-javadi-pc: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDKHS5Iax3lhsPAHCpWoYGa2Jxy+OBBdEoWys4SyNJeHoa/gRtVJ6t/Txr+U3gj64gpmgLiiuhAFmooAfDYEf9DLccgnY7heAb5vaeYKSvjf25+poTFQwmWz0AobNSbIRn09dVaQCwW55avbHAYn9HknuOq1ECYWu24rxhWYzjccmKyMz/MyEeT+pF3Gzp1UuycL1Skz6MJr/FedrqdhCqrDL8/ihHdewUvkOcOnlnQW94yZM+NCRYbvHbZHyebu1eOAUyqgZ+U/83ttTx+BRPzeour/6nne4krYR35tNoomJE0LT6sIJfUVjfcXH9l8WTXXrMKBP992/pM4HOUvNut ali@ali-javadi-pc"
-  sina-pc: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCw4PwRHg43ZMkl3P4TNEWC51c07P36TnndOshd83gCeR1piWyWYz3b/25+vE6WDG9bxYrz1/EIbL8Bfv7QjGfM9zgWb94WaYqzLA+twj9soCPBkMt7uKFWnqMiD1AmJSBXnsSEqRV6BWcJJgOlXAcDF4XGi1FLBZzKeJjsGjrODFi4QjD44gLR+SPL0AIOa/KoCbEeb6+BZC8JgCzjCVXSFmvTdLH3Rc/TNrLv03MU187G3VNKM62k9NzCaxOjm85mzdM3VKJNyjTuE3jsIgnLUY0l4TJFndR00hz90OiE6CU8tht8Hyxfj12jUocZD8JcgTyr2o/+/GKvyv9LE8P9 sina@cafesina"
+  $user: "$pubkey"
 YAML

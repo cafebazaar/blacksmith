@@ -72,7 +72,6 @@ write_files:
     permissions: "0744"
     owner: "root"
     content: {{ b64template "initial.yaml" }}    
-  # TODO(sina): why do we need id_rsa and id_rsa.pub?
 {{ end }}
 
 ssh_authorized_keys:

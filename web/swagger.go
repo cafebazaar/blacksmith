@@ -190,7 +190,6 @@ func (ws *webServer) swaggerGetVariablesClusterHandler(params operations.GetVari
 }
 
 func (ws *webServer) swaggerGetVariablesNodesMacHandler(params operations.GetVariablesNodesMacParams) middleware.Responder {
-	// GetVariablesNodesMac
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.
@@ -215,7 +214,6 @@ func (ws *webServer) swaggerGetVariablesNodesMacHandler(params operations.GetVar
 }
 
 func (ws *webServer) swaggerGetVariablesNodesMacKeyHandler(params operations.GetVariablesNodesMacKeyParams) middleware.Responder {
-	// GetVariablesNodesMacKey
 	mac, err := net.ParseMAC(params.Mac)
 	if err != nil {
 		return operations.

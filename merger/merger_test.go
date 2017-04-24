@@ -9,6 +9,15 @@ import (
 	"github.com/cafebazaar/blacksmith/merger"
 )
 
+func TestOmitEmpty(t *testing.T) {
+	// Ensure unset fields are not included in the marshaled string. Here, we set
+	// only one field and expect only that field in the marshaled string.
+	cc := merger.CloudConfig{Hostname: "host"}
+	if got, want := cc.String(), "#cloud-config\nhostname: host\n"; got != want {
+		t.Errorf("got=%q want=%q", got, want)
+	}
+}
+
 func TestMerge(t *testing.T) {
 	tests := []struct{ base, user, want string }{
 		{

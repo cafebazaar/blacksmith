@@ -27,44 +27,9 @@ type webServer struct {
 // Handler uses a multiplexing router to route http requests
 func (ws *webServer) Handler() http.Handler {
 	mux := mux.NewRouter()
-
 	mux.PathPrefix("/t/cc/").HandlerFunc(ws.Cloudconfig).Methods("GET")
 	mux.PathPrefix("/t/ig/").HandlerFunc(ws.Ignition).Methods("GET")
 	mux.PathPrefix("/t/bp/").HandlerFunc(ws.Bootparams).Methods("GET")
-
-	mux.HandleFunc("/api/version", ws.Version)
-
-	mux.HandleFunc("/api/machines", ws.MachinesList)
-	mux.HandleFunc("/api/machines/{mac}", ws.MachineDelete).Methods("DELETE")
-
-	// Machine variables; used in templates
-	mux.PathPrefix("/api/machines/{mac}/variables").HandlerFunc(ws.MachineVariables).Methods("GET")
-	mux.PathPrefix("/api/machines/{mac}/variables/{name}").HandlerFunc(ws.SetMachineVariable).Methods("PUT")
-	mux.PathPrefix("/api/machines/{mac}/variables/{name}").HandlerFunc(ws.DelMachineVariable).Methods("DELETE")
-
-	// Cluster variables; used in templates
-	mux.PathPrefix("/api/variables").HandlerFunc(ws.ClusterVariablesList).Methods("GET")
-	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.SetClusterVariables).Methods("PUT")
-	mux.PathPrefix("/api/variables/{name}").HandlerFunc(ws.DelClusterVariables).Methods("DELETE")
-
-	mux.PathPrefix("/api/update").HandlerFunc(ws.UpdateWorkspaces).Methods("POST")
-	mux.PathPrefix("/api/update").HandlerFunc(ws.GetWorkspaceHash).Methods("GET")
-
-	// TODO: returning other files functionalities
-	// mux.PathPrefix("/files/").Handler(http.StripPrefix("/files/",
-	// http.FileServer(http.Dir(filepath.Join(ws.ds.WorkspacePath(), "files")))))
-
-	mux.Path("/ui").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/ui/", 302)
-	}))
-
-	mux.PathPrefix("/ui/").Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		index, _ := FSByte(false, "/static/index.html")
-		w.Write(index)
-	}))
-
-	mux.PathPrefix("/static/").Handler(http.FileServer(FS(false)))
-
 	return mux
 }
 

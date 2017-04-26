@@ -61,7 +61,6 @@ type Handler struct {
 	ifName      string
 	serverIP    net.IP
 	datasource  *datasource.EtcdDatasource
-	dhcpOptions dhcp4.Options
 	bootMessage string
 }
 

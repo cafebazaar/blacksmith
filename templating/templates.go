@@ -177,21 +177,6 @@ func templateFromPath(tmplPath string) (*template.Template, error) {
 	return t, nil
 }
 
-//FromPath creates templates from the files located in the specified path
-func templateForFile(tmpl string) (*template.Template, error) {
-
-	t := template.New("")
-	t.Delims("{{", "}}")
-	t.Funcs(templateFuncsDefault())
-
-	t, err := t.Parse(tmpl)
-	if err != nil {
-		return nil, err
-	}
-
-	return t, nil
-}
-
 func ExecuteTemplateFile(tmpl string,
 	ds *datasource.EtcdDatasource, machineInterface *datasource.EtcdMachine) (string, error) {
 

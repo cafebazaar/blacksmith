@@ -33,12 +33,6 @@ func (ws *webServer) Handler() http.Handler {
 	return mux
 }
 
-func logHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-	})
-}
-
 //ServeWeb serves api of Blacksmith and a ui connected to that api
 func ServeWeb(ds *datasource.EtcdDatasource, listenAddr net.TCPAddr) error {
 

@@ -9,7 +9,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"text/template"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -25,15 +24,10 @@ const (
 `
 )
 
-type nodeContext struct {
-	IP string
-}
-
 type HTTPBooter struct {
 	listenAddr          net.TCPAddr
 	ldlinux             []byte
 	datasource          *datasource.EtcdDatasource
-	bootParamsTemplates *template.Template
 	webPort             int
 	bootMessageTemplate string
 }

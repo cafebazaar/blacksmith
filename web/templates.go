@@ -14,10 +14,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	templatesDebugTag = "WEB-T"
-)
-
 func (ws *webServer) generateTemplateForMachine(templateName string, macStr string) (string, error) {
 	mac, err := net.ParseMAC(macStr)
 	if err != nil {

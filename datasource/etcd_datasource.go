@@ -1,16 +1,12 @@
 package datasource
 
 import (
-	"bytes"
-	"crypto/md5"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -20,7 +16,6 @@ import (
 
 	git "srcd.works/go-git.v4"
 	"srcd.works/go-git.v4/plumbing"
-	"srcd.works/go-git.v4/plumbing/object"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -36,7 +31,6 @@ const (
 	etcdCluserVarsDirName         = "cluster-variables"
 	etcdBlacksmithConfVarsDirName = "blacksmith-variables"
 	etcdConfigurationDirName      = "configuration"
-	etcdFilesDirName              = "files"
 	etcdUpdateMeValue             = "update-me"
 )
 
@@ -134,14 +128,6 @@ func (ds *EtcdDatasource) get(keyPath string) (string, error) {
 		return "", err
 	}
 	return response.Node.Value, nil
-}
-
-// create expects absolute key path
-func (ds *EtcdDatasource) create(keyPath string, value string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := ds.keysAPI.Create(ctx, keyPath, value)
-	return err
 }
 
 // get expects absolute key path
@@ -278,17 +264,6 @@ func (ds *EtcdDatasource) GetWorkspaceHash() (string, error) {
 	// TODO: this is meaningless if machines are updated one by one
 	workspaceHash, err := ds.get(path.Join(ds.ClusterName(), "workspace-hash"))
 	return workspaceHash, err
-}
-
-func hashGenerator() string {
-
-	h := md5.New()
-	io.WriteString(h, time.Now().String())
-	io.WriteString(h, "00f468d3bde3")
-
-	hashStr := fmt.Sprintf("%x", h.Sum(nil))
-
-	return hashStr
 }
 
 func (ds *EtcdDatasource) getPrivateKey() []byte {
@@ -637,61 +612,4 @@ func clone(path string, url string, ref string, privateKey []byte) (*git.Reposit
 	}
 
 	return r, err
-}
-
-func checkoutRepo(r *git.Repository, path string) error {
-	ref, err := r.Head()
-	if err != nil {
-		return err
-	}
-
-	commit, err := r.Commit(ref.Hash())
-	if err != nil {
-		return err
-	}
-
-	tree, err := commit.Tree()
-	if err != nil {
-		return err
-	}
-
-	tree.Files().ForEach(func(f *object.File) error {
-		contents, err := fileContents(f)
-		if err != nil {
-			return err
-		}
-
-		name := filepath.Join(path, f.Name)
-		err = os.MkdirAll(filepath.Dir(name), 0755)
-		if err != nil {
-			return err
-		}
-
-		err = ioutil.WriteFile(name, []byte(contents), f.Mode)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
-	return nil
-}
-
-func fileContents(f *object.File) (content []byte, err error) {
-	reader, err := f.Reader()
-	if err != nil {
-		return []byte(""), err
-	}
-	defer func(c io.Closer, err *error) {
-		if cerr := reader.Close(); cerr != nil && *err == nil {
-			*err = cerr
-		}
-	}(reader, &err)
-
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(reader); err != nil {
-		return []byte(""), err
-	}
-
-	return buf.Bytes(), nil
 }

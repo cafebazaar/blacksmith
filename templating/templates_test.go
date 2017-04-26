@@ -12,7 +12,6 @@ func TestExecuteTemplate(t *testing.T) {
 	cases := []struct {
 		inputTemplteRoot *template.Template
 		templateName     string
-		webServerAddr    string
 		err              bool
 		expected         string
 	}{

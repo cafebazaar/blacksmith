@@ -1,4 +1,4 @@
-.PHONY: help clean docker push test prepare_test_etcd blacksmith blacksmithctl blacksmith-agent
+.PHONY: help clean docker push test run_test_etcd blacksmith blacksmithctl blacksmith-agent
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  dependencies to install the dependencies"
@@ -31,7 +31,7 @@ LD_FLAGS := -s -X main.version=$(BRANCH) -X main.commit=$(COMMIT) -X main.buildT
 	@mkdir -p $(DUMMY_WORKSPACE)
 	@bash scripts/gen-initial-yaml.bash > $@
 
-prepare_test_etcd:
+run_test_etcd:
 	@docker kill blacksmith-test-etcd || echo "wasn't running"
 	@docker rm blacksmith-test-etcd || echo "didn't exist"
 	@docker pull quay.io/coreos/etcd:$(ETCD_RELEASE_VERSION)

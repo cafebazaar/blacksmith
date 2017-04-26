@@ -64,61 +64,25 @@ configure them through etcd.
 ## Documentation
 Check [this](docs/README.md).
 
-## Test
-For test you can use our ```blacksmith-kubernetes``` workspace.
+## Development
 
-### Cluster Setup
 Get packages:
 ```bash
 go get github.com/cafebazaar/blacksmith
-go get github.com/cafebazaar/blacksmith-kubernetes
+cd $GOPATH/github.com/cafebazaar/blacksmith
 ```
-You can customize ```config.sh``` file for your needs. For example for your proxy config you can edit the in this way:
-```bash
-export CONTAINER_HTTP_PROXY=http://<your http proxy ip>:<port>
-export CONTAINER_HTTPS_PROXY=http://<your https proxy ip>:<port>
-```
-`Warning:` Do not use system specific IPs such as ```localhost``` and ```127.0.0.1``` in this case.
-You need to specify your interface names:
-```bash
-export INTERNAL_INTERFACE_NAME=enp0s8
-export EXTERNAL_INTERFACE_NAME=enp0s9
-```
-Place your ```config.sh``` file in workspace:
-```bash
-cp config.sh $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes
-```
-Clone and prepare a workspace:
-```bash
-cd $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/binaries
-./download-all.sh
-cd ..
-```
-Put your key into ```ssh-keys.yaml```:
-```bash
-echo "  - $(cat ~/.ssh/id_rsa.pub)" > ssh-keys.yaml
-```
-Build workspace:
-```bash 
-./build.sh
-```
-Goto Blacksmith and link workspace to desired directory:
-```bash
-cd $GOPATH/src/github.com/cafebazaar/blacksmith
-mkdir workspaces
-ln -s $GOPATH/src/github.com/cafebazaar/blacksmith-kubernetes/workspace workspaces/current
-```
-Initialize the cluster using VirtualBox
-```bash
-./dev_run.sh
-```
-On blacksmith-kubernetes, once machines reached "installed" state, you should terminate BoB. Now you can add new workers to the virtualized cluster.
-```bash
-./dev_run.sh worker 5
-```
-Five is the number of worker nodes to be initialized.
 
-### Kubernetes
+Run tests:
+```bash
+make run_test_etcd test
+```
+
+Create a cluster of 3 KVM virtual machines:
+```bash
+bash scripts/kvm-run.bash all
+```
+
+## Kubernetes
 
 Add this line to your ```/etc/hosts``` file:
 ```

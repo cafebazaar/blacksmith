@@ -13,7 +13,7 @@ go:
 
 before_install:
 - make dependencies
-- make prepare_test_etcd
+- make run_test_etcd
 
 script: make test
 

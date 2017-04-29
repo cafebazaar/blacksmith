@@ -51,7 +51,7 @@ test: dependencies
 
 production: blacksmith docker		
 
-dependencies: */*.go pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go /tmp/blacksmith/workspaces/dummy-workspace/initial.yaml swagger
+dependencies: */*.go pxe/pxelinux_autogen.go templating/files_autogen.go /tmp/blacksmith/workspaces/dummy-workspace/initial.yaml swagger
 	glide --version 2> /dev/null || curl https://glide.sh/get | sh
 	glide -q -y glide.yaml install
 
@@ -66,23 +66,9 @@ pxe/pxelinux_autogen.go: pxe/pxelinux
 	$(GO) get github.com/mjibson/esc
 	esc -o pxe/pxelinux_autogen.go -prefix=pxe -pkg pxe -ignore=README.md pxe/pxelinux
 
-EXTERNAL_FILES := web/static/bower_components/angular/angular.min.js web/static/bower_components/angular-route/angular-route.min.js web/static/bower_components/angular-resource/angular-resource.min.js web/static/bower_components/angular-xeditable/dist/js/xeditable.min.js web/static/bower_components/jquery/dist/jquery.min.js web/static/bower_components/bootstrap/dist/js/bootstrap.min.js web/static/bower_components/bootstrap/dist/css/bootstrap.css web/static/bower_components/angular-xeditable/dist/css/xeditable.css
-web/static/external: $(EXTERNAL_FILES)
-	mkdir -p web/static/external
-	cp $(EXTERNAL_FILES) web/static/external
-
-EXTERNAL_FILES_FONT := web/static/bower_components/bootstrap/fonts/glyphicons-halflings-regular.woff2
-web/static/fonts: $(EXTERNAL_FILES_FONT)
-	mkdir -p web/static/fonts
-	cp $(EXTERNAL_FILES_FONT) web/static/fonts
-
-web/ui_autogen.go: web/static/* web/static/partials/* web/static/css/*  web/static/img/* web/static/js/* web/static/external web/static/fonts
-	$(GO) get github.com/mjibson/esc
-	esc -o web/ui_autogen.go -prefix=web -ignore=bower_components -pkg web web/static
-
 clean:
 	rm -rf blacksmith blacksmithctl blacksmith-agent gofmt.diff \
-		swagger pxe/pxelinux_autogen.go templating/files_autogen.go web/ui_autogen.go web/static/external web/static/fonts \
+		swagger pxe/pxelinux_autogen.go templating/files_autogen.go \
 		/tmp/blacksmith/workspaces/dummy-workspace/initial.yaml
 
 docker: blacksmith

@@ -17,8 +17,6 @@ vagrant_provision_after_docker_installation.local
 pxe/pxelinux_autogen.go
 templating/files_autogen.go
 web/ui_autogen.go
-web/static/external
-web/static/fonts
 swagger/
 /config/
 

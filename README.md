@@ -72,6 +72,23 @@ go get github.com/cafebazaar/blacksmith
 cd $GOPATH/github.com/cafebazaar/blacksmith
 ```
 
+Build binaries:
+
+```bash
+make blacksmith blacksmithctl blacksmith-agent
+```
+
+Sample `blacksmithctl` config located at ~/.blacksmithctl/config.yaml:
+```yaml
+auth:
+  client-certificate: /home/user/go/src/github.com/cafebazaar/blacksmith/certs/client.crt
+  client-key: /home/user/go/src/github.com/cafebazaar/blacksmith/certs/client.key
+cluster:
+  certificate-authority: /home/user/go/src/github.com/cafebazaar/blacksmith/certs/ca.crt
+  ca-server-name: localhost
+  server: 172.20.0.1:8001
+```
+
 Run tests:
 ```bash
 make run_test_etcd test
@@ -84,7 +101,7 @@ bash scripts/kvm-run.bash all
 
 Run a file server to serve files downloaded in the `fs/` directory.
 
-After CoreOS is booted, install it on disk:
+After CoreOS is booted via network, you can install it on disk:
 
 ```bash
 bash scripts/install-nodes.bash

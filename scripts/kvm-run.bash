@@ -6,6 +6,11 @@ source ./scripts/common.bash
 BlacksmithContainer=blacksmith-kvm
 EtcdContainer=blacksmith-kvm-etcd
 
+if [ ! "$EUID" -ne 0 ]; then
+  echo "Do not run as root"
+  exit 1
+fi
+
 function run-etcd {
   docker run --name $EtcdContainer -d \
     -p 4001:4001 \
@@ -24,8 +29,11 @@ function run-etcd {
 
 function run-blacksmith {
   mkdir -p ./config
+  mkdir -p $GOPATH/src/github.com/cafebazaar/blacksmith/workspaces/current/
   bash ./scripts/gen-blacksmith-config.bash > ./config/config.yaml
   bash ./scripts/gen-initial-yaml.bash > $GOPATH/src/github.com/cafebazaar/blacksmith/workspaces/current/initial.yaml
+  bash ./scripts/gencert.sh
+  bash ./scripts/download-coreos-images.bash $COREOS_CHANNEL $COREOS_VERSION
 
   docker run -d --name $BlacksmithContainer \
     --net=host \
@@ -36,11 +44,14 @@ function run-blacksmith {
 }
 
 function usage {
-  echo "USAGE: [TODO]"
+  echo "USAGE:
+  $0 all
+  $0 destroy
+  $0 create"
 }
 
 function main {
-  sudo date > /dev/null
+  sudo date
   case "$1" in
     "all")
       bash $0 destroy || true

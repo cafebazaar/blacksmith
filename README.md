@@ -77,10 +77,12 @@ Run tests:
 make run_test_etcd test
 ```
 
-Create a cluster of 3 KVM virtual machines:
+Download CoreOS images and create a cluster of 3 KVM virtual machines:
 ```bash
 bash scripts/kvm-run.bash all
 ```
+
+Run a file server to serve files downloaded in the `fs/` directory.
 
 ## Kubernetes
 

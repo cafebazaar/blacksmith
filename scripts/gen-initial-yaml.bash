@@ -7,7 +7,7 @@ pubkey=$(cat ~/.ssh/id_rsa.pub)
 
 cat <<YAML
 cluster-variables:
-  coreos-version: "1248.4.0"
+  coreos-version: "${COREOS_VERSION}"
   net-conf: '{"netmask":"255.255.255.0", "classlessRouteOption": [{"router": "172.20.0.1", "size":24, "destination": "172.20.0.0"}]}'
   cluster_name: "cafecluster"
   internal_net_conf: '{"netmask":"255.255.255.0", "classlessRouteOption": [{"router": "172.20.0.1", "size":24, "destination": "172.20.0.0"}]}'

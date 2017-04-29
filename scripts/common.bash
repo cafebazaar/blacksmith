@@ -15,6 +15,9 @@ NODE3_NAME=node3
 NODE3_MAC=00:02:7d:15:be:86
 NODES=(node1 node2 node3)
 
+COREOS_VERSION=1248.4.0
+COREOS_CHANNEL=beta
+
 # Common config
 
 # BlacksmithImageForBob=localhost:5000/blacksmith:dev

@@ -90,6 +90,12 @@ After CoreOS is booted, install it on disk:
 bash scripts/install-nodes.bash
 ```
 
+Reboot the nodes after CoreOS is installed on disk
+
+```bash
+bash scripts/reboot-nodes.bash
+```
+
 ## Kubernetes
 
 Add this line to your ```/etc/hosts``` file:

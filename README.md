@@ -84,6 +84,12 @@ bash scripts/kvm-run.bash all
 
 Run a file server to serve files downloaded in the `fs/` directory.
 
+After CoreOS is booted, install it on disk:
+
+```bash
+bash scripts/install-nodes.bash
+```
+
 ## Kubernetes
 
 Add this line to your ```/etc/hosts``` file:

@@ -23,7 +23,7 @@ conf:
   agent-tls-cert: $(base64 -w0 certs/client.crt)
   agent-tls-key: $(base64 -w0 certs/client.key)
   agent-tls-ca: $(base64 -w0 certs/ca.crt)
-  agent-url: http://${BobIP}:9090/blacksmith-agent
+  agent-url: http://${BobIP}/blacksmith-agent
   workspace: /workspace
   workspace-repo: ${WorkspaceGitURL}
   workspace-repo-branch: ${WorkspaceGitBranch}

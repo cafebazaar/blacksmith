@@ -68,7 +68,8 @@ function main {
     "create")
       bash scripts/netctl.bash create
       run-etcd
-      make blacksmith-agent && cp blacksmith-agent ./fs/blacksmith-agent
+      # make blacksmithctl
+      # make blacksmith-agent && cp blacksmith-agent ./fs/blacksmith-agent
       run-blacksmith
       create-nodes
       ;;

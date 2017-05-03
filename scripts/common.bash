@@ -5,7 +5,7 @@ BobIP=172.20.0.1
 Subnet1=172.20.0.1/24
 Subnet2=172.21.0.1/24
 LeaseStart=172.20.0.11
-InternetInterface=$(route | grep '^default' | grep -o '[^ ]*$')
+InternetInterface=$(ip route get 8.8.8.8 | head -1 | cut -d " " -f 5)
 
 NODE1_NAME=node1
 NODE1_MAC=00:02:7d:15:be:82

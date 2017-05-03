@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 source ./scripts/common.bash
 
 user=$(whoami)

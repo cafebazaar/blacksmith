@@ -345,7 +345,7 @@ func (ds *EtcdDatasource) UpdateWorkspaces() error {
 		&etcd.GetOptions{Recursive: true},
 	)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "UpdateWorkspaces failed")
 	}
 
 	wg := sync.WaitGroup{}

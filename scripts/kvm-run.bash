@@ -1,6 +1,5 @@
 #!/bin/bash
-# set -e
-set -x
+set -e
 source ./scripts/common.bash
 
 BlacksmithContainer=blacksmith-kvm
@@ -30,9 +29,11 @@ function run-etcd {
 function run-blacksmith {
   mkdir -p ./config
   mkdir -p $GOPATH/src/github.com/cafebazaar/blacksmith/workspaces/current/
+  if [ ! -d ${cert_dir} ]; then
+    bash ./scripts/gencert.sh
+  fi
   bash ./scripts/gen-blacksmith-config.bash > ./config/config.yaml
   bash ./scripts/gen-initial-yaml.bash > $GOPATH/src/github.com/cafebazaar/blacksmith/workspaces/current/initial.yaml
-  bash ./scripts/gencert.sh
   bash ./scripts/download-coreos-images.bash $COREOS_CHANNEL $COREOS_VERSION
 
   docker run -d --name $BlacksmithContainer \

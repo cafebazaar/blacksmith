@@ -1,3 +1,4 @@
+set -x
 ./blacksmithctl update workspaces
 
 ./blacksmithctl set node-key 00:02:7d:15:be:82 state bootstrapper1

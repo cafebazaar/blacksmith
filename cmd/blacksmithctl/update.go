@@ -19,7 +19,7 @@ func NewUpdateWorkspaceCmd() *cobra.Command {
 		Use: "workspaces",
 		Run: func(cmd *cobra.Command, args []string) {
 			c := newSwaggerClient()
-			ctx, _ := context.WithTimeout(context.Background(), time.Second)
+			ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 			_, err := c.Operations.PostWorkspaces(&operations.PostWorkspacesParams{Context: ctx})
 			if err != nil {
 				fmt.Println(err)
